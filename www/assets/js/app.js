@@ -6,7 +6,7 @@ const mc=i=>COLORS[i%COLORS.length];
 let TOKEN = null;
 try { TOKEN = localStorage.getItem('bcp_token'); } catch {}
 const _ls = {
-  getTheme(){ try{return localStorage.getItem('bcp_theme')||'yellow';}catch{return 'yellow';} },
+  getTheme(){ try{return localStorage.getItem('bcp_theme')||'green';}catch{return 'green';} },
   setTheme(t){ try{localStorage.setItem('bcp_theme',t);}catch{} },
   setToken(t){ TOKEN=t; try{ t?localStorage.setItem('bcp_token',t):localStorage.removeItem('bcp_token'); }catch{} }
 };

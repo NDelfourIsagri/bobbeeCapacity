@@ -15,8 +15,8 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || '*' }));
 
-// ── Sert le frontend (index.html dans /public) ──────────
-app.use(express.static(path.join(__dirname, 'public')));
+// ── Sert le frontend (www/) ─────────────────────────────
+app.use(express.static(path.join(__dirname, 'www')));
 
 // ── Pool MySQL ──────────────────────────────────────────
 const pool = mysql.createPool({
@@ -264,7 +264,7 @@ function dbToLeave(r) {
 }
 
 // ── Fallback SPA ────────────────────────────────────────
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'www', 'capa', 'index.html')));
 
 // ── Start ───────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
