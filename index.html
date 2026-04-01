@@ -312,7 +312,6 @@ tr:hover td{background:var(--chip);}
             <button class="btn btn-filled" onclick="openLeaveModal()"><span class="material-icons-round">add</span>Congé</button>
           </div>
         </div>
-        <!-- Planning table -->
         <div class="planning-outer" style="margin-bottom:20px">
           <div class="planning-toolbar">
             <div style="display:flex;align-items:center;gap:10px">
@@ -331,7 +330,6 @@ tr:hover td{background:var(--chip);}
             <table class="ptable" id="plan-table"></table>
           </div>
         </div>
-        <!-- Leave list -->
         <div class="card">
           <div class="card-title"><span class="material-icons-round">list</span>Liste des congés</div>
           <div id="leave-list"></div>
@@ -514,30 +512,48 @@ tr:hover td{background:var(--chip);}
 const COLORS=['#e91e63','#9c27b0','#3f51b5','#009688','#ff5722','#607d8b','#795548','#4caf50','#ff9800','#00bcd4'];
 const mc=i=>COLORS[i%COLORS.length];
 
-// ── DB ───────────────────────────────────────────────────
-const DB={
-  get(k,d=null){try{const v=localStorage.getItem('bcp_'+k);return v!==null?JSON.parse(v):d;}catch{return d;}},
-  set(k,v){try{localStorage.setItem('bcp_'+k,JSON.stringify(v));}catch{}}
+// ── API CLIENT ───────────────────────────────────────────
+const API={
+  async req(method,url,body){
+    const opts={method,headers:{'Content-Type':'application/json'}};
+    const t=localStorage.getItem('bcp_token');
+    if(t)opts.headers['Authorization']='Bearer '+t;
+    if(body!==undefined)opts.body=JSON.stringify(body);
+    const r=await fetch(url,opts);
+    const data=await r.json().catch(()=>({}));
+    if(r.status===401){doLogout();throw{error:'Session expirée'};}
+    if(!r.ok)throw data;
+    return data;
+  },
+  get:url=>API.req('GET',url),
+  post:(url,body)=>API.req('POST',url,body),
+  put:(url,body)=>API.req('PUT',url,body),
+  del:(url,body)=>API.req('DELETE',url,body),
 };
 
-function initDB(){
-  let users=DB.get('users',[]);
-  const defs=[
-    {id:'admin1',email:'admin@isagri.fr',pwd:'admin123',fname:'Admin',lname:'bobbee',role:'admin',createdAt:''},
-    {id:'admin2',email:'ndelfour@isagri.fr',pwd:'password',fname:'Nicolas',lname:'Delfour',role:'admin',createdAt:''}
-  ];
-  let ch=false;
-  defs.forEach(a=>{if(!users.find(u=>u.email===a.email)){users.push(a);ch=true;}});
-  if(ch)DB.set('users',users);
-  if(!DB.get('vel_grid'))DB.set('vel_grid',{alternant:50,junior:70,intermediaire:85,senior:100});
-  if(!DB.get('mtg_grid'))DB.set('mtg_grid',{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50});
-  if(!DB.get('team'))DB.set('team',[]);
-  if(!DB.get('sprints'))DB.set('sprints',[]);
-  if(!DB.get('leaves'))DB.set('leaves',[]);  // [{id,memberId,date:'YYYY-MM-DD',type:'full'|'am'|'pm',reason}]
-}
-
 // ── STATE ────────────────────────────────────────────────
-let CU=null; // current user
+const S={
+  team:[],sprints:[],leaves:[],
+  config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
+  users:[]
+};
+
+function normSprint(s){
+  return{id:s.id,name:s.name,
+    start:s.start_date||s.start,end:s.end_date||s.end,
+    velocityPlanned:s.velocity_planned??s.velocityPlanned??0,
+    velocityCurrent:s.velocity_current??s.velocityCurrent??null,
+    velocityActual:s.velocity_actual??s.velocityActual??null,
+    confidence:s.confidence||0,objectives:s.objectives||[],closed:!!s.closed};
+}
+async function loadTeam(){S.team=await API.get('/api/team');}
+async function loadSprints(){S.sprints=(await API.get('/api/sprints')).map(normSprint);}
+async function loadLeaves(){S.leaves=await API.get('/api/leaves');}
+async function loadConfig(){const d=await API.get('/api/config');if(d.vel_grid)S.config.vel_grid=d.vel_grid;if(d.mtg_grid)S.config.mtg_grid=d.mtg_grid;}
+async function loadUsers(){S.users=await API.get('/api/users');}
+
+// ── APP STATE ────────────────────────────────────────────
+let CU=null;
 let calDate=new Date();
 let editSprintId=null,closeSprintId=null,sprintStars=0,tmpObjs=[];
 let editMemberId=null,dragSrc=null;
@@ -549,15 +565,18 @@ function switchAuthTab(t){
   document.getElementById('login-form').style.display=t==='login'?'':'none';
   document.getElementById('register-form').style.display=t==='register'?'':'none';
 }
-function doLogin(){
+async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pwd=document.getElementById('login-pwd').value;
-  const u=DB.get('users',[]).find(u=>u.email===email&&u.pwd===pwd);
-  if(!u){document.getElementById('login-error').style.display='block';return;}
-  document.getElementById('login-error').style.display='none';
-  loginOk(u);
+  try{
+    const data=await API.post('/api/auth/login',{email,pwd});
+    localStorage.setItem('bcp_token',data.token);
+    localStorage.setItem('bcp_user',JSON.stringify(data.user));
+    document.getElementById('login-error').style.display='none';
+    loginOk(data.user);
+  }catch(e){document.getElementById('login-error').style.display='block';}
 }
-function doRegister(){
+async function doRegister(){
   const fname=document.getElementById('reg-fname').value.trim();
   const lname=document.getElementById('reg-lname').value.trim();
   const email=document.getElementById('reg-email').value.trim();
@@ -565,10 +584,12 @@ function doRegister(){
   const err=document.getElementById('reg-error');
   if(!fname||!lname||!email||!pwd){err.textContent='Remplissez tous les champs.';err.style.display='block';return;}
   if(pwd.length<6){err.textContent='Mot de passe trop court.';err.style.display='block';return;}
-  const users=DB.get('users',[]);
-  if(users.find(u=>u.email===email)){err.textContent='Email déjà utilisé.';err.style.display='block';return;}
-  const u={id:'u'+Date.now(),email,pwd,fname,lname,role:'consultant',createdAt:new Date().toISOString()};
-  users.push(u);DB.set('users',users);loginOk(u);toast('Bienvenue 🐝','success');
+  try{
+    const data=await API.post('/api/auth/register',{fname,lname,email,pwd});
+    localStorage.setItem('bcp_token',data.token);
+    localStorage.setItem('bcp_user',JSON.stringify(data.user));
+    loginOk(data.user);toast('Bienvenue 🐝','success');
+  }catch(e){err.textContent=e.error||'Erreur lors de la création.';err.style.display='block';}
 }
 function loginOk(u){
   CU=u;
@@ -581,44 +602,50 @@ function loginOk(u){
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=u.role==='admin'?'':'none');
   navTo('dashboard');
 }
-function doLogout(){CU=null;document.getElementById('app').style.display='none';document.getElementById('auth-screen').style.display='flex';}
+function doLogout(){
+  CU=null;
+  localStorage.removeItem('bcp_token');
+  localStorage.removeItem('bcp_user');
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
 function openPwdModal(){['pwd-cur','pwd-new','pwd-cf'].forEach(id=>document.getElementById(id).value='');document.getElementById('pwd-err').style.display='none';document.getElementById('modal-pwd').classList.add('open');}
-function savePwd(){
+async function savePwd(){
   const cur=document.getElementById('pwd-cur').value;
   const nw=document.getElementById('pwd-new').value;
   const cf=document.getElementById('pwd-cf').value;
   const err=document.getElementById('pwd-err');
-  const users=DB.get('users',[]),idx=users.findIndex(u=>u.id===CU.id);
-  if(users[idx].pwd!==cur){err.textContent='Mot de passe actuel incorrect.';err.style.display='block';return;}
   if(nw.length<6){err.textContent='Min. 6 caractères.';err.style.display='block';return;}
   if(nw!==cf){err.textContent='Ne correspondent pas.';err.style.display='block';return;}
-  users[idx].pwd=nw;DB.set('users',users);CU=users[idx];closeModal('modal-pwd');toast('Mot de passe mis à jour ✓','success');
+  try{
+    await API.put('/api/auth/password',{current:cur,next:nw});
+    closeModal('modal-pwd');toast('Mot de passe mis à jour ✓','success');
+  }catch(e){err.textContent=e.error||'Mot de passe actuel incorrect.';err.style.display='block';}
 }
 
 // ── NAV ──────────────────────────────────────────────────
-function navTo(p){
+async function navTo(p){
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p)?.classList.add('active');
   document.querySelectorAll('.nav-item,.bottom-nav-item').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll(`[onclick="navTo('${p}')"]`).forEach(x=>x.classList.add('active'));
-  if(p==='dashboard')renderDash();
-  if(p==='agenda')renderAgenda();
-  if(p==='sprints')renderSprints();
-  if(p==='charts')renderCharts();
-  if(p==='settings')renderSettings();
-  if(p==='users')renderUsers();
+  if(p==='dashboard'){await Promise.all([loadTeam(),loadSprints(),loadLeaves()]);renderDash();}
+  if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();}
+  if(p==='sprints'){await loadSprints();renderSprints();}
+  if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);renderCharts();}
+  if(p==='settings'){await Promise.all([loadTeam(),loadConfig()]);renderSettings();}
+  if(p==='users'){await loadUsers();renderUsers();}
 }
 
 // ── THEME ────────────────────────────────────────────────
 function setTheme(t){
-  document.body.setAttribute('data-theme',t);DB.set('theme',t);
+  document.body.setAttribute('data-theme',t);localStorage.setItem('bcp_theme',t);
   document.querySelectorAll('[data-theme]:not(body)').forEach(el=>el.classList.toggle('active',el.getAttribute('data-theme')===t));
 }
 function applyMode(){document.body.setAttribute('data-mode',window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
 
 // ── HOLIDAYS ─────────────────────────────────────────────
 function holidays(year){
-  // Algorithme de Meeus/Jones/Butcher pour Pâques
   const a=year%19;
   const b=Math.floor(year/100);
   const c=year%100;
@@ -631,25 +658,23 @@ function holidays(year){
   const k=c%4;
   const l=(32+2*e+2*i-h-k)%7;
   const m=Math.floor((a+11*h+22*l)/451);
-  const easterMonth=Math.floor((h+l-7*m+114)/31); // 1-based
+  const easterMonth=Math.floor((h+l-7*m+114)/31);
   const easterDay=((h+l-7*m+114)%31)+1;
   const easter=new Date(year, easterMonth-1, easterDay);
-
   const add=(dt,n)=>{ const r=new Date(dt); r.setDate(r.getDate()+n); return r; };
-  const fmt=dt=>toDS(dt); // utilise toDS() local = pas d'UTC
-
+  const fmt=dt=>toDS(dt);
   return new Set([
-    fmt(new Date(year,0,1)),           // Jour de l'an       1 jan
-    fmt(add(easter,1)),                // Lundi de Pâques
-    fmt(new Date(year,4,1)),           // Fête du Travail    1 mai
-    fmt(new Date(year,4,8)),           // Victoire 1945      8 mai
-    fmt(add(easter,39)),               // Ascension
-    fmt(add(easter,50)),               // Lundi de Pentecôte
-    fmt(new Date(year,6,14)),          // Fête Nationale    14 juil
-    fmt(new Date(year,7,15)),          // Assomption        15 août
-    fmt(new Date(year,10,1)),          // Toussaint          1 nov
-    fmt(new Date(year,10,11)),         // Armistice         11 nov
-    fmt(new Date(year,11,25)),         // Noël              25 déc
+    fmt(new Date(year,0,1)),
+    fmt(add(easter,1)),
+    fmt(new Date(year,4,1)),
+    fmt(new Date(year,4,8)),
+    fmt(add(easter,39)),
+    fmt(add(easter,50)),
+    fmt(new Date(year,6,14)),
+    fmt(new Date(year,7,15)),
+    fmt(new Date(year,10,1)),
+    fmt(new Date(year,10,11)),
+    fmt(new Date(year,11,25)),
   ]);
 }
 
@@ -658,12 +683,12 @@ const r2=v=>Math.round(v*100)/100;
 function dayH(dt){return dt.getDay()===5?7:8;}
 
 function calcCap(member,start,end,leaves){
-  const vg=DB.get('vel_grid',{alternant:50,junior:70,intermediaire:85,senior:100});
+  const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
   const startDt=parseDate(start),endDt=parseDate(end);
   const hols=holidays(startDt.getFullYear());
   if(startDt.getFullYear()!==endDt.getFullYear())
     holidays(endDt.getFullYear()).forEach(x=>hols.add(x));
-  const mLeaves=leaves.filter(l=>l.memberId===member.id);
+  const mLeaves=leaves.filter(l=>l.memberId==member.id);
   let totH=0,lvH=0;
   let d=new Date(startDt);
   while(d<=endDt){
@@ -689,7 +714,7 @@ const RL={dev:'Développeur',tech_lead:'Tech Lead',qa:'QA',squad_lead:'Squad Lea
 const LB={alternant:'badge-warning',junior:'badge-primary',intermediaire:'badge-success',senior:'badge-success'};
 
 function renderDash(){
-  const sprints=DB.get('sprints',[]),team=DB.get('team',[]),leaves=DB.get('leaves',[]);
+  const sprints=S.sprints,team=S.team,leaves=S.leaves;
   const now=new Date();
   const cur=sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now)
     ||sprints.filter(s=>!s.closed).sort((a,b)=>new Date(a.start)-new Date(b.start))[0];
@@ -724,42 +749,34 @@ function renderDash(){
     </div>`).join('');
 }
 
-// Parse 'YYYY-MM-DD' en date locale (évite le décalage UTC)
 function parseDate(ds){ const [y,m,d]=ds.split('-').map(Number); return new Date(y,m-1,d); }
-// Formater une date locale en 'YYYY-MM-DD'
 function toDS(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function showConfirm(msg, onOk, title='Confirmation'){
   document.getElementById('confirm-title').textContent=title;
   document.getElementById('confirm-msg').textContent=msg;
   const btn=document.getElementById('confirm-ok-btn');
-  const fresh=btn.cloneNode(true); // remove old listeners
+  const fresh=btn.cloneNode(true);
   btn.parentNode.replaceChild(fresh,btn);
   fresh.addEventListener('click',()=>{closeModal('modal-confirm');onOk();});
   document.getElementById('modal-confirm').classList.add('open');
 }
 
 // ── AGENDA ───────────────────────────────────────────────
-// leaves format: {id, memberId, date:'YYYY-MM-DD', type:'full'|'am'|'pm', reason}
-
 function renderAgenda(){
-  const leaves=DB.get('leaves',[]);
-  const team=DB.get('team',[]);
+  const leaves=S.leaves;
+  const team=S.team;
   const yr=calDate.getFullYear(),mo=calDate.getMonth();
   const hols=holidays(yr);
   const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   document.getElementById('plan-label').textContent=`${MONTHS[mo]} ${yr}`;
   const dim=new Date(yr,mo+1,0).getDate();
-  // today en local, pas en UTC
   const todayStr=toDS(new Date());
   const isAdmin=CU.role==='admin';
-
   const days=[];
   for(let d=1;d<=dim;d++){
     const dt=new Date(yr,mo,d);
     days.push({d,dt,ds:toDS(dt),dow:dt.getDay()});
   }
-
-  // THEAD
   let html='<thead><tr><th class="th-member">Membre</th>';
   days.forEach(({d,dow,ds})=>{
     const isWe=dow===0||dow===6,isHol=hols.has(ds),isTod=ds===todayStr;
@@ -771,8 +788,6 @@ function renderAgenda(){
     html+=`<th class="${cls}" style="${sty}" id="thd-${ds}">${d}<br><span style="font-size:9px">${dayN}</span></th>`;
   });
   html+='</tr></thead><tbody>';
-
-  // TBODY
   team.forEach((m,mi)=>{
     const canEdit=isAdmin||(m.email===CU.email);
     html+=`<tr><td class="td-member"><div style="display:flex;align-items:center;gap:8px;width:100%">
@@ -801,10 +816,7 @@ function renderAgenda(){
   });
   html+='</tbody>';
   document.getElementById('plan-table').innerHTML=html;
-
-  // Event delegation — recréer sur un nœud frais évite l'accumulation
   const tbl=document.getElementById('plan-table');
-  // Clone pour vider tous les anciens listeners
   const fresh=tbl.cloneNode(true);
   tbl.parentNode.replaceChild(fresh,tbl);
   fresh.addEventListener('click',ev=>{
@@ -819,8 +831,6 @@ function renderAgenda(){
     const mid=cell.dataset.mid,ds=cell.dataset.ds,state=cell.dataset.state||null;
     showCtx(ev,mid,ds,state);
   });
-
-  // Scroll to today
   const isCurMo=new Date().getFullYear()===yr&&new Date().getMonth()===mo;
   if(isCurMo){
     requestAnimationFrame(()=>{
@@ -829,24 +839,19 @@ function renderAgenda(){
       if(th&&scr) scr.scrollLeft=Math.max(0,th.offsetLeft-170);
     });
   }
-
   renderLeaveList(leaves,team);
 }
 
-// Group consecutive leaves per member into periods
 function groupLeaves(leaves,team){
   const groups=[];
   team.forEach(m=>{
-    const mLeaves=leaves.filter(l=>l.memberId===m.id).sort((a,b)=>a.date>b.date?1:-1);
+    const mLeaves=leaves.filter(l=>l.memberId==m.id).sort((a,b)=>a.date>b.date?1:-1);
     if(!mLeaves.length)return;
-    // group by consecutive dates AND same type
     let cur=null;
     mLeaves.forEach(l=>{
       if(cur && l.type===cur.type){
-        // check if l.date is next working day after cur.endDate
         const prev=new Date(cur.endDate);
         const next=new Date(l.date);
-        // allow gaps of weekends/holidays (diff <= 3 days)
         const diffDays=(next-prev)/86400000;
         if(diffDays<=3){cur.endDate=l.date;cur.ids.push(l.id);return;}
       }
@@ -861,19 +866,17 @@ function renderLeaveList(leaves,team){
   const isAdmin=CU.role==='admin';
   const tl={full:'Journée',am:'Matin',pm:'Après-midi'};
   const myLeaves=isAdmin?leaves:leaves.filter(l=>{
-    const me=team.find(m=>m.email===CU.email);return me&&l.memberId===me.id;
+    const me=team.find(m=>m.email===CU.email);return me&&l.memberId==me.id;
   });
   const el=document.getElementById('leave-list');if(!el)return;
   if(myLeaves.length===0){el.innerHTML='<p style="color:var(--text3);font-size:13px">Aucun congé enregistré</p>';return;}
-
   const groups=groupLeaves(myLeaves,team);
-  // Store groups in a map for safe deletion
   window._leaveGroups={};
   el.innerHTML=groups.sort((a,b)=>a.startDate>b.startDate?1:-1).map((g,gi)=>{
     window._leaveGroups[gi]=g.ids;
-    const idx=team.findIndex(t=>t.id===g.memberId);
+    const idx=team.findIndex(t=>t.id==g.memberId);
     const isSameDay=g.startDate===g.endDate;
-    const canDel=isAdmin||(team.find(t=>t.email===CU.email)?.id===g.memberId);
+    const canDel=isAdmin||(team.find(t=>t.email===CU.email)?.id==g.memberId);
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--divider)">
       <div style="width:32px;height:32px;border-radius:50%;background:${mc(idx>=0?idx:0)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">${g.member?.fname[0]||'?'}</div>
       <div style="flex:1">
@@ -889,36 +892,30 @@ function renderLeaveList(leaves,team){
       </button>`:''}
     </div>`;
   }).join('');
-
-  // Bind delete buttons safely — no inline JS
   el.querySelectorAll('.leave-del-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const ids=window._leaveGroups[btn.dataset.gi];
       showConfirm(
         `Supprimer cette période (${ids.length} jour${ids.length>1?'s':''}) ?`,
-        ()=>{DB.set('leaves',DB.get('leaves',[]).filter(l=>!ids.includes(l.id)));renderAgenda();toast('Période supprimée ✓','success');},
+        async()=>{await API.del('/api/leaves',{ids});await loadLeaves();renderAgenda();toast('Période supprimée ✓','success');},
         'Supprimer le congé'
       );
     });
   });
 }
 
-function delLeavePeriod(idsJson){
-  const ids=JSON.parse(idsJson);
-  showConfirm(
-    `Supprimer cette période (${ids.length} jour${ids.length>1?'s':''}) ?`,
-    ()=>{DB.set('leaves',DB.get('leaves',[]).filter(l=>!ids.includes(l.id)));renderAgenda();toast('Période supprimée ✓','success');},
-    'Supprimer le congé'
-  );
-}
-
 function leaveState(leaves,memberId,ds){
-  return (leaves.find(l=>l.memberId===memberId&&l.date===ds)||{}).type||null;
+  return (leaves.find(l=>l.memberId==memberId&&l.date===ds)||{}).type||null;
 }
-function setLeave(memberId,ds,type){
-  let lv=DB.get('leaves',[]).filter(l=>!(l.memberId===memberId&&l.date===ds));
-  if(type) lv.push({id:'l'+Date.now()+Math.random().toString(36).slice(2),memberId,date:ds,type,reason:''});
-  DB.set('leaves',lv);renderAgenda();
+async function setLeave(memberId,ds,type){
+  if(type){
+    await API.post('/api/leaves',{memberId,date:ds,type,reason:''});
+  }else{
+    const lv=S.leaves.find(l=>String(l.memberId)===String(memberId)&&l.date===ds);
+    if(lv)await API.del('/api/leaves',{ids:[lv.id]});
+  }
+  await loadLeaves();
+  renderAgenda();
 }
 
 // Context menu
@@ -955,7 +952,7 @@ function calPrev(){calDate.setMonth(calDate.getMonth()-1);renderAgenda();}
 function calNext(){calDate.setMonth(calDate.getMonth()+1);renderAgenda();}
 
 function openLeaveModal(){
-  const team=DB.get('team',[]),isAdmin=CU.role==='admin';
+  const team=S.team,isAdmin=CU.role==='admin';
   const sel=document.getElementById('lm-user');sel.disabled=false;
   if(isAdmin) sel.innerHTML=team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
   else{const me=team.find(m=>m.email===CU.email);sel.innerHTML=me?`<option value="${me.id}">${me.fname} ${me.lname}</option>`:'<option>—</option>';sel.disabled=!me;}
@@ -963,7 +960,7 @@ function openLeaveModal(){
   document.getElementById('lm-type').value='full';
   document.getElementById('modal-leave').classList.add('open');
 }
-function saveLeave(){
+async function saveLeave(){
   const memberId=document.getElementById('lm-user').value;
   const start=document.getElementById('lm-start').value;
   const end=document.getElementById('lm-end').value||start;
@@ -972,21 +969,25 @@ function saveLeave(){
   if(!memberId||!start){toast('Champs obligatoires manquants','error');return;}
   if(parseDate(end)<parseDate(start)){toast('Date de fin invalide','error');return;}
   const hols=holidays(parseDate(start).getFullYear());
-  let lv=DB.get('leaves',[]);
+  const promises=[];
   let d=parseDate(start);const eD=parseDate(end);
   while(d<=eD){
     const dow=d.getDay(),ds=toDS(d);
     if(dow>0&&dow<6&&!hols.has(ds)){
-      lv=lv.filter(l=>!(l.memberId===memberId&&l.date===ds));
-      lv.push({id:'l'+Date.now()+Math.random().toString(36).slice(2),memberId,date:ds,type,reason});
+      promises.push(API.post('/api/leaves',{memberId,date:ds,type,reason}));
     }
     d.setDate(d.getDate()+1);
   }
-  DB.set('leaves',lv);closeModal('modal-leave');toast('Congé enregistré ✓','success');renderAgenda();
+  try{
+    await Promise.all(promises);
+    await loadLeaves();
+    closeModal('modal-leave');toast('Congé enregistré ✓','success');renderAgenda();
+  }catch(e){toast(e.error||'Erreur','error');}
 }
-function delLeave(id){DB.set('leaves',DB.get('leaves',[]).filter(l=>l.id!==id));renderAgenda();toast('Congé supprimé','success');}
+
+// ── SPRINTS ──────────────────────────────────────────────
 function renderSprints(){
-  const sprints=DB.get('sprints',[]).sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const sprints=S.sprints.slice().sort((a,b)=>new Date(b.start)-new Date(a.start));
   const now=new Date(),isAdmin=CU.role==='admin';
   document.getElementById('sprints-list').innerHTML=sprints.length===0
     ?'<div class="card" style="text-align:center;color:var(--text3);padding:48px">Aucun sprint créé</div>'
@@ -1025,10 +1026,19 @@ function renderSprints(){
         </div>
       </div></div>`;}).join('')+'</div>';
 }
-function updateCurVel(id,v){const s=DB.get('sprints',[]),i=s.findIndex(x=>x.id===id);if(i>-1){s[i].velocityCurrent=Number(v);DB.set('sprints',s);}}
+async function updateCurVel(id,v){
+  const s=S.sprints.find(x=>x.id==id);if(!s)return;
+  await API.put('/api/sprints/'+id,{
+    name:s.name,start:s.start,end:s.end,
+    velocityPlanned:s.velocityPlanned,velocityCurrent:Number(v),
+    velocityActual:s.velocityActual,confidence:s.confidence,
+    objectives:s.objectives,closed:s.closed,
+  });
+  s.velocityCurrent=Number(v);
+}
 function openSprintModal(id=null){
   editSprintId=id;sprintStars=0;tmpObjs=[];
-  const s=id?DB.get('sprints',[]).find(x=>x.id===id):null;
+  const s=id?S.sprints.find(x=>x.id==id):null;
   document.getElementById('sprint-modal-title').textContent=id?'Modifier le sprint':'Nouveau sprint';
   document.getElementById('sm-name').value=s?.name||'';
   document.getElementById('sm-start').value=s?.start||'';
@@ -1043,48 +1053,65 @@ function setStar(v){sprintStars=v;updateStars();}
 function updateStars(){document.querySelectorAll('#sm-stars .star').forEach((s,i)=>s.classList.toggle('filled',i<sprintStars));}
 function addObj(){const v=document.getElementById('sm-obj-in').value.trim();if(!v)return;tmpObjs.push({id:'o'+Date.now(),text:v,done:false});document.getElementById('sm-obj-in').value='';renderTmpObjs();}
 function renderTmpObjs(){document.getElementById('sm-objs').innerHTML=tmpObjs.map((o,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="flex:1;font-size:13px">${o.text}</span><button class="icon-btn" onclick="tmpObjs.splice(${i},1);renderTmpObjs()"><span class="material-icons-round" style="font-size:16px">close</span></button></div>`).join('');}
-function saveSprint(){
+async function saveSprint(){
   const name=document.getElementById('sm-name').value.trim();
   const start=document.getElementById('sm-start').value;
   const end=document.getElementById('sm-end').value;
   const vp=Number(document.getElementById('sm-vel').value);
   if(!name||!start||!end){toast('Champs obligatoires manquants','error');return;}
-  const s=DB.get('sprints',[]);
-  if(editSprintId){const i=s.findIndex(x=>x.id===editSprintId);if(i>-1)s[i]={...s[i],name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs};}
-  else s.push({id:'s'+Date.now(),name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs,closed:false});
-  DB.set('sprints',s);closeModal('modal-sprint');toast('Sprint sauvegardé ✓','success');renderSprints();
+  try{
+    if(editSprintId){
+      const s=S.sprints.find(x=>x.id==editSprintId);
+      await API.put('/api/sprints/'+editSprintId,{
+        name,start,end,velocityPlanned:vp,
+        velocityCurrent:s?.velocityCurrent||null,
+        velocityActual:s?.velocityActual||null,
+        confidence:sprintStars,objectives:tmpObjs,closed:s?.closed||false,
+      });
+    }else{
+      await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs});
+    }
+    await loadSprints();
+    closeModal('modal-sprint');toast('Sprint sauvegardé ✓','success');renderSprints();
+  }catch(e){toast(e.error||'Erreur','error');}
 }
 function delSprint(id){
-  showConfirm('Supprimer ce sprint ?',()=>{
-    DB.set('sprints',DB.get('sprints',[]).filter(s=>s.id!==id));
-    renderSprints();toast('Sprint supprimé','success');
+  showConfirm('Supprimer ce sprint ?',async()=>{
+    await API.del('/api/sprints/'+id);
+    await loadSprints();renderSprints();toast('Sprint supprimé','success');
   },'Supprimer le sprint');
 }
 function openCloseModal(id){
   closeSprintId=id;
-  const s=DB.get('sprints',[]).find(x=>x.id===id);
+  const s=S.sprints.find(x=>x.id==id);
   document.getElementById('scm-vel').value=s?.velocityCurrent||s?.velocityActual||'';
   const objs=s?.objectives||[];
   document.getElementById('scm-objs').innerHTML=objs.map((o,i)=>`<div class="objective-item"><div class="checkbox ${o.done?'checked':''}" onclick="toggleCloseObj(${i})"></div><span style="font-size:13px">${o.text}</span></div>`).join('');
   document.getElementById('modal-close-sprint').classList.add('open');
 }
 function toggleCloseObj(i){
-  const s=DB.get('sprints',[]),idx=s.findIndex(x=>x.id===closeSprintId);
-  if(idx>-1){s[idx].objectives[i].done=!s[idx].objectives[i].done;DB.set('sprints',s);}
+  const s=S.sprints.find(x=>x.id==closeSprintId);
+  if(s)s.objectives[i].done=!s.objectives[i].done;
   document.querySelectorAll('#scm-objs .checkbox')[i]?.classList.toggle('checked');
 }
-function doCloseSprint(){
+async function doCloseSprint(){
   const va=Number(document.getElementById('scm-vel').value);
-  const s=DB.get('sprints',[]),i=s.findIndex(x=>x.id===closeSprintId);
-  if(i>-1){s[i].velocityActual=va;s[i].closed=true;}
-  DB.set('sprints',s);closeModal('modal-close-sprint');toast('Sprint clôturé ✓','success');renderSprints();
+  const s=S.sprints.find(x=>x.id==closeSprintId);if(!s)return;
+  await API.put('/api/sprints/'+closeSprintId,{
+    name:s.name,start:s.start,end:s.end,
+    velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
+    velocityActual:va,confidence:s.confidence,
+    objectives:s.objectives,closed:true,
+  });
+  await loadSprints();
+  closeModal('modal-close-sprint');toast('Sprint clôturé ✓','success');renderSprints();
 }
 
 // ── CHARTS ───────────────────────────────────────────────
 function cv(v){return getComputedStyle(document.body).getPropertyValue(v).trim();}
 function dChart(id,type,data,opts){if(charts[id]){charts[id].destroy();delete charts[id];}charts[id]=new Chart(document.getElementById(id),{type,data,options:opts});}
 function renderCharts(){
-  const sprints=DB.get('sprints',[]).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const sprints=S.sprints.slice().sort((a,b)=>new Date(a.start)-new Date(b.start));
   const pr=cv('--primary'),sc=cv('--secondary'),t2=cv('--text2'),dv=cv('--divider'),ff='Inter,sans-serif';
   const base={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{color:t2,font:{family:ff,size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleFont:{family:ff},bodyFont:{family:ff}}},
@@ -1097,7 +1124,7 @@ function renderCharts(){
   const gS=sprints.filter(s=>s.closed&&(s.objectives||[]).length>0);
   dChart('chart-goals','line',{labels:gS.map(s=>s.name),datasets:[{label:'% objectifs atteints',data:gS.map(s=>Math.round(s.objectives.filter(o=>o.done).length/s.objectives.length*100)),borderColor:pr,backgroundColor:pr+'20',fill:true,tension:0.4,pointBackgroundColor:pr,pointRadius:5}]},
     {...base,scales:{...base.scales,y:{...base.scales.y,max:100,ticks:{callback:v=>v+'%'}}}});
-  const now=new Date(),cur=DB.get('sprints',[]).find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
+  const now=new Date(),cur=S.sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
   if(cur){
     const st=new Date(cur.start),en=new Date(cur.end),tot=cur.velocityPlanned||0;
     const bL=[],id=[],rm=[];let d=new Date(st),total=0;
@@ -1106,7 +1133,7 @@ function renderCharts(){
     while(d<=en){if(d.getDay()>0&&d.getDay()<6){bL.push(d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));id.push(r2(tot*(1-dn/total)));rm.push(d<=now?r2(tot*(1-(dn/total)*0.9)):null);dn++;}d.setDate(d.getDate()+1);}
     dChart('chart-burndown','line',{labels:bL,datasets:[{label:'Idéal',data:id,borderColor:sc,borderDash:[5,5],fill:false,tension:0,pointRadius:0},{label:'Restant',data:rm,borderColor:pr,backgroundColor:pr+'20',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:pr}]},base);
   } else dChart('chart-burndown','line',{labels:[],datasets:[]},base);
-  const leaves=DB.get('leaves',[]),team=DB.get('team',[]),devs=team.filter(m=>m.role==='dev'||m.role==='tech_lead');
+  const leaves=S.leaves,team=S.team,devs=team.filter(m=>m.role==='dev'||m.role==='tech_lead');
   const cP=[],cA=[];
   sprints.forEach(s=>{let tp=0;devs.forEach(m=>{tp+=calcCap(m,s.start,s.end,leaves).prodD;});cP.push(r2(tp));cA.push(s.velocityActual||null);});
   dChart('chart-capacity','bar',{labels,datasets:[
@@ -1118,7 +1145,7 @@ function renderCharts(){
 // ── SETTINGS ─────────────────────────────────────────────
 const LV={alternant:'Alternant',junior:'Junior',intermediaire:'Intermédiaire',senior:'Senior'};
 function renderSettings(){
-  const team=DB.get('team',[]),vg=DB.get('vel_grid',{}),mg=DB.get('mtg_grid',{});
+  const team=S.team,vg=S.config.vel_grid||{},mg=S.config.mtg_grid||{};
   document.getElementById('team-list').innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
     :team.map((m,i)=>`<div class="member-card" style="margin-bottom:8px" draggable="true" data-idx="${i}"
       ondragstart="dragStart(event,${i})" ondragover="dragOver(event,${i})" ondrop="dragDrop(event,${i})" ondragend="dragEnd(event)">
@@ -1134,14 +1161,30 @@ function renderSettings(){
 }
 function dragStart(e,i){dragSrc=i;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
 function dragOver(e,i){e.preventDefault();document.querySelectorAll('.member-card[data-idx]').forEach(el=>el.classList.remove('drag-over'));if(i!==dragSrc)e.currentTarget.classList.add('drag-over');}
-function dragDrop(e,i){e.preventDefault();if(dragSrc===null||dragSrc===i)return;const t=DB.get('team',[]);const[mv]=t.splice(dragSrc,1);t.splice(i,0,mv);DB.set('team',t);dragSrc=null;renderSettings();toast('Ordre mis à jour ✓','success');}
+async function dragDrop(e,i){
+  e.preventDefault();if(dragSrc===null||dragSrc===i)return;
+  const t=[...S.team];const[mv]=t.splice(dragSrc,1);t.splice(i,0,mv);
+  dragSrc=null;
+  await API.put('/api/team/reorder',{ids:t.map(m=>m.id)});
+  await loadTeam();renderSettings();toast('Ordre mis à jour ✓','success');
+}
 function dragEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.member-card').forEach(el=>el.classList.remove('drag-over'));}
-function saveVelGrid(){const keys=['alternant','junior','intermediaire','senior'],g={};keys.forEach(k=>{const el=document.getElementById('vg-'+k);if(el)g[k]=Number(el.value);});DB.set('vel_grid',g);toast('Grille sauvegardée ✓','success');}
-function saveMtgGrid(){const keys=['dev','tech_lead','qa','squad_lead','po'],g={};keys.forEach(k=>{const el=document.getElementById('mg-'+k);if(el)g[k]=Number(el.value);});DB.set('mtg_grid',g);toast('Grille sauvegardée ✓','success');}
+async function saveVelGrid(){
+  const keys=['alternant','junior','intermediaire','senior'],g={};
+  keys.forEach(k=>{const el=document.getElementById('vg-'+k);if(el)g[k]=Number(el.value);});
+  await API.put('/api/config/vel_grid',{value:g});
+  S.config.vel_grid=g;toast('Grille sauvegardée ✓','success');
+}
+async function saveMtgGrid(){
+  const keys=['dev','tech_lead','qa','squad_lead','po'],g={};
+  keys.forEach(k=>{const el=document.getElementById('mg-'+k);if(el)g[k]=Number(el.value);});
+  await API.put('/api/config/mtg_grid',{value:g});
+  S.config.mtg_grid=g;toast('Grille sauvegardée ✓','success');
+}
 function openMemberModal(id=null){
   editMemberId=id;
-  const mg=DB.get('mtg_grid',{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50});
-  const m=id?DB.get('team',[]).find(t=>t.id===id):null;
+  const mg=S.config.mtg_grid||{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50};
+  const m=id?S.team.find(t=>t.id==id):null;
   document.getElementById('member-modal-title').textContent=id?'Modifier le membre':'Nouveau membre';
   document.getElementById('mm-fname').value=m?.fname||'';document.getElementById('mm-lname').value=m?.lname||'';
   document.getElementById('mm-role').value=m?.role||'dev';document.getElementById('mm-level').value=m?.level||'intermediaire';
@@ -1149,35 +1192,41 @@ function openMemberModal(id=null){
   document.getElementById('mm-mtg').value=m?.meetings||(mg[m?.role||'dev']||20);
   document.getElementById('modal-member').classList.add('open');
 }
-function saveMember(){
+async function saveMember(){
   const fname=document.getElementById('mm-fname').value.trim();
   const lname=document.getElementById('mm-lname').value.trim();
   if(!fname||!lname){toast('Prénom et nom obligatoires','error');return;}
   const obj={fname,lname,role:document.getElementById('mm-role').value,level:document.getElementById('mm-level').value,
     know:Number(document.getElementById('mm-know').value),adapt:Number(document.getElementById('mm-adapt').value),
     meetings:Number(document.getElementById('mm-mtg').value)};
-  const team=DB.get('team',[]);
-  if(editMemberId){const i=team.findIndex(t=>t.id===editMemberId);if(i>-1)team[i]={...team[i],...obj};}
-  else team.push({id:'m'+Date.now(),...obj});
-  DB.set('team',team);closeModal('modal-member');toast('Membre sauvegardé ✓','success');renderSettings();
+  try{
+    if(editMemberId){await API.put('/api/team/'+editMemberId,obj);}
+    else{await API.post('/api/team',obj);}
+    await loadTeam();
+    closeModal('modal-member');toast('Membre sauvegardé ✓','success');renderSettings();
+  }catch(e){toast(e.error||'Erreur','error');}
 }
 function delMember(id){
-  showConfirm('Supprimer ce membre de l\'équipe ?',()=>{
-    DB.set('team',DB.get('team',[]).filter(t=>t.id!==id));
-    renderSettings();toast('Membre supprimé','success');
+  showConfirm('Supprimer ce membre de l\'équipe ?',async()=>{
+    await API.del('/api/team/'+id);
+    await loadTeam();renderSettings();toast('Membre supprimé','success');
   },'Supprimer le membre');
 }
 
 // ── USERS ────────────────────────────────────────────────
 function renderUsers(){
-  document.getElementById('users-tbody').innerHTML=DB.get('users',[]).map(u=>`<tr>
+  document.getElementById('users-tbody').innerHTML=S.users.map(u=>`<tr>
     <td><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:28px;height:28px;font-size:11px">${(u.fname[0]||'')+(u.lname[0]||'')}</div><span>${u.fname} ${u.lname}</span></div></td>
     <td style="color:var(--text2)">${u.email}</td>
     <td><span class="badge ${u.role==='admin'?'badge-success':'badge-primary'}">${u.role==='admin'?'Admin':'Consultant'}</span></td>
-    <td>${u.id!==CU.id?`<button class="btn btn-outline btn-sm" onclick="toggleRole('${u.id}')"><span class="material-icons-round" style="font-size:14px">swap_horiz</span>${u.role==='admin'?'→ Consultant':'→ Admin'}</button>`:'<span style="color:var(--text3);font-size:12px">Vous</span>'}</td>
+    <td>${u.id!=CU.id?`<button class="btn btn-outline btn-sm" onclick="toggleRole('${u.id}')"><span class="material-icons-round" style="font-size:14px">swap_horiz</span>${u.role==='admin'?'→ Consultant':'→ Admin'}</button>`:'<span style="color:var(--text3);font-size:12px">Vous</span>'}</td>
   </tr>`).join('');
 }
-function toggleRole(id){const u=DB.get('users',[]),i=u.findIndex(x=>x.id===id);if(i>-1)u[i].role=u[i].role==='admin'?'consultant':'admin';DB.set('users',u);renderUsers();toast('Rôle mis à jour ✓','success');}
+async function toggleRole(id){
+  const u=S.users.find(x=>x.id==id);if(!u)return;
+  await API.put('/api/users/'+id+'/role',{role:u.role==='admin'?'consultant':'admin'});
+  await loadUsers();renderUsers();toast('Rôle mis à jour ✓','success');
+}
 
 // ── UTILS ────────────────────────────────────────────────
 function fd(ds){if(!ds)return '—';return new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
@@ -1193,10 +1242,15 @@ function loadChartJS(){return new Promise(res=>{if(window.Chart){res();return;}c
 
 // ── INIT ─────────────────────────────────────────────────
 async function init(){
-  initDB();applyMode();
+  applyMode();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyMode);
-  setTheme(DB.get('theme','yellow'));
+  setTheme(localStorage.getItem('bcp_theme')||'yellow');
   await loadChartJS();
+  const token=localStorage.getItem('bcp_token');
+  const user=JSON.parse(localStorage.getItem('bcp_user')||'null');
+  if(token&&user){
+    try{await API.get('/api/team');loginOk(user);}catch(e){}
+  }
 }
 init();
 </script>
