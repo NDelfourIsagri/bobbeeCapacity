@@ -1244,7 +1244,7 @@ function loadChartJS(){return new Promise(res=>{if(window.Chart){res();return;}c
 async function init(){
   applyMode();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyMode);
-  setTheme(localStorage.getItem('bcp_theme')||'yellow');
+  setTheme(localStorage.getItem('bcp_theme')||'green');
   await loadChartJS();
   const token=localStorage.getItem('bcp_token');
   const user=JSON.parse(localStorage.getItem('bcp_user')||'null');
