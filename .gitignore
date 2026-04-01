@@ -1,2 +1,3 @@
 .env
 .claude/settings.local.json
+sql_init/shema.sql
