@@ -854,6 +854,14 @@ function calcCap(member,start,end,leaves){
 }
 
 // ── DASHBOARD ────────────────────────────────────────────
+function countWorkDays(start,end){
+  if(!start||!end||start>end)return 0;
+  const hols=holidays(start.getFullYear());
+  if(start.getFullYear()!==end.getFullYear())holidays(end.getFullYear()).forEach(x=>hols.add(x));
+  let count=0,d=new Date(start);
+  while(d<=end){const dow=d.getDay();if(dow>0&&dow<6&&!hols.has(toDS(d)))count++;d.setDate(d.getDate()+1);}
+  return count;
+}
 const RL={dev:'Développeur',tech_lead:'Tech Lead',qa:'QA',squad_lead:'Squad Lead',po:'PO'};
 const LB={alternant:'badge-warning',junior:'badge-primary',intermediaire:'badge-success',senior:'badge-success'};
 
@@ -868,12 +876,17 @@ function renderDash(){
   const devs=team.filter(m=>m.role==='dev'||m.role==='tech_lead');
   let totA=0,totP=0;
   if(cur)devs.forEach(m=>{const c=calcCap(m,cur.start,cur.end,leaves);totA+=c.availD;totP+=c.prodD;});
-  const dLeft=cur?Math.max(0,Math.ceil((new Date(cur.end)-now)/86400000)):0;
+  const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const sprintStart=cur?parseDate(cur.start):null;
+  const sprintEnd=cur?parseDate(cur.end):null;
+  const totalDays=cur?countWorkDays(sprintStart,sprintEnd):0;
+  const fromDay=cur?(todayMid>=sprintStart?todayMid:sprintStart):null;
+  const remainDays=cur?Math.max(0,countWorkDays(fromDay,sprintEnd)):0;
   document.getElementById('dash-stats').innerHTML=`
     <div class="card stat-card"><div class="stat-value">${devs.length}</div><div class="stat-label">Développeurs</div><div class="stat-sub">${team.length} membres total</div></div>
     <div class="card stat-card"><div class="stat-value">${r2(totP)}j</div><div class="stat-label">Capacité productive</div><div class="stat-sub">sur ${r2(totA)}j disponibles</div></div>
     <div class="card stat-card"><div class="stat-value">${cur?.velocityPlanned||'—'}</div><div class="stat-label">Points planifiés</div><div class="stat-sub">Vélocité cible</div></div>
-    <div class="card stat-card"><div class="stat-value">${dLeft}</div><div class="stat-label">Jours restants</div><div class="stat-sub">${cur?.name||'—'}</div></div>`;
+    <div class="card stat-card"><div class="stat-value">${cur?remainDays+'j':'—'}</div><div class="stat-label">Jours restants</div><div class="stat-sub">${cur?`sur ${totalDays}j ouvrés`:'—'}</div></div>`;
   document.getElementById('dash-cap').innerHTML=!cur||devs.length===0
     ?'<p style="color:var(--text3);font-size:13px">Configurez l\'équipe et un sprint</p>'
     :devs.map(m=>{const c=calcCap(m,cur.start,cur.end,leaves);const pct=Math.round(c.prodD/Math.max(.01,c.totD)*100);
