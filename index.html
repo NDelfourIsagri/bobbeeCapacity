@@ -325,7 +325,7 @@ tr:hover td{background:var(--chip);}
         <div class="grid-4" style="margin-bottom:20px" id="dash-stats"></div>
         <div class="grid-3" style="margin-bottom:20px">
           <div class="card" style="grid-column:span 2"><div class="card-title"><span class="material-icons-round">speed</span>Capacité de réalisation (développeurs)</div><div id="dash-cap"></div></div>
-          <div class="card"><div class="card-title"><span class="material-icons-round">flag</span>Objectifs du sprint</div><div id="dash-obj"></div></div>
+          <div class="card"><div class="card-title"><span class="material-icons-round">flag</span>État du sprint</div><div id="dash-obj"></div></div>
         </div>
         <div class="card"><div class="card-title"><span class="material-icons-round">people</span>Équipe</div><div class="grid-3" id="dash-team" style="gap:12px"></div></div>
       </div>
@@ -336,7 +336,7 @@ tr:hover td{background:var(--chip);}
           <div><div class="page-title">Agenda 📅</div><div class="page-sub">Planning des congés</div></div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
             <button class="btn btn-outline btn-sm" onclick="calDate=new Date();renderAgenda()"><span class="material-icons-round" style="font-size:14px">today</span>Aujourd'hui</button>
-            <button class="btn btn-filled" onclick="openLeaveModal()"><span class="material-icons-round">add</span>Congé</button>
+            <button class="btn btn-filled" onclick="openLeaveModal()"><span class="material-icons-round">add</span>Absence</button>
           </div>
         </div>
         <div class="planning-outer" style="margin-bottom:20px">
@@ -356,10 +356,6 @@ tr:hover td{background:var(--chip);}
           <div class="planning-scroll" id="plan-scroll">
             <table class="ptable" id="plan-table"></table>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-title"><span class="material-icons-round">list</span>Liste des congés</div>
-          <div id="leave-list"></div>
         </div>
       </div>
 
