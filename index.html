@@ -556,7 +556,7 @@ async function loadUsers(){S.users=await API.get('/api/users');}
 let CU=null;
 let calDate=new Date();
 let editSprintId=null,closeSprintId=null,sprintStars=0,tmpObjs=[];
-let editMemberId=null,dragSrc=null;
+let editMemberId=null;
 let charts={};
 
 // ── AUTH ─────────────────────────────────────────────────
@@ -1147,28 +1147,25 @@ const LV={alternant:'Alternant',junior:'Junior',intermediaire:'Intermédiaire',s
 function renderSettings(){
   const team=S.team,vg=S.config.vel_grid||{},mg=S.config.mtg_grid||{};
   document.getElementById('team-list').innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
-    :team.map((m,i)=>`<div class="member-card" style="margin-bottom:8px" draggable="true" data-idx="${i}"
-      ondragstart="dragStart(event,${i})" ondragover="dragOver(event,${i})" ondrop="dragDrop(event,${i})" ondragend="dragEnd(event)">
-      <div class="drag-handle"><span class="material-icons-round" style="font-size:18px">drag_indicator</span></div>
+    :team.map((m,i)=>`<div class="member-card" style="margin-bottom:8px">
       <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
       <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · ${m.meetings||20}% réun.</div></div>
-      <div style="display:flex;gap:4px">
+      <div style="display:flex;gap:4px;align-items:center">
+        <button class="icon-btn" onclick="moveTeamMember(${i},-1)" ${i===0?'disabled':''}><span class="material-icons-round" style="font-size:16px">arrow_upward</span></button>
+        <button class="icon-btn" onclick="moveTeamMember(${i},1)" ${i===team.length-1?'disabled':''}><span class="material-icons-round" style="font-size:16px">arrow_downward</span></button>
         <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
         <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
       </div></div>`).join('');
   document.getElementById('vel-grid').innerHTML=Object.entries(vg).map(([k,v])=>`<div class="velocity-item"><label>${LV[k]||k}</label><input type="number" class="input" id="vg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du potentiel</div></div>`).join('');
   document.getElementById('mtg-grid').innerHTML=Object.entries(mg).map(([k,v])=>`<div class="velocity-item"><label>${RL[k]||k}</label><input type="number" class="input" id="mg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du temps</div></div>`).join('');
 }
-function dragStart(e,i){dragSrc=i;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
-function dragOver(e,i){e.preventDefault();document.querySelectorAll('.member-card[data-idx]').forEach(el=>el.classList.remove('drag-over'));if(i!==dragSrc)e.currentTarget.classList.add('drag-over');}
-async function dragDrop(e,i){
-  e.preventDefault();if(dragSrc===null||dragSrc===i)return;
-  const t=[...S.team];const[mv]=t.splice(dragSrc,1);t.splice(i,0,mv);
-  dragSrc=null;
+async function moveTeamMember(i,dir){
+  const t=[...S.team];const j=i+dir;
+  if(j<0||j>=t.length)return;
+  [t[i],t[j]]=[t[j],t[i]];
   await API.put('/api/team/reorder',{ids:t.map(m=>m.id)});
   await loadTeam();renderSettings();toast('Ordre mis à jour ✓','success');
 }
-function dragEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.member-card').forEach(el=>el.classList.remove('drag-over'));}
 async function saveVelGrid(){
   const keys=['alternant','junior','intermediaire','senior'],g={};
   keys.forEach(k=>{const el=document.getElementById('vg-'+k);if(el)g[k]=Number(el.value);});
