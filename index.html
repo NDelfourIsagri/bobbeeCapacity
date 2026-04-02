@@ -745,7 +745,44 @@ function setTheme(t){
   document.body.setAttribute('data-theme',t);localStorage.setItem('bcp_theme',t);
   document.querySelectorAll('[data-theme]:not(body)').forEach(el=>el.classList.toggle('active',el.getAttribute('data-theme')===t));
 }
-function applyMode(){document.body.setAttribute('data-mode',window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+// ── SUNRISE / SUNSET (Paris 48.8566°N 2.3522°E) ──────────
+function parisSunTimes(date){
+  // Algorithm: Sunrise equation (Wikipedia / Jean Meeus)
+  const lat=48.8566*Math.PI/180,lon=2.3522;
+  const JD=date.getTime()/86400000+2440587.5;
+  const n=JD-2451545.0;
+  const Jstar=n-lon/360;
+  const M=(357.5291+0.98560028*Jstar)%360;
+  const Mr=M*Math.PI/180;
+  const C=1.9148*Math.sin(Mr)+0.02*Math.sin(2*Mr)+0.0003*Math.sin(3*Mr);
+  const lam=((M+C+180+102.9372)%360)*Math.PI/180;
+  const Jtr=2451545.0+Jstar+0.0053*Math.sin(Mr)-0.0069*Math.sin(2*lam);
+  const sinD=Math.sin(lam)*Math.sin(23.4397*Math.PI/180);
+  const cosO=(Math.sin(-0.8333*Math.PI/180)-Math.sin(lat)*sinD)/(Math.cos(lat)*Math.cos(Math.asin(sinD)));
+  if(Math.abs(cosO)>1)return null;
+  const omega=Math.acos(cosO)*180/Math.PI;
+  const jd2d=jd=>new Date((jd-2440587.5)*86400000);
+  return{rise:jd2d(Jtr-omega/360),set:jd2d(Jtr+omega/360)};
+}
+let _modeTimer=null;
+function targetMode(){
+  if(window.matchMedia('(prefers-color-scheme: dark)').matches)return'dark';
+  const now=new Date(),t=parisSunTimes(now);
+  if(!t)return'light';
+  return(now>=t.rise&&now<=t.set)?'light':'dark';
+}
+function scheduleMode(){
+  if(_modeTimer){clearTimeout(_modeTimer);_modeTimer=null;}
+  if(window.matchMedia('(prefers-color-scheme: dark)').matches)return;
+  const now=new Date(),t=parisSunTimes(now);
+  if(!t)return;
+  let next;
+  if(now<t.rise)next=t.rise;
+  else if(now<t.set)next=t.set;
+  else{const tom=new Date(now);tom.setUTCDate(tom.getUTCDate()+1);next=parisSunTimes(tom)?.rise;}
+  if(next){const delay=next-now;_modeTimer=setTimeout(()=>{applyMode();scheduleMode();},delay);}
+}
+function applyMode(){document.body.setAttribute('data-mode',targetMode());}
 
 // ── HOLIDAYS ─────────────────────────────────────────────
 function holidays(year){
@@ -1428,7 +1465,8 @@ function loadChartJS(){return new Promise(res=>{if(window.Chart){res();return;}c
 // ── INIT ─────────────────────────────────────────────────
 async function init(){
   applyMode();
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyMode);
+  scheduleMode();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{applyMode();scheduleMode();});
   setTheme(localStorage.getItem('bcp_theme')||'green');
   await loadChartJS();
   const token=localStorage.getItem('bcp_token');
