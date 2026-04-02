@@ -1172,19 +1172,35 @@ function renderSettings(){
         <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
         <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
       </div></div>`).join('');
-  let dragSrcId=null;
   tl.querySelectorAll('.member-card').forEach(card=>{
-    card.addEventListener('dragstart',e=>{dragSrcId=card.dataset.id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-    card.addEventListener('dragend',()=>{card.classList.remove('dragging');tl.querySelectorAll('.member-card').forEach(c=>c.classList.remove('drag-over'));});
-    card.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';card.classList.add('drag-over');});
-    card.addEventListener('dragleave',()=>card.classList.remove('drag-over'));
+    card.addEventListener('dragstart',e=>{
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+      // defer class addition so the ghost image captures the normal state
+      requestAnimationFrame(()=>card.classList.add('dragging'));
+    });
+    card.addEventListener('dragend',()=>{
+      tl.querySelectorAll('.member-card').forEach(c=>c.classList.remove('dragging','drag-over'));
+    });
+    card.addEventListener('dragover',e=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave',e=>{
+      // ignore if still within the same card (child elements trigger dragleave)
+      if(!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
+    });
     card.addEventListener('drop',async e=>{
-      e.preventDefault();card.classList.remove('drag-over');
-      if(!dragSrcId||dragSrcId===card.dataset.id)return;
-      const ids=S.team.map(m=>m.id);
-      const fi=ids.indexOf(dragSrcId),ti=ids.indexOf(card.dataset.id);
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const srcId=e.dataTransfer.getData('text/plain');
+      if(!srcId||srcId===card.dataset.id)return;
+      // work with string IDs to avoid numeric/string indexOf mismatch
+      const ids=S.team.map(m=>String(m.id));
+      const fi=ids.indexOf(srcId), ti=ids.indexOf(String(card.dataset.id));
       if(fi<0||ti<0)return;
-      ids.splice(fi,1);ids.splice(ti,0,dragSrcId);
+      ids.splice(fi,1);ids.splice(ti,0,srcId);
       await API.put('/api/team/reorder',{ids});
       await loadTeam();renderSettings();toast('Ordre mis à jour ✓','success');
     });
