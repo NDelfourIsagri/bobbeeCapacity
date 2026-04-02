@@ -1146,16 +1146,33 @@ function renderCharts(){
 const LV={alternant:'Alternant',junior:'Junior',intermediaire:'Intermédiaire',senior:'Senior'};
 function renderSettings(){
   const team=S.team,vg=S.config.vel_grid||{},mg=S.config.mtg_grid||{};
-  document.getElementById('team-list').innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
-    :team.map((m,i)=>`<div class="member-card" style="margin-bottom:8px">
+  const tl=document.getElementById('team-list');
+  tl.innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
+    :team.map((m,i)=>`<div class="member-card" draggable="true" data-id="${m.id}" style="margin-bottom:8px">
+      <div class="drag-handle"><span class="material-icons-round" style="font-size:18px">drag_indicator</span></div>
       <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
       <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · ${m.meetings||20}% réun.</div></div>
       <div style="display:flex;gap:4px;align-items:center">
-        <button class="icon-btn" onclick="moveTeamMember(${i},-1)" ${i===0?'disabled':''}><span class="material-icons-round" style="font-size:16px">arrow_upward</span></button>
-        <button class="icon-btn" onclick="moveTeamMember(${i},1)" ${i===team.length-1?'disabled':''}><span class="material-icons-round" style="font-size:16px">arrow_downward</span></button>
         <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
         <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
       </div></div>`).join('');
+  let dragSrcId=null;
+  tl.querySelectorAll('.member-card').forEach(card=>{
+    card.addEventListener('dragstart',e=>{dragSrcId=card.dataset.id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    card.addEventListener('dragend',()=>{card.classList.remove('dragging');tl.querySelectorAll('.member-card').forEach(c=>c.classList.remove('drag-over'));});
+    card.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';card.classList.add('drag-over');});
+    card.addEventListener('dragleave',()=>card.classList.remove('drag-over'));
+    card.addEventListener('drop',async e=>{
+      e.preventDefault();card.classList.remove('drag-over');
+      if(!dragSrcId||dragSrcId===card.dataset.id)return;
+      const ids=S.team.map(m=>m.id);
+      const fi=ids.indexOf(dragSrcId),ti=ids.indexOf(card.dataset.id);
+      if(fi<0||ti<0)return;
+      ids.splice(fi,1);ids.splice(ti,0,dragSrcId);
+      await API.put('/api/team/reorder',{ids});
+      await loadTeam();renderSettings();toast('Ordre mis à jour ✓','success');
+    });
+  });
   document.getElementById('vel-grid').innerHTML=Object.entries(vg).map(([k,v])=>`<div class="velocity-item"><label>${LV[k]||k}</label><input type="number" class="input" id="vg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du potentiel</div></div>`).join('');
   document.getElementById('mtg-grid').innerHTML=Object.entries(mg).map(([k,v])=>`<div class="velocity-item"><label>${RL[k]||k}</label><input type="number" class="input" id="mg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du temps</div></div>`).join('');
 }
