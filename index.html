@@ -847,9 +847,24 @@ function renderDash(){
         <div style="font-size:11px;color:var(--text3);margin-top:3px">${c.mtgD}j réunions · ${RL[m.role]||m.role}</div></div>`;}).join('');
   const objs=cur?.objectives||[];
   const canToggle=cur&&!cur.closed;
-  document.getElementById('dash-obj').innerHTML=!cur?'<p style="color:var(--text3);font-size:13px">Aucun sprint actif</p>'
+  const isAdmin=CU?.role==='admin';
+  const inpStyle='width:100%;padding:6px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center';
+  const velBlock=cur&&!cur.closed&&isAdmin?`
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">En cours</div>
+        <div style="display:flex;align-items:center;gap:4px"><input type="number" step="0.5" min="0" style="${inpStyle}" value="${cur.velocityCurrent||''}" placeholder="0" onchange="updateCurVel('${cur.id}',this.value)"><span style="font-size:11px;color:var(--text3)">pts</span></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Réalisé</div>
+        <div style="display:flex;align-items:center;gap:4px"><input type="number" step="0.5" min="0" style="${inpStyle}" value="${cur.velocityActual||''}" placeholder="0" onchange="updateActualVel('${cur.id}',this.value)"><span style="font-size:11px;color:var(--text3)">pts</span></div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--divider);margin-bottom:10px"></div>`:'';
+  const objsBlock=!cur?'<p style="color:var(--text3);font-size:13px">Aucun sprint actif</p>'
     :objs.length===0?'<p style="color:var(--text3);font-size:13px">Aucun objectif</p>'
     :objs.map(o=>`<div class="objective-item" ${canToggle?`onclick="toggleObj('${cur.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('');
+  document.getElementById('dash-obj').innerHTML=velBlock+objsBlock;
   document.getElementById('dash-team').innerHTML=team.length===0
     ?'<p style="color:var(--text3);font-size:13px;grid-column:span 3">Aucun membre</p>'
     :team.map((m,i)=>`<div class="member-card">
