@@ -585,7 +585,7 @@ async function doRegister(){
   if(!fname||!lname||!email||!pwd){err.textContent='Remplissez tous les champs.';err.style.display='block';return;}
   if(pwd.length<6){err.textContent='Mot de passe trop court.';err.style.display='block';return;}
   try{
-    const data=await API.post('/api/auth/register',{fname,lname,email,pwd});
+    const data=await API.post('/api/auth/create',{fname,lname,email,pwd});
     localStorage.setItem('bcp_token',data.token);
     localStorage.setItem('bcp_user',JSON.stringify(data.user));
     loginOk(data.user);toast('Bienvenue 🐝','success');
