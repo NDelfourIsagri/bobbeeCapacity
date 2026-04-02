@@ -446,7 +446,7 @@ tr:hover td{background:var(--chip);}
       <div class="form-group"><label class="input-label">Début</label><input type="date" class="input" id="sm-start"></div>
       <div class="form-group"><label class="input-label">Fin</label><input type="date" class="input" id="sm-end"></div>
     </div>
-    <div class="form-group"><label class="input-label">Vélocité planifiée (pts)</label><input type="number" class="input" id="sm-vel" placeholder="40"></div>
+    <div class="form-group"><label class="input-label">Vélocité planifiée (pts)</label><input type="number" class="input" id="sm-vel" placeholder="40" step="0.5" min="0"></div>
     <div class="form-group"><label class="input-label">Vote de confiance (/5)</label>
       <div style="display:flex;gap:4px" id="sm-stars">
         <span class="star material-icons-round" onclick="setStar(1)">star</span><span class="star material-icons-round" onclick="setStar(2)">star</span>
@@ -465,7 +465,7 @@ tr:hover td{background:var(--chip);}
 <div class="modal-overlay" id="modal-close-sprint">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Clôturer le sprint</div><button class="icon-btn" onclick="closeModal('modal-close-sprint')"><span class="material-icons-round">close</span></button></div>
-    <div class="form-group"><label class="input-label">Vélocité réalisée (pts)</label><input type="number" class="input" id="scm-vel"></div>
+    <div class="form-group"><label class="input-label">Vélocité réalisée (pts)</label><input type="number" class="input" id="scm-vel" step="0.5" min="0"></div>
     <div class="form-group"><label class="input-label">Objectifs atteints</label><div id="scm-objs"></div></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-close-sprint')">Annuler</button><button class="btn btn-filled" onclick="doCloseSprint()"><span class="material-icons-round">check</span>Clôturer</button></div>
   </div>
@@ -846,9 +846,10 @@ function renderDash(){
         <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px">${c.mtgD}j réunions · ${RL[m.role]||m.role}</div></div>`;}).join('');
   const objs=cur?.objectives||[];
+  const canToggle=cur&&!cur.closed;
   document.getElementById('dash-obj').innerHTML=!cur?'<p style="color:var(--text3);font-size:13px">Aucun sprint actif</p>'
     :objs.length===0?'<p style="color:var(--text3);font-size:13px">Aucun objectif</p>'
-    :objs.map(o=>`<div class="objective-item"><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('');
+    :objs.map(o=>`<div class="objective-item" ${canToggle?`onclick="toggleObj('${cur.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('');
   document.getElementById('dash-team').innerHTML=team.length===0
     ?'<p style="color:var(--text3);font-size:13px;grid-column:span 3">Aucun membre</p>'
     :team.map((m,i)=>`<div class="member-card">
@@ -1126,16 +1127,16 @@ function renderSprints(){
             <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Planifié</div><div style="font-size:22px;font-weight:700;color:var(--primary)">${s.velocityPlanned||'—'} pts</div></div>
             <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">En cours</div>
               ${isAdmin&&!s.closed
-                ?`<div style="display:flex;align-items:center;gap:6px"><input type="number" style="width:80px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center" value="${s.velocityCurrent||''}" placeholder="0" onchange="updateCurVel('${s.id}',this.value)"><span style="font-size:13px;color:var(--text3)">pts</span></div>`
+                ?`<div style="display:flex;align-items:center;gap:6px"><input type="number" step="0.5" min="0" style="width:80px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center" value="${s.velocityCurrent||''}" placeholder="0" onchange="updateCurVel('${s.id}',this.value)"><span style="font-size:13px;color:var(--text3)">pts</span></div>`
                 :`<div style="font-size:22px;font-weight:700;color:var(--warning)">${s.velocityCurrent||'—'}${s.velocityCurrent?' pts':''}</div>`}
             </div>
             <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Réalisé</div>
               ${isAdmin&&!s.closed&&started
-                ?`<div style="display:flex;align-items:center;gap:6px"><input type="number" style="width:80px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center" value="${s.velocityActual||''}" placeholder="0" onchange="updateActualVel('${s.id}',this.value)"><span style="font-size:13px;color:var(--text3)">pts</span></div>`
+                ?`<div style="display:flex;align-items:center;gap:6px"><input type="number" step="0.5" min="0" style="width:80px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center" value="${s.velocityActual||''}" placeholder="0" onchange="updateActualVel('${s.id}',this.value)"><span style="font-size:13px;color:var(--text3)">pts</span></div>`
                 :`<div style="font-size:22px;font-weight:700;color:${s.velocityActual?'var(--success)':'var(--text3)'}">${s.velocityActual||'—'}${s.velocityActual?' pts':''}</div>`}
             </div>
           </div>
-          ${objs.length?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">${dO}/${objs.length} objectifs</div>${objs.map(o=>`<div class="objective-item"><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('')}`:''}
+          ${objs.length?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">${dO}/${objs.length} objectifs</div>${objs.map(o=>`<div class="objective-item" ${!s.closed?`onclick="toggleObj('${s.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('')}`:''}
         </div>
       </div></div>`;}).join('')+'</div>';
 }
@@ -1160,6 +1161,22 @@ async function updateActualVel(id,v){
   });
   s.velocityActual=val;
   renderCharts();toast('Points réalisés mis à jour ✓','success');
+}
+async function toggleObj(sprintId,objId){
+  const s=S.sprints.find(x=>String(x.id)===String(sprintId));
+  if(!s||s.closed)return;
+  const obj=(s.objectives||[]).find(o=>String(o.id)===String(objId));
+  if(!obj)return;
+  obj.done=!obj.done;
+  await API.put('/api/sprints/'+sprintId,{
+    name:s.name,start:s.start,end:s.end,
+    velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
+    velocityActual:s.velocityActual,confidence:s.confidence,
+    objectives:s.objectives,closed:s.closed,
+  });
+  const activePage=document.querySelector('.page.active')?.id;
+  if(activePage==='page-dashboard')renderDash();
+  else if(activePage==='page-sprints')renderSprints();
 }
 function openSprintModal(id=null){
   editSprintId=id;sprintStars=0;tmpObjs=[];
