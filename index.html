@@ -1318,7 +1318,17 @@ async function doCloseSprint(){
 function cv(v){return getComputedStyle(document.body).getPropertyValue(v).trim();}
 function dChart(id,type,data,opts){if(charts[id]){charts[id].destroy();delete charts[id];}charts[id]=new Chart(document.getElementById(id),{type,data,options:opts});}
 function renderCharts(){
-  const sprints=S.sprints.slice().sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const now=new Date();
+  // Sprint sélectionné dans la sidebar (peut être à venir)
+  const selSprint=selectedSprintId?S.sprints.find(s=>String(s.id)===String(selectedSprintId)):null;
+  // 3 derniers sprints commencés, hors sprint sélectionné, triés chronologiquement
+  const past3=S.sprints
+    .filter(s=>new Date(s.start)<=now&&String(s.id)!==String(selectedSprintId))
+    .sort((a,b)=>new Date(a.start)-new Date(b.start))
+    .slice(-3);
+  // Combiné et trié : 3 derniers + sprint sélectionné
+  const sprints=[...past3,...(selSprint?[selSprint]:[])]
+    .sort((a,b)=>new Date(a.start)-new Date(b.start));
   const pr=cv('--primary'),sc=cv('--secondary'),t2=cv('--text2'),dv=cv('--divider'),ff='Inter,sans-serif';
   const base={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{color:t2,font:{family:ff,size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleFont:{family:ff},bodyFont:{family:ff}}},
@@ -1331,7 +1341,7 @@ function renderCharts(){
   const gS=sprints.filter(s=>s.closed&&(s.objectives||[]).length>0);
   dChart('chart-goals','line',{labels:gS.map(s=>s.name),datasets:[{label:'% objectifs atteints',data:gS.map(s=>Math.round(s.objectives.filter(o=>o.done).length/s.objectives.length*100)),borderColor:pr,backgroundColor:pr+'20',fill:true,tension:0.4,pointBackgroundColor:pr,pointRadius:5}]},
     {...base,scales:{...base.scales,y:{...base.scales.y,max:100,ticks:{callback:v=>v+'%'}}}});
-  const now=new Date(),cur=selectedSprintId
+  const cur=selectedSprintId
     ?S.sprints.find(s=>String(s.id)===String(selectedSprintId))
     :S.sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
   if(cur){
