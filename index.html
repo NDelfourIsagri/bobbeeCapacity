@@ -1237,15 +1237,20 @@ async function toggleObj(sprintId,objId){
   const obj=(s.objectives||[]).find(o=>String(o.id)===String(objId));
   if(!obj)return;
   obj.done=!obj.done;
-  await API.put('/api/sprints/'+sprintId,{
-    name:s.name,start:s.start,end:s.end,
-    velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
-    velocityActual:s.velocityActual,confidence:s.confidence,
-    objectives:s.objectives,closed:s.closed,
-  });
-  const activePage=document.querySelector('.page.active')?.id;
-  if(activePage==='page-dashboard')renderDash();
-  else if(activePage==='page-sprints')renderSprints();
+  try{
+    await API.put('/api/sprints/'+sprintId,{
+      name:s.name,start:s.start,end:s.end,
+      velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
+      velocityActual:s.velocityActual,confidence:s.confidence,
+      objectives:s.objectives,closed:s.closed,
+    });
+    const activePage=document.querySelector('.page.active')?.id;
+    if(activePage==='page-dashboard')renderDash();
+    else if(activePage==='page-sprints')renderSprints();
+  }catch(e){
+    obj.done=!obj.done; // rollback mémoire
+    toast(e.error||'Erreur de sauvegarde','error');
+  }
 }
 function openSprintModal(id=null){
   editSprintId=id;sprintStars=0;tmpObjs=[];
