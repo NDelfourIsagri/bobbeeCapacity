@@ -488,9 +488,12 @@ tr:hover td{background:var(--chip);}
         </select>
       </div>
     </div>
-    <div class="grid-3">
+    <div class="grid-2">
       <div class="form-group"><label class="input-label">Connaissance produit (%)</label><input type="number" class="input" id="mm-know" min="0" max="100"></div>
       <div class="form-group"><label class="input-label">Adaptabilité (%)</label><input type="number" class="input" id="mm-adapt" min="0" max="100"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label class="input-label">Vélocité individuelle (%)</label><input type="number" class="input" id="mm-vel" min="0" max="200" placeholder="Par défaut selon niveau"></div>
       <div class="form-group"><label class="input-label">Réunions (%)</label><input type="number" class="input" id="mm-mtg" min="0" max="100"></div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-member')">Annuler</button><button class="btn btn-filled" onclick="saveMember()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
@@ -849,7 +852,8 @@ function calcCap(member,start,end,leaves){
   }
   const avail=totH-lvH;
   const mtgH=avail*(member.meetings||20)/100;
-  const prodH=(avail-mtgH)*((vg[member.level]||85)/100)*(((member.know||70)+(member.adapt||80))/200);
+  const velPct=member.velocity!=null?member.velocity:(vg[member.level]??85);
+  const prodH=(avail-mtgH)*(velPct/100)*(((member.know||70)+(member.adapt||80))/200);
   return {totD:r2(totH/8),availD:r2(avail/8),mtgD:r2(mtgH/8),prodD:r2(prodH/8)};
 }
 
@@ -1433,11 +1437,13 @@ async function saveMtgGrid(){
 function openMemberModal(id=null){
   editMemberId=id;
   const mg=S.config.mtg_grid||{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50};
+  const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
   const m=id?S.team.find(t=>t.id==id):null;
   document.getElementById('member-modal-title').textContent=id?'Modifier le membre':'Nouveau membre';
   document.getElementById('mm-fname').value=m?.fname||'';document.getElementById('mm-lname').value=m?.lname||'';
   document.getElementById('mm-role').value=m?.role||'dev';document.getElementById('mm-level').value=m?.level||'intermediaire';
   document.getElementById('mm-know').value=m?.know||70;document.getElementById('mm-adapt').value=m?.adapt||80;
+  document.getElementById('mm-vel').value=m?.velocity!=null?m.velocity:(vg[m?.level||'intermediaire']||85);
   document.getElementById('mm-mtg').value=m?.meetings||(mg[m?.role||'dev']||20);
   document.getElementById('modal-member').classList.add('open');
 }
@@ -1445,8 +1451,10 @@ async function saveMember(){
   const fname=document.getElementById('mm-fname').value.trim();
   const lname=document.getElementById('mm-lname').value.trim();
   if(!fname||!lname){toast('Prénom et nom obligatoires','error');return;}
+  const velVal=document.getElementById('mm-vel').value;
   const obj={fname,lname,role:document.getElementById('mm-role').value,level:document.getElementById('mm-level').value,
     know:Number(document.getElementById('mm-know').value),adapt:Number(document.getElementById('mm-adapt').value),
+    velocity:velVal!==''?Number(velVal):null,
     meetings:Number(document.getElementById('mm-mtg').value)};
   try{
     if(editMemberId){await API.put('/api/team/'+editMemberId,obj);}
