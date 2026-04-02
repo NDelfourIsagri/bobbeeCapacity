@@ -747,11 +747,15 @@ function setTheme(t){
 }
 // ── SUNRISE / SUNSET (Paris 48.8566°N 2.3522°E) ──────────
 function parisSunTimes(date){
-  // Algorithm: Sunrise equation (Wikipedia / Jean Meeus)
-  const lat=48.8566*Math.PI/180,lon=2.3522;
-  const JD=date.getTime()/86400000+2440587.5;
+  // L'équation solaire doit être évaluée au midi UTC du jour concerné,
+  // pas à l'heure courante — sinon le JD fractionnaire fausse le transit solaire.
+  const noon=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate(),12,0,0));
+  const lat=48.8566*Math.PI/180;
+  // Paris est à l'est : l_w négatif → Jstar = n - l_w/360 = n + lon/360
+  const lonDeg=2.3522;
+  const JD=noon.getTime()/86400000+2440587.5; // JD entier+0 à midi UTC
   const n=JD-2451545.0;
-  const Jstar=n-lon/360;
+  const Jstar=n+lonDeg/360; // signe correct pour longitude est
   const M=(357.5291+0.98560028*Jstar)%360;
   const Mr=M*Math.PI/180;
   const C=1.9148*Math.sin(Mr)+0.02*Math.sin(2*Mr)+0.0003*Math.sin(3*Mr);
