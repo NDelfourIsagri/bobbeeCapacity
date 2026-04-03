@@ -235,6 +235,28 @@ tr:hover td{background:var(--chip);}
 .sprint-bar-sticky .sprint-sel-name{font-size:13px;font-weight:600;}
 .sprint-bar-sticky select{flex:1;padding:6px 10px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;}
 @media(max-width:1024px){.sprint-sel-sidebar{display:none;}.sprint-bar-sticky.active{display:flex;}.team-sel-sidebar{display:none;}}
+/* BACKLOG TABLE */
+.bl-table{width:100%;border-collapse:collapse;font-size:13px;}
+.bl-table th{padding:10px 8px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+.bl-table th:hover{color:var(--primary);}
+.bl-table th .sort-icon{font-size:14px;vertical-align:middle;opacity:0.4;}.bl-table th.sorted .sort-icon{opacity:1;color:var(--primary);}
+.bl-table td{padding:6px 8px;border-bottom:1px solid var(--divider);vertical-align:middle;}
+.bl-table tr:last-child td{border-bottom:none;}
+.bl-table tr:hover td{background:var(--bg2);}
+.bl-table .bl-input{width:100%;padding:4px 6px;border-radius:6px;border:1.5px solid transparent;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color 0.15s;}
+.bl-table .bl-input:hover{border-color:var(--border);}
+.bl-table .bl-input:focus{border-color:var(--primary);background:var(--bg);}
+.bl-table .bl-select{padding:4px 6px;border-radius:6px;border:1.5px solid transparent;background:transparent;color:var(--text);font-size:13px;font-family:inherit;outline:none;cursor:pointer;transition:border-color 0.15s;}
+.bl-table .bl-select:hover{border-color:var(--border);background:var(--bg);}
+.bl-table .bl-select:focus{border-color:var(--primary);background:var(--bg);}
+.bl-score{font-weight:700;font-size:14px;color:var(--primary);text-align:center;}
+.bl-score.zero{color:var(--text3);font-weight:400;}
+/* RICE tooltip */
+.rice-th{display:inline-flex;align-items:center;gap:3px;}
+.rice-info{position:relative;display:inline-flex;cursor:help;}
+.rice-info .ri-tip{visibility:hidden;opacity:0;position:absolute;z-index:500;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 12px;font-size:11px;font-weight:400;line-height:1.7;white-space:nowrap;box-shadow:var(--shadow-lg);color:var(--text);text-transform:none;letter-spacing:0;pointer-events:none;transition:opacity 0.15s;}
+.rice-info:hover .ri-tip{visibility:visible;opacity:1;}
+.rice-info .material-icons-round{font-size:14px;color:var(--text3);}
 </style>
 </head>
 <body data-theme="yellow" data-mode="light">
@@ -309,6 +331,7 @@ tr:hover td{background:var(--chip);}
         <div class="nav-item active" onclick="navTo('dashboard')"><span class="material-icons-round">dashboard</span><span>Dashboard</span></div>
         <div class="nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
         <div class="nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
+        <div class="nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
         <div class="nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
         <div class="nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Paramètres</span></div>
         <div class="nav-item admin-only" onclick="navTo('users')"><span class="material-icons-round">group</span><span>Utilisateurs</span></div>
@@ -379,6 +402,27 @@ tr:hover td{background:var(--chip);}
         <div id="sprints-list"></div>
       </div>
 
+      <!-- BACKLOG -->
+      <div class="page" id="page-backlog">
+        <div class="page-header">
+          <div><div class="page-title">Backlog 📋</div><div class="page-sub">Priorisation RICE</div></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select class="input" id="bl-filter-sprint" style="min-width:160px" onchange="renderBacklog()">
+              <option value="">Tous les sprints</option>
+            </select>
+            <button class="btn btn-filled admin-only" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="overflow-x:auto">
+            <table class="bl-table" id="bl-table">
+              <thead id="bl-thead"></thead>
+              <tbody id="bl-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- CHARTS -->
       <div class="page" id="page-charts">
         <div class="page-header"><div><div class="page-title">Graphiques 📈</div><div class="page-sub">Progression et performance</div></div></div>
@@ -436,6 +480,7 @@ tr:hover td{background:var(--chip);}
     <div class="bottom-nav-item active" onclick="navTo('dashboard')"><span class="material-icons-round">dashboard</span><span>Dashboard</span></div>
     <div class="bottom-nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
     <div class="bottom-nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
+    <div class="bottom-nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
     <div class="bottom-nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
     <div class="bottom-nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Params</span></div>
   </div></nav>
@@ -593,7 +638,7 @@ const API={
 const S={
   team:[],sprints:[],leaves:[],
   config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
-  users:[],teams:[]
+  users:[],teams:[],backlog:[]
 };
 let selectedTeamId=null;
 
@@ -623,6 +668,7 @@ async function loadUsers(){
   }));
 }
 async function loadTeams(){S.teams=await API.get('/api/teams');}
+async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId);else S.backlog=[];}
 
 // ── APP STATE ────────────────────────────────────────────
 let CU=null;
@@ -840,6 +886,7 @@ async function navTo(p){
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
 }
 
 // ── THEME ────────────────────────────────────────────────
@@ -1724,6 +1771,152 @@ async function delTeam(id){
       S.teams=S.teams.filter(t=>String(t.id)!==String(id));renderTeamsList();toast('Équipe supprimée','success');
     }catch(e){toast(e.error||'Erreur','error');}
   },'Supprimer l\'équipe');
+}
+
+// ── BACKLOG ───────────────────────────────────────────────
+let blSort={col:'score',dir:'desc'};
+
+const BL_REACH_TIPS='20 pts : 0-40% des utilisateurs\n40 pts : 40-60% des utilisateurs\n80 pts : 60-80% des utilisateurs\n100 pts : 100% des utilisateurs';
+const BL_IMPACT_TIPS='20 pts : Irritant faible\n40 pts : Irritant fort / Bug bloquant\n80 pts : Besoin réglementaire / conformité\n100 pts : Impact business direct';
+const BL_CONF_TIPS='20 pts : Hypothèse, intuition\n40 pts : Quelques retours utilisateurs\n80 pts : Retours support et terrain\n100 pts : Metrics, tests utilisateurs et réglementation';
+const BL_EFFORT_TIPS='20 : jusqu\'à 1 semaine\n40 : jusqu\'à 2 semaines\n60 : 1 sprint\n80 : 2 sprints\n100 : 3 sprints ou plus';
+
+function riceScore(r){
+  if(!r.effort)return 0;
+  return Math.round((r.reach*r.impact*r.confidence)/r.effort);
+}
+
+function infoIcon(tip){
+  return `<span class="rice-info"><span class="material-icons-round">info</span><span class="ri-tip">${tip.replace(/\n/g,'<br>')}</span></span>`;
+}
+
+function blSortIcon(col){
+  if(blSort.col!==col)return `<span class="material-icons-round sort-icon">unfold_more</span>`;
+  return `<span class="material-icons-round sort-icon">${blSort.dir==='asc'?'arrow_upward':'arrow_downward'}</span>`;
+}
+
+function toggleBlSort(col){
+  if(blSort.col===col)blSort.dir=blSort.dir==='asc'?'desc':'asc';
+  else{blSort.col=col;blSort.dir=col==='score'?'desc':'asc';}
+  renderBacklog();
+}
+
+function renderBacklog(){
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  // Remplir le filtre sprint
+  const openSprints=S.sprints.filter(s=>!s.closed);
+  const filterEl=document.getElementById('bl-filter-sprint');
+  const filterVal=filterEl?filterEl.value:'';
+  if(filterEl){
+    const cur=filterEl.value;
+    filterEl.innerHTML='<option value="">Tous les sprints</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===cur?'selected':''}>${s.name}</option>`).join('');
+    filterEl.value=cur;
+  }
+  // Filtrer
+  let rows=[...S.backlog];
+  if(filterVal)rows=rows.filter(r=>String(r.sprint_id)===String(filterVal));
+  // Calculer le score
+  rows=rows.map(r=>({...r,_score:riceScore(r)}));
+  // Trier
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(blSort.col==='score'){av=a._score;bv=b._score;}
+    else if(blSort.col==='jira_id'){av=a.jira_id||'';bv=b.jira_id||'';}
+    else if(blSort.col==='label'){av=a.label||'';bv=b.label||'';}
+    else if(blSort.col==='sprint'){av=a.sprint_id||0;bv=b.sprint_id||0;}
+    else{av=a[blSort.col]||0;bv=b[blSort.col]||0;}
+    if(typeof av==='string')return blSort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return blSort.dir==='asc'?av-bv:bv-av;
+  });
+  // En-tête
+  const sortable=(col,label,tip='')=>`<th class="${blSort.col===col?'sorted':''}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
+  document.getElementById('bl-thead').innerHTML=`<tr>
+    ${sortable('jira_id','ID Jira')}
+    ${sortable('label','Libellé')}
+    ${sortable('sprint','Sprint prévu')}
+    ${sortable('reach','Portée',BL_REACH_TIPS)}
+    ${sortable('impact','Impact',BL_IMPACT_TIPS)}
+    ${sortable('confidence','Confiance',BL_CONF_TIPS)}
+    ${sortable('effort','Effort',BL_EFFORT_TIPS)}
+    ${sortable('score','Score RICE')}
+    ${isAdmin?'<th></th>':''}
+  </tr>`;
+  // Corps
+  const selOpts=(vals,cur)=>vals.map(v=>`<option value="${v}" ${Number(cur)===v?'selected':''}>${v||'—'}</option>`).join('');
+  const sprintOpts=(cur)=>'<option value="">—</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===String(cur)?'selected':''}>${s.name}</option>`).join('');
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+
+  document.getElementById('bl-tbody').innerHTML=rows.length===0
+    ?`<tr><td colspan="${isAdmin?9:8}" style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Aucun élément dans le backlog</td></tr>`
+    :rows.map(r=>{
+      const score=r._score;
+      const jiraLink=r.jira_id?`<a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:600;text-decoration:none;font-size:12px" title="Ouvrir dans Jira">${r.jira_id}</a>`:''
+      if(!isAdmin) return `<tr>
+        <td style="min-width:90px">${jiraLink||'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="min-width:200px">${r.label||'—'}</td>
+        <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="text-align:center">${r.reach||0}</td>
+        <td style="text-align:center">${r.impact||0}</td>
+        <td style="text-align:center">${r.confidence||0}</td>
+        <td style="text-align:center">${r.effort||0}</td>
+        <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
+      </tr>`;
+      return `<tr>
+        <td style="min-width:90px">
+          <div style="display:flex;align-items:center;gap:4px">
+            ${jiraLink}
+            <input class="bl-input" style="width:90px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jiraId:this.value})">
+          </div>
+        </td>
+        <td style="min-width:220px"><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value})"></td>
+        <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprintId:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,20,40,60,80,100],r.effort)}</select></td>
+        <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
+        <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
+      </tr>`;
+    }).join('');
+}
+
+async function addBacklogItem(){
+  if(!selectedTeamId){toast('Sélectionnez une équipe','error');return;}
+  try{
+    const item=await API.post('/api/backlog',{teamId:Number(selectedTeamId),label:'Nouveau ticket'});
+    S.backlog.push(item);
+    renderBacklog();
+    // Focus sur le libellé du nouvel item
+    setTimeout(()=>{
+      const inputs=document.querySelectorAll('#bl-tbody input.bl-input');
+      if(inputs.length)inputs[inputs.length-1].select();
+    },50);
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+
+async function blUpdate(id,patch){
+  const item=S.backlog.find(r=>r.id==id);if(!item)return;
+  Object.assign(item,patch);
+  // Recalculer le score à la volée
+  const score=riceScore(item);
+  const scoreEl=document.getElementById('bl-score-'+id);
+  if(scoreEl){scoreEl.textContent=score||'—';scoreEl.className='bl-score'+(score===0?' zero':'');}
+  try{
+    await API.put('/api/backlog/'+id,{
+      jiraId:item.jira_id,label:item.label,sprintId:item.sprint_id,
+      reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort
+    });
+  }catch(e){toast(e.error||'Erreur sauvegarde','error');}
+}
+
+function blDelete(id){
+  showConfirm('Supprimer cet élément du backlog ?',async()=>{
+    try{
+      await API.del('/api/backlog/'+id);
+      S.backlog=S.backlog.filter(r=>r.id!=id);
+      renderBacklog();toast('Élément supprimé','success');
+    }catch(e){toast(e.error||'Erreur','error');}
+  },'Supprimer');
 }
 
 // ── UTILS ────────────────────────────────────────────────
