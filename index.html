@@ -1012,7 +1012,7 @@ function renderAgenda(){
   });
   html+='</tr></thead><tbody>';
   team.forEach((m,mi)=>{
-    const canEdit=isAdmin||(m.email===CU.email);
+    const canEdit=true;
     html+=`<tr><td class="td-member"><div style="display:flex;align-items:center;gap:8px;width:100%">
       <div style="width:22px;height:22px;border-radius:50%;background:${mc(mi)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${m.fname[0]||''}</div>
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.fname} ${m.lname}</span>
@@ -1086,20 +1086,16 @@ function groupLeaves(leaves,team){
 }
 
 function renderLeaveList(leaves,team){
-  const isAdmin=['admin','super_admin'].includes(CU.role);
   const tl={full:'Journée',am:'Matin',pm:'Après-midi'};
-  const myLeaves=isAdmin?leaves:leaves.filter(l=>{
-    const me=team.find(m=>m.email===CU.email);return me&&l.memberId==me.id;
-  });
   const el=document.getElementById('leave-list');if(!el)return;
-  if(myLeaves.length===0){el.innerHTML='<p style="color:var(--text3);font-size:13px">Aucun congé enregistré</p>';return;}
-  const groups=groupLeaves(myLeaves,team);
+  if(leaves.length===0){el.innerHTML='<p style="color:var(--text3);font-size:13px">Aucun congé enregistré</p>';return;}
+  const groups=groupLeaves(leaves,team);
   window._leaveGroups={};
   el.innerHTML=groups.sort((a,b)=>a.startDate>b.startDate?1:-1).map((g,gi)=>{
     window._leaveGroups[gi]=g.ids;
     const idx=team.findIndex(t=>t.id==g.memberId);
     const isSameDay=g.startDate===g.endDate;
-    const canDel=isAdmin||(team.find(t=>t.email===CU.email)?.id==g.memberId);
+    const canDel=true;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--divider)">
       <div style="width:32px;height:32px;border-radius:50%;background:${mc(idx>=0?idx:0)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">${g.member?.fname[0]||'?'}</div>
       <div style="flex:1">
@@ -1175,10 +1171,10 @@ function calPrev(){calDate.setMonth(calDate.getMonth()-1);renderAgenda();}
 function calNext(){calDate.setMonth(calDate.getMonth()+1);renderAgenda();}
 
 function openLeaveModal(){
-  const team=S.team,isAdmin=['admin','super_admin'].includes(CU.role);
-  const sel=document.getElementById('lm-user');sel.disabled=false;
-  if(isAdmin) sel.innerHTML=team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
-  else{const me=team.find(m=>m.email===CU.email);sel.innerHTML=me?`<option value="${me.id}">${me.fname} ${me.lname}</option>`:'<option>—</option>';sel.disabled=!me;}
+  const team=S.team;
+  const sel=document.getElementById('lm-user');
+  sel.disabled=false;
+  sel.innerHTML=team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
   ['lm-start','lm-end','lm-reason'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('lm-type').value='full';
   document.getElementById('modal-leave').classList.add('open');
