@@ -1602,9 +1602,13 @@ async function init(){
   setTheme(localStorage.getItem('bcp_theme')||'green');
   await loadChartJS();
   const token=localStorage.getItem('bcp_token');
-  const user=JSON.parse(localStorage.getItem('bcp_user')||'null');
-  if(token&&user){
-    try{await API.get('/api/team');loginOk(user);}catch(e){}
+  if(token){
+    try{
+      const data=await API.get('/api/auth/me');
+      localStorage.setItem('bcp_token',data.token);
+      localStorage.setItem('bcp_user',JSON.stringify(data.user));
+      loginOk(data.user);
+    }catch(e){}
   }
 }
 init();
