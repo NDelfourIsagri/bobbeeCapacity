@@ -787,13 +787,14 @@ async function navTeam(dir){
   selectedTeamId=String(S.teams[newIdx].id);
   renderTeamSelector();
   selectedSprintId=null; // reset sprint selection for the new team
-  await Promise.all([loadTeam(),loadSprints(),loadLeaves()]);
+  await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);
   initSprintSel();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
   else if(activePage==='page-charts')renderCharts();
   else if(activePage==='page-sprints')renderSprints();
   else if(activePage==='page-agenda')renderAgenda();
+  else if(activePage==='page-backlog')renderBacklog();
 }
 
 // ── SPRINT SELECTOR ──────────────────────────────────────
