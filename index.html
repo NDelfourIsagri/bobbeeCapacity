@@ -1160,7 +1160,7 @@ function calPrev(){calDate.setMonth(calDate.getMonth()-1);renderAgenda();}
 function calNext(){calDate.setMonth(calDate.getMonth()+1);renderAgenda();}
 
 function openLeaveModal(){
-  const team=S.team,isAdmin=CU.role==='admin';
+  const team=S.team,isAdmin=['admin','super_admin'].includes(CU.role);
   const sel=document.getElementById('lm-user');sel.disabled=false;
   if(isAdmin) sel.innerHTML=team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
   else{const me=team.find(m=>m.email===CU.email);sel.innerHTML=me?`<option value="${me.id}">${me.fname} ${me.lname}</option>`:'<option>—</option>';sel.disabled=!me;}
@@ -1196,7 +1196,7 @@ async function saveLeave(){
 // ── SPRINTS ──────────────────────────────────────────────
 function renderSprints(){
   const sprints=S.sprints.slice().sort((a,b)=>new Date(b.start)-new Date(a.start));
-  const now=new Date(),isAdmin=CU.role==='admin';
+  const now=new Date(),isAdmin=['admin','super_admin'].includes(CU.role);
   document.getElementById('sprints-list').innerHTML=sprints.length===0
     ?'<div class="card" style="text-align:center;color:var(--text3);padding:48px">Aucun sprint créé</div>'
     :'<div class="timeline">'+sprints.map(s=>{
