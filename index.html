@@ -417,6 +417,7 @@ tr:hover td{background:var(--chip);}
             <table class="bl-table" id="bl-table">
               <thead id="bl-thead"></thead>
               <tbody id="bl-tbody"></tbody>
+              <tfoot id="bl-tfoot"></tfoot>
             </table>
           </div>
         </div>
@@ -1872,8 +1873,8 @@ function renderBacklog(){
       const score=r._score;
       if(!isAdmin) return `<tr>
         <td style="width:36px;padding:6px 4px;text-align:center">${jiraIcon(r.jira_id,r.id)}</td>
-        <td style="min-width:90px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
-        <td style="min-width:200px">${r.label||'—'}</td>
+        <td style="min-width:90px;color:var(--text2);font-size:12px;font-weight:600;cursor:default" ${r.jira_id?`data-tip="${r.jira_id.replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="min-width:200px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
         <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
         <td style="text-align:center">${r.reach||0}</td>
         <td style="text-align:center">${r.impact||0}</td>
@@ -1883,8 +1884,8 @@ function renderBacklog(){
       </tr>`;
       return `<tr>
         <td style="width:36px;padding:6px 4px;text-align:center">${jiraIcon(r.jira_id,r.id)}</td>
-        <td style="min-width:100px"><input class="bl-input" style="width:100px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
-        <td style="min-width:220px"><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value})"></td>
+        <td style="min-width:100px" ${r.jira_id?`data-tip="${r.jira_id.replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()});this.closest('td').dataset.tip=this.value.trim()" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
+        <td style="min-width:220px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
@@ -1894,6 +1895,18 @@ function renderBacklog(){
         <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
       </tr>`;
     }).join('');
+
+  // Ligne d'ajout en pied de tableau (admin seulement)
+  const tfoot=document.getElementById('bl-tfoot');
+  if(tfoot){
+    tfoot.innerHTML=isAdmin?`<tr>
+      <td colspan="${cols}" style="padding:0">
+        <button onclick="addBacklogItem()" style="width:100%;background:none;border:none;border-top:1px dashed var(--border);padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text3);font-size:13px;font-weight:500;font-family:inherit;transition:all var(--transition)" onmouseover="this.style.background='var(--bg2)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text3)'">
+          <span class="material-icons-round" style="font-size:18px">add</span>Ajouter un élément
+        </button>
+      </td>
+    </tr>`:'';
+  }
 }
 
 async function addBacklogItem(){
