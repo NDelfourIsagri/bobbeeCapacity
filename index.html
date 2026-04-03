@@ -1103,10 +1103,10 @@ function renderDash(){
   const objsBlock=!cur?'<p style="color:var(--text3);font-size:13px">Aucun sprint actif</p>'
     :objs.length===0?'<p style="color:var(--text3);font-size:13px">Aucun objectif</p>'
     :objs.map(o=>`<div class="objective-item" ${canToggle?`onclick="toggleObj('${cur.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('');
-  const sprintBacklog=cur?(S.backlog||[]).filter(r=>String(r.sprint_id)===String(cur.id)):[];
+  const sprintBacklog=cur?(S.backlog||[]).filter(r=>String(r.sprint_id)===String(cur.id)).sort((a,b)=>{const sc=r=>r.effort>0?Math.round((r.reach*r.impact*r.confidence)/r.effort):0;return sc(b)-sc(a);}):[];
   const backlogBlock=cur&&sprintBacklog.length>0?`
     <div style="height:1px;background:var(--divider);margin:10px 0"></div>
-    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Backlog du sprint (${sprintBacklog.length})</div>
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Backlog du sprint</div>
     ${sprintBacklog.map(r=>{
       const score=r.effort>0?Math.round((r.reach*r.impact*r.confidence)/r.effort):0;
       const jiraLink=r.jira_id?`<a href="https://jira.atlassian.net/browse/${r.jira_id}" target="_blank" style="font-size:10px;font-weight:600;color:var(--primary);text-decoration:none;flex-shrink:0">${r.jira_id}</a>`:'';
