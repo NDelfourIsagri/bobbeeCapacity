@@ -1883,9 +1883,9 @@ function renderBacklog(){
       </tr>`;
       return `<tr>
         <td style="width:36px;padding:6px 4px;text-align:center">${jiraIcon(r.jira_id,r.id)}</td>
-        <td style="min-width:100px"><input class="bl-input" style="width:100px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jiraId:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
+        <td style="min-width:100px"><input class="bl-input" style="width:100px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
         <td style="min-width:220px"><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value})"></td>
-        <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprintId:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
+        <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
