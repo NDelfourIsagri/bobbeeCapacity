@@ -177,6 +177,7 @@ tr:hover td{background:var(--chip);}
 .tl-item::before{content:'';position:absolute;left:-20px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--primary);border:2px solid var(--bg);box-shadow:0 0 0 2px var(--primary);}
 .tl-item.done::before{background:var(--success);box-shadow:0 0 0 2px var(--success);}
 .tl-item.current::before{background:var(--warning);box-shadow:0 0 0 2px var(--warning);animation:pulse 1.5s infinite;}
+.tl-item.overdue::before{background:var(--danger);box-shadow:0 0 0 2px var(--danger);animation:pulse 1.5s infinite;}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
 
 /* ============ AGENDA / PLANNING ============ */
@@ -821,16 +822,21 @@ function initSprintSel(){
   if(sidebarEl)sidebarEl.style.display='';
   renderSprintSelector();
 }
+// Calcule le statut d'un sprint : closed | overdue | current | planned
+function sprintSt(s){
+  if(s.closed) return {text:'Terminé', badge:'badge-success', tl:'done'};
+  const now=new Date(),started=new Date(s.start)<=now,ended=new Date(s.end)<now;
+  if(ended)   return {text:'Dépassé', badge:'badge-danger',  tl:'overdue'};
+  if(started) return {text:'En cours',badge:'badge-warning', tl:'current'};
+  return              {text:'Planifié',badge:'badge-primary', tl:''};
+}
 function renderSprintSelector(){
   const sprints=sprintsSorted();
   const idx=sprints.findIndex(s=>String(s.id)===String(selectedSprintId));
   const s=sprints[idx];
   if(!s)return;
-  const now=new Date(),started=new Date(s.start)<=now,ended=new Date(s.end)<now;
-  let statusText,statusClass;
-  if(s.closed){statusText='Terminé';statusClass='badge-success';}
-  else if(started&&!ended){statusText='En cours';statusClass='badge-warning';}
-  else{statusText='Planifié';statusClass='badge-primary';}
+  const st=sprintSt(s);
+  const statusText=st.text,statusClass=st.badge;
   const badge=`<span class="badge ${statusClass}" style="font-size:10px">${statusText}</span>`;
   const hasPrev=idx>0,hasNext=idx<sprints.length-1;
   // Desktop sidebar
@@ -1359,8 +1365,8 @@ function renderSprints(){
   document.getElementById('sprints-list').innerHTML=sprints.length===0
     ?'<div class="card" style="text-align:center;color:var(--text3);padding:48px">Aucun sprint créé</div>'
     :'<div class="timeline">'+sprints.map(s=>{
-      const started=new Date(s.start)<=now,ended=new Date(s.end)<now;
-      let tl='tl-item';if(s.closed)tl+=' done';else if(started&&!ended)tl+=' current';
+      const st=sprintSt(s);
+      const tl='tl-item'+(st.tl?' '+st.tl:'');
       const objs=s.objectives||[],dO=objs.filter(o=>o.done).length;
       const stars=Array(5).fill(0).map((_,i)=>`<span class="material-icons-round conf-star ${i<(s.confidence||0)?'':'empty'}" style="font-size:14px">${i<(s.confidence||0)?'star':'star_border'}</span>`).join('');
       return `<div class="${tl}"><div class="sprint-card" style="margin-bottom:16px">
@@ -1369,13 +1375,13 @@ function renderSprints(){
             <div class="sprint-name">${s.name}</div>
             <div class="sprint-dates">${fd(s.start)} → ${fd(s.end)}</div>
             <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <span class="badge ${s.closed?'badge-success':started?'badge-warning':'badge-primary'}">${s.closed?'Terminé':started?'En cours':'Planifié'}</span>
+              <span class="badge ${st.badge}">${st.text}</span>
               <div>${stars}</div>
             </div>
           </div>
           <div style="display:flex;gap:8px;flex-shrink:0">
             ${isAdmin&&!s.closed?`<button class="btn btn-outline btn-sm" onclick="openSprintModal('${s.id}')"><span class="material-icons-round">edit</span></button>`:''}
-            ${isAdmin&&!s.closed&&started?`<button class="btn btn-filled btn-sm" onclick="openCloseModal('${s.id}')"><span class="material-icons-round">check</span>Clôturer</button>`:''}
+            ${isAdmin&&!s.closed&&st.tl!==''?`<button class="btn btn-filled btn-sm" onclick="openCloseModal('${s.id}')"><span class="material-icons-round">check</span>Clôturer</button>`:''}
             ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="delSprint('${s.id}')"><span class="material-icons-round">delete</span></button>`:''}
           </div>
         </div>
@@ -1388,7 +1394,7 @@ function renderSprints(){
                 :`<div style="font-size:22px;font-weight:700;color:var(--warning)">${s.velocityCurrent||'—'}${s.velocityCurrent?' pts':''}</div>`}
             </div>
             <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Réalisé</div>
-              ${isAdmin&&!s.closed&&started
+              ${isAdmin&&!s.closed&&st.tl!==''
                 ?`<div style="display:flex;align-items:center;gap:6px"><input type="number" step="0.5" min="0" style="width:80px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center" value="${s.velocityActual||''}" placeholder="0" onchange="updateActualVel('${s.id}',this.value)"><span style="font-size:13px;color:var(--text3)">pts</span></div>`
                 :`<div style="font-size:22px;font-weight:700;color:${s.velocityActual?'var(--success)':'var(--text3)'}">${s.velocityActual||'—'}${s.velocityActual?' pts':''}</div>`}
             </div>
