@@ -253,10 +253,9 @@ tr:hover td{background:var(--chip);}
 .bl-score.zero{color:var(--text3);font-weight:400;}
 /* RICE tooltip */
 .rice-th{display:inline-flex;align-items:center;gap:3px;}
-.rice-info{position:relative;display:inline-flex;cursor:help;}
-.rice-info .ri-tip{visibility:hidden;opacity:0;position:absolute;z-index:500;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 12px;font-size:11px;font-weight:400;line-height:1.7;white-space:nowrap;box-shadow:var(--shadow-lg);color:var(--text);text-transform:none;letter-spacing:0;pointer-events:none;transition:opacity 0.15s;}
-.rice-info:hover .ri-tip{visibility:visible;opacity:1;}
+.rice-info{display:inline-flex;cursor:help;vertical-align:middle;}
 .rice-info .material-icons-round{font-size:14px;color:var(--text3);}
+#bl-tip{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 12px;font-size:11px;font-weight:400;line-height:1.7;white-space:nowrap;box-shadow:var(--shadow-lg);color:var(--text);pointer-events:none;display:none;}
 </style>
 </head>
 <body data-theme="yellow" data-mode="light">
@@ -609,6 +608,7 @@ tr:hover td{background:var(--chip);}
 </div>
 
 <div id="toast-container"></div>
+<div id="bl-tip"></div>
 
 <script>
 // ── COLORS ──────────────────────────────────────────────
@@ -1787,8 +1787,23 @@ function riceScore(r){
 }
 
 function infoIcon(tip){
-  return `<span class="rice-info"><span class="material-icons-round">info</span><span class="ri-tip">${tip.replace(/\n/g,'<br>')}</span></span>`;
+  return `<span class="rice-info" data-tip="${tip.replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"><span class="material-icons-round">info</span></span>`;
 }
+function showBlTip(e,el){
+  const tip=document.getElementById('bl-tip');
+  tip.innerHTML=(el.dataset.tip||'').replace(/\n/g,'<br>');
+  tip.style.display='block';
+  posBlTip(e);
+}
+function posBlTip(e){
+  const tip=document.getElementById('bl-tip');if(!tip||tip.style.display==='none')return;
+  const m=8,w=tip.offsetWidth,h=tip.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;
+  let x=e.clientX+12,y=e.clientY-h-8;
+  if(x+w>vw-m)x=e.clientX-w-12;
+  if(y<m)y=e.clientY+12;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideBlTip(){const tip=document.getElementById('bl-tip');if(tip)tip.style.display='none';}
 
 function blSortIcon(col){
   if(blSort.col!==col)return `<span class="material-icons-round sort-icon">unfold_more</span>`;
@@ -1831,6 +1846,7 @@ function renderBacklog(){
   // En-tête
   const sortable=(col,label,tip='')=>`<th class="${blSort.col===col?'sorted':''}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
   document.getElementById('bl-thead').innerHTML=`<tr>
+    <th style="width:36px"></th>
     ${sortable('jira_id','ID Jira')}
     ${sortable('label','Libellé')}
     ${sortable('sprint','Sprint prévu')}
@@ -1845,14 +1861,18 @@ function renderBacklog(){
   const selOpts=(vals,cur)=>vals.map(v=>`<option value="${v}" ${Number(cur)===v?'selected':''}>${v||'—'}</option>`).join('');
   const sprintOpts=(cur)=>'<option value="">—</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===String(cur)?'selected':''}>${s.name}</option>`).join('');
   const JIRA_BASE='https://isagri.atlassian.net/browse/';
+  const jiraIcon=(id,rowId)=>id
+    ?`<a href="${JIRA_BASE}${encodeURIComponent(id)}" target="_blank" rel="noopener" id="bl-jira-link-${rowId}" title="Ouvrir ${id} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`
+    :`<span id="bl-jira-link-${rowId}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`;
 
+  const cols=isAdmin?10:9;
   document.getElementById('bl-tbody').innerHTML=rows.length===0
-    ?`<tr><td colspan="${isAdmin?9:8}" style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Aucun élément dans le backlog</td></tr>`
+    ?`<tr><td colspan="${cols}" style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Aucun élément dans le backlog</td></tr>`
     :rows.map(r=>{
       const score=r._score;
-      const jiraLink=r.jira_id?`<a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:600;text-decoration:none;font-size:12px" title="Ouvrir dans Jira">${r.jira_id}</a>`:''
       if(!isAdmin) return `<tr>
-        <td style="min-width:90px">${jiraLink||'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="width:36px;padding:6px 4px;text-align:center">${jiraIcon(r.jira_id,r.id)}</td>
+        <td style="min-width:90px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
         <td style="min-width:200px">${r.label||'—'}</td>
         <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
         <td style="text-align:center">${r.reach||0}</td>
@@ -1862,12 +1882,8 @@ function renderBacklog(){
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
       </tr>`;
       return `<tr>
-        <td style="min-width:90px">
-          <div style="display:flex;align-items:center;gap:4px">
-            ${jiraLink}
-            <input class="bl-input" style="width:90px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jiraId:this.value})">
-          </div>
-        </td>
+        <td style="width:36px;padding:6px 4px;text-align:center">${jiraIcon(r.jira_id,r.id)}</td>
+        <td style="min-width:100px"><input class="bl-input" style="width:100px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jiraId:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
         <td style="min-width:220px"><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value})"></td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprintId:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
@@ -1894,6 +1910,15 @@ async function addBacklogItem(){
   }catch(e){toast(e.error||'Erreur','error');}
 }
 
+function blUpdateJiraIcon(id,val){
+  const el=document.getElementById('bl-jira-link-'+id);if(!el)return;
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+  if(val){
+    el.outerHTML=`<a href="${JIRA_BASE}${encodeURIComponent(val)}" target="_blank" rel="noopener" id="bl-jira-link-${id}" title="Ouvrir ${val} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`;
+  }else{
+    el.outerHTML=`<span id="bl-jira-link-${id}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`;
+  }
+}
 async function blUpdate(id,patch){
   const item=S.backlog.find(r=>r.id==id);if(!item)return;
   Object.assign(item,patch);
