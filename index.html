@@ -234,7 +234,7 @@ tr:hover td{background:var(--chip);}
 .sprint-bar-sticky{display:none;align-items:center;gap:8px;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);}
 .sprint-bar-sticky .sprint-sel-name{font-size:13px;font-weight:600;}
 .sprint-bar-sticky select{flex:1;padding:6px 10px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;}
-@media(max-width:1024px){.sprint-sel-sidebar{display:none;}.sprint-bar-sticky.active{display:flex;}}
+@media(max-width:1024px){.sprint-sel-sidebar{display:none;}.sprint-bar-sticky.active{display:flex;}.team-sel-sidebar{display:none;}}
 </style>
 </head>
 <body data-theme="yellow" data-mode="light">
@@ -258,6 +258,7 @@ tr:hover td{background:var(--chip);}
       <div class="form-group"><label class="form-label">Nom</label><input type="text" class="form-input" id="reg-lname" placeholder="Nom"></div>
       <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="reg-email" placeholder="vous@isagri.fr"></div>
       <div class="form-group"><label class="form-label">Mot de passe</label><input type="password" class="form-input" id="reg-pwd" placeholder="Min. 6 caractères"></div>
+      <div class="form-group"><label class="form-label">Équipe(s)</label><div id="reg-teams" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div></div>
       <button class="btn-primary" onclick="doRegister()">Créer mon compte</button>
       <div class="auth-error" id="reg-error"></div>
     </div>
@@ -282,6 +283,16 @@ tr:hover td{background:var(--chip);}
         <div class="ts-dot" style="background:#87af18" data-theme="isagri" onclick="setTheme('isagri')"></div>
         <div class="ts-dot" style="background:#007bac" data-theme="blue" onclick="setTheme('blue')"></div>
         <div class="ts-dot" style="background:#7c3aed" data-theme="purple" onclick="setTheme('purple')"></div>
+      </div>
+      <div class="sprint-sel-sidebar team-sel-sidebar" id="team-sel-sidebar" style="display:none">
+        <div class="sprint-sel-sidebar-header">Équipe</div>
+        <div class="sprint-sel-row">
+          <button class="icon-btn" id="tm-btn-prev" onclick="navTeam(-1)"><span class="material-icons-round" style="font-size:18px">chevron_left</span></button>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">
+            <div class="sprint-sel-name" id="tm-sel-name">—</div>
+          </div>
+          <button class="icon-btn" id="tm-btn-next" onclick="navTeam(1)"><span class="material-icons-round" style="font-size:18px">chevron_right</span></button>
+        </div>
       </div>
       <div class="sprint-sel-sidebar" id="sprint-sel-sidebar" style="display:none">
         <div class="sprint-sel-sidebar-header">Sprint affiché</div>
@@ -416,7 +427,7 @@ tr:hover td{background:var(--chip);}
       <!-- USERS -->
       <div class="page" id="page-users">
         <div class="page-header"><div><div class="page-title">Utilisateurs 👥</div><div class="page-sub">Gestion des accès</div></div></div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Action</th></tr></thead><tbody id="users-tbody"></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Équipes</th><th>Action</th></tr></thead><tbody id="users-tbody"></tbody></table></div></div>
       </div>
     </main>
   </div>
@@ -504,6 +515,10 @@ tr:hover td{background:var(--chip);}
       <div class="form-group"><label class="input-label">Vélocité individuelle (%)</label><input type="number" class="input" id="mm-vel" min="0" max="200" placeholder="Par défaut selon niveau"></div>
       <div class="form-group"><label class="input-label">Réunions (%)</label><input type="number" class="input" id="mm-mtg" min="0" max="100"></div>
     </div>
+    <div class="form-group admin-only" id="mm-teams-group">
+      <label class="input-label">Équipes</label>
+      <div id="mm-teams-check" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+    </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-member')">Annuler</button><button class="btn btn-filled" onclick="saveMember()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
   </div>
 </div>
@@ -525,6 +540,15 @@ tr:hover td{background:var(--chip);}
     </div>
     <div class="form-group"><label class="input-label">Motif (optionnel)</label><input type="text" class="input" id="lm-reason" placeholder="Congés annuels, RTT..."></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-leave')">Annuler</button><button class="btn btn-filled" onclick="saveLeave()"><span class="material-icons-round">check</span>Enregistrer</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-user-teams">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><div class="modal-title">Équipes visibles</div><button class="icon-btn" onclick="closeModal('modal-user-teams')"><span class="material-icons-round">close</span></button></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px" id="ut-user-label"></p>
+    <div id="ut-teams-check" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-user-teams')">Annuler</button><button class="btn btn-filled" onclick="saveUserTeams()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
   </div>
 </div>
 
@@ -571,6 +595,7 @@ const S={
   config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
   users:[],teams:[]
 };
+let selectedTeamId=null;
 
 function normSprint(s){
   return{id:s.id,name:s.name,
@@ -580,11 +605,23 @@ function normSprint(s){
     velocityActual:s.velocity_actual??s.velocityActual??null,
     confidence:s.confidence||0,objectives:s.objectives||[],closed:!!s.closed};
 }
-async function loadTeam(){S.team=await API.get('/api/team');}
-async function loadSprints(){S.sprints=(await API.get('/api/sprints')).map(normSprint);}
+async function loadTeam(){
+  const q=selectedTeamId?`?teamId=${selectedTeamId}`:'';
+  S.team=await API.get('/api/team'+q);
+}
+async function loadSprints(){
+  const q=selectedTeamId?`?teamId=${selectedTeamId}`:'';
+  S.sprints=(await API.get('/api/sprints'+q)).map(normSprint);
+}
 async function loadLeaves(){S.leaves=await API.get('/api/leaves');}
 async function loadConfig(){const d=await API.get('/api/config');if(d.vel_grid)S.config.vel_grid=d.vel_grid;if(d.mtg_grid)S.config.mtg_grid=d.mtg_grid;}
-async function loadUsers(){S.users=await API.get('/api/users');}
+async function loadUsers(){
+  S.users=await API.get('/api/users');
+  // Charger les équipes de chaque utilisateur
+  await Promise.all(S.users.map(async u=>{
+    try{u._teamIds=await API.get('/api/users/'+u.id+'/teams');}catch(e){u._teamIds=[];}
+  }));
+}
 async function loadTeams(){S.teams=await API.get('/api/teams');}
 
 // ── APP STATE ────────────────────────────────────────────
@@ -596,10 +633,18 @@ let editMemberId=null;
 let charts={};
 
 // ── AUTH ─────────────────────────────────────────────────
-function switchAuthTab(t){
+async function switchAuthTab(t){
   document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',i===(t==='login'?0:1)));
   document.getElementById('login-form').style.display=t==='login'?'':'none';
   document.getElementById('register-form').style.display=t==='register'?'':'none';
+  if(t==='register'){
+    try{
+      const teams=await fetch('/api/teams/public').then(r=>r.json());
+      const c=document.getElementById('reg-teams');
+      if(c)c.innerHTML=teams.length===0?'<span style="color:var(--text3);font-size:12px">Aucune équipe disponible</span>'
+        :teams.map(tm=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);font-size:13px"><input type="checkbox" value="${tm.id}" style="accent-color:var(--primary)"> ${tm.name}</label>`).join('');
+    }catch(e){}
+  }
 }
 async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
@@ -621,13 +666,15 @@ async function doRegister(){
   if(!fname||!lname||!email||!pwd){err.textContent='Remplissez tous les champs.';err.style.display='block';return;}
   if(pwd.length<6){err.textContent='Mot de passe trop court.';err.style.display='block';return;}
   try{
-    const data=await API.post('/api/auth/create',{fname,lname,email,pwd});
+    const boxes=document.querySelectorAll('#reg-teams input[type=checkbox]');
+    const teamIds=[...boxes].filter(b=>b.checked).map(b=>Number(b.value));
+    const data=await API.post('/api/auth/create',{fname,lname,email,pwd,teamIds});
     localStorage.setItem('bcp_token',data.token);
     localStorage.setItem('bcp_user',JSON.stringify(data.user));
     loginOk(data.user);toast('Bienvenue 🐝','success');
   }catch(e){err.textContent=e.error||'Erreur lors de la création.';err.style.display='block';}
 }
-function loginOk(u){
+async function loginOk(u){
   CU=u;
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='flex';
@@ -640,6 +687,8 @@ function loginOk(u){
   const isSA=u.role==='super_admin';
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isA?'':'none');
   document.querySelectorAll('.superadmin-only').forEach(el=>el.style.display=isSA?'':'none');
+  await loadTeams();
+  initTeamSel();
   navTo('dashboard');
 }
 function doLogout(){
@@ -661,6 +710,43 @@ async function savePwd(){
     await API.put('/api/auth/password',{current:cur,next:nw});
     closeModal('modal-pwd');toast('Mot de passe mis à jour ✓','success');
   }catch(e){err.textContent=e.error||'Mot de passe actuel incorrect.';err.style.display='block';}
+}
+
+// ── TEAM SELECTOR ───────────────────────────────────────
+function initTeamSel(){
+  const el=document.getElementById('team-sel-sidebar');
+  if(!S.teams.length){if(el)el.style.display='none';return;}
+  // Admins/super_admins : toutes les équipes ; consultants : S.teams déjà filtré
+  if(!selectedTeamId||!S.teams.find(t=>String(t.id)===String(selectedTeamId))){
+    selectedTeamId=String(S.teams[0].id);
+  }
+  if(el)el.style.display=S.teams.length>1?'':'none';
+  renderTeamSelector();
+}
+function renderTeamSelector(){
+  const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
+  const t=S.teams[idx];
+  const nameEl=document.getElementById('tm-sel-name');
+  const prevBtn=document.getElementById('tm-btn-prev');
+  const nextBtn=document.getElementById('tm-btn-next');
+  if(nameEl)nameEl.textContent=t?t.name:'—';
+  if(prevBtn)prevBtn.style.visibility=idx>0?'visible':'hidden';
+  if(nextBtn)nextBtn.style.visibility=idx<S.teams.length-1?'visible':'hidden';
+}
+async function navTeam(dir){
+  const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=S.teams.length)return;
+  selectedTeamId=String(S.teams[newIdx].id);
+  renderTeamSelector();
+  selectedSprintId=null; // reset sprint selection for the new team
+  await Promise.all([loadTeam(),loadSprints(),loadLeaves()]);
+  initSprintSel();
+  const activePage=document.querySelector('.page.active')?.id;
+  if(activePage==='page-dashboard')renderDash();
+  else if(activePage==='page-charts')renderCharts();
+  else if(activePage==='page-sprints')renderSprints();
+  else if(activePage==='page-agenda')renderAgenda();
 }
 
 // ── SPRINT SELECTOR ──────────────────────────────────────
@@ -752,7 +838,7 @@ async function navTo(p){
   if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='sprints'){await loadSprints();renderSprints();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
-  if(p==='settings'){const loads=[loadTeam(),loadConfig()];if(CU?.role==='super_admin')loads.push(loadTeams());await Promise.all(loads);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
 }
 
@@ -1325,7 +1411,7 @@ async function saveSprint(){
         confidence:sprintStars,objectives:tmpObjs,closed:s?.closed||false,
       });
     }else{
-      await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs});
+      await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs,teamId:selectedTeamId?Number(selectedTeamId):null});
     }
     await loadSprints();
     closeModal('modal-sprint');toast('Sprint sauvegardé ✓','success');renderSprints();
@@ -1482,7 +1568,7 @@ async function saveMtgGrid(){
   await API.put('/api/config/mtg_grid',{value:g});
   S.config.mtg_grid=g;toast('Grille sauvegardée ✓','success');
 }
-function openMemberModal(id=null){
+async function openMemberModal(id=null){
   editMemberId=id;
   const mg=S.config.mtg_grid||{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50};
   const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
@@ -1493,6 +1579,20 @@ function openMemberModal(id=null){
   document.getElementById('mm-know').value=m?.know||70;document.getElementById('mm-adapt').value=m?.adapt||80;
   document.getElementById('mm-vel').value=m?.velocity!=null?m.velocity:(vg[m?.level||'intermediaire']||85);
   document.getElementById('mm-mtg').value=m?.meetings||(mg[m?.role||'dev']||20);
+  // Équipes (admin seulement)
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  const teamsGroup=document.getElementById('mm-teams-group');
+  const teamsCheck=document.getElementById('mm-teams-check');
+  if(teamsGroup)teamsGroup.style.display=isAdmin?'':'none';
+  if(teamsCheck&&isAdmin&&S.teams.length){
+    let memberTeams=[];
+    if(id){try{memberTeams=await API.get('/api/team/'+id+'/teams');}catch(e){}}
+    teamsCheck.innerHTML=S.teams.map(t=>`
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);font-size:13px">
+        <input type="checkbox" value="${t.id}" ${memberTeams.includes(t.id)?'checked':''} style="accent-color:var(--primary)">
+        ${t.name}
+      </label>`).join('');
+  }
   document.getElementById('modal-member').classList.add('open');
 }
 async function saveMember(){
@@ -1505,8 +1605,16 @@ async function saveMember(){
     velocity:velVal!==''?Number(velVal):null,
     meetings:Number(document.getElementById('mm-mtg').value)};
   try{
+    let memberId=editMemberId;
     if(editMemberId){await API.put('/api/team/'+editMemberId,obj);}
-    else{await API.post('/api/team',obj);}
+    else{const r=await API.post('/api/team',obj);memberId=r.id;}
+    // Sauvegarder les équipes
+    const isAdmin=['admin','super_admin'].includes(CU?.role);
+    if(isAdmin&&memberId){
+      const boxes=document.querySelectorAll('#mm-teams-check input[type=checkbox]');
+      const teamIds=[...boxes].filter(b=>b.checked).map(b=>Number(b.value));
+      await API.put('/api/team/'+memberId+'/teams',{teamIds});
+    }
     await loadTeam();
     closeModal('modal-member');toast('Membre sauvegardé ✓','success');renderSettings();
   }catch(e){toast(e.error||'Erreur','error');}
@@ -1538,10 +1646,13 @@ function renderUsers(){
         actions=`<button class="btn btn-outline btn-sm" onclick="toggleRole('${u.id}')"><span class="material-icons-round" style="font-size:14px">swap_horiz</span>${u.role==='admin'?'→ Consultant':'→ Admin'}</button>`;
       }
     }
+    const teamBadges=(u._teamIds||[]).map(tid=>{const t=S.teams.find(x=>String(x.id)===String(tid));return t?`<span class="badge badge-primary" style="font-size:10px">${t.name}</span>`:''}).join(' ');
+    const teamsCell=`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${teamBadges||'<span style="color:var(--text3);font-size:12px">—</span>'}${isSA||['admin','super_admin'].includes(CU?.role)?`<button class="icon-btn" onclick="openUserTeamsModal('${u.id}')" title="Éditer équipes" style="margin-left:4px"><span class="material-icons-round" style="font-size:14px">edit</span></button>`:''}</div>`;
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:28px;height:28px;font-size:11px">${(u.fname[0]||'')+(u.lname[0]||'')}</div><span>${u.fname} ${u.lname}</span></div></td>
       <td style="color:var(--text2)">${u.email}</td>
       <td>${badge}</td>
+      <td>${teamsCell}</td>
       <td>${actions}</td>
     </tr>`;
   }).join('');
@@ -1565,6 +1676,28 @@ async function delUser(id){
       await loadUsers();renderUsers();toast('Utilisateur supprimé','success');
     }catch(e){toast(e.error||'Erreur','error');}
   },'Supprimer l\'utilisateur');
+}
+
+let editUserTeamsId=null;
+async function openUserTeamsModal(userId){
+  editUserTeamsId=userId;
+  const u=S.users.find(x=>String(x.id)===String(userId));
+  document.getElementById('ut-user-label').textContent=u?`${u.fname} ${u.lname}`:'';
+  const current=u?._teamIds||[];
+  document.getElementById('ut-teams-check').innerHTML=S.teams.map(t=>`
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);font-size:13px;font-weight:500">
+      <input type="checkbox" value="${t.id}" ${current.includes(t.id)?'checked':''} style="accent-color:var(--primary)">
+      ${t.name}
+    </label>`).join('');
+  document.getElementById('modal-user-teams').classList.add('open');
+}
+async function saveUserTeams(){
+  const boxes=document.querySelectorAll('#ut-teams-check input[type=checkbox]');
+  const teamIds=[...boxes].filter(b=>b.checked).map(b=>Number(b.value));
+  try{
+    await API.put('/api/users/'+editUserTeamsId+'/teams',{teamIds});
+    await loadUsers();renderUsers();closeModal('modal-user-teams');toast('Équipes mises à jour ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
 }
 
 // ── TEAMS ────────────────────────────────────────────────
