@@ -2076,7 +2076,18 @@ function renderBacklog(){
 
   const cols=isAdmin?10:9;
   document.getElementById('bl-tbody').innerHTML=rows.length===0
-    ?`<tr><td colspan="${cols}" style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Aucun élément dans le backlog</td></tr>`
+    ?`<tr>
+      <td class="bl-sk" style="width:36px;left:0;padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${isAdmin?100:90}px;left:${L2}px;padding:32px 4px"></td>
+      <td class="bl-sk bl-sk-sep" style="min-width:${isAdmin?220:200}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
+      <td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td>
+      ${isAdmin?'<td style="padding:32px 4px"></td>':''}
+    </tr>`
     :rows.map(r=>{
       const score=r._score;
       if(!isAdmin) return `<tr>
