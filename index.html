@@ -500,13 +500,21 @@ tr:hover td{background:var(--chip);}
       <!-- SETTINGS -->
       <div class="page" id="page-settings">
         <div class="page-header"><div><div class="page-title">Paramètres ⚙️</div><div class="page-sub">Équipe, vélocité, réunions</div></div></div>
-        <div id="settings-grid" style="display:grid;gap:20px;margin-bottom:20px;align-items:start">
+        <div id="settings-grid" style="display:grid;gap:20px;align-items:start">
           <div class="card">
             <div class="settings-title"><span class="material-icons-round">people</span>Membres <small style="font-size:12px;color:var(--text3);font-weight:400">(glisser pour réordonner)</small></div>
             <div id="team-list" style="margin-bottom:16px"></div>
             <button class="btn btn-filled" onclick="openMemberModal()"><span class="material-icons-round">person_add</span>Ajouter</button>
           </div>
           <div class="superadmin-only" style="display:flex;flex-direction:column;gap:20px">
+            <div class="card">
+              <div class="settings-title"><span class="material-icons-round">corporate_fare</span>Équipes</div>
+              <div id="teams-list" style="margin-bottom:16px"></div>
+              <div style="display:flex;gap:8px">
+                <input type="text" class="input" id="new-team-name" placeholder="Nom de l'équipe" style="flex:1" onkeydown="if(event.key==='Enter')addTeam()">
+                <button class="btn btn-filled" onclick="addTeam()"><span class="material-icons-round">add</span>Créer</button>
+              </div>
+            </div>
             <div class="card">
               <div class="settings-title"><span class="material-icons-round">speed</span>Vélocité par niveau (%)</div>
               <div class="velocity-grid" id="vel-grid"></div>
@@ -516,14 +524,6 @@ tr:hover td{background:var(--chip);}
               <div class="settings-title"><span class="material-icons-round">meeting_room</span>Charge réunions par rôle (%)</div>
               <div class="velocity-grid" id="mtg-grid"></div>
               <button class="btn btn-filled" style="margin-top:16px" onclick="saveMtgGrid()"><span class="material-icons-round">save</span>Sauvegarder</button>
-            </div>
-            <div class="card">
-              <div class="settings-title"><span class="material-icons-round">corporate_fare</span>Équipes</div>
-              <div id="teams-list" style="margin-bottom:16px"></div>
-              <div style="display:flex;gap:8px">
-                <input type="text" class="input" id="new-team-name" placeholder="Nom de l'équipe" style="flex:1" onkeydown="if(event.key==='Enter')addTeam()">
-                <button class="btn btn-filled" onclick="addTeam()"><span class="material-icons-round">add</span>Créer</button>
-              </div>
             </div>
           </div>
         </div>
