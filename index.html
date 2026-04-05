@@ -257,6 +257,46 @@ tr:hover td{background:var(--chip);}
 .rice-info{display:inline-flex;cursor:help;vertical-align:middle;}
 .rice-info .material-icons-round{font-size:14px;color:var(--text3);}
 #bl-tip{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 12px;font-size:11px;font-weight:400;line-height:1.7;white-space:nowrap;box-shadow:var(--shadow-lg);color:var(--text);pointer-events:none;display:none;}
+/* BACKLOG TABS */
+.bl-tabs{display:flex;background:var(--bg2);border-radius:var(--radius-md);padding:4px;width:fit-content;gap:4px;margin-bottom:16px;}
+.bl-tab{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:none;background:none;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all var(--transition);}
+.bl-tab.active{background:var(--surface);color:var(--primary);font-weight:600;box-shadow:var(--shadow-sm);}
+.bl-tab .material-icons-round{font-size:16px;}
+/* GANTT / CHRONOLOGIE */
+.gantt-wrap{display:flex;width:100%;min-height:120px;}
+.gantt-left{flex:0 0 260px;background:var(--surface);border-right:2px solid var(--border);overflow:hidden;}
+.gantt-left-head-row{display:flex;align-items:center;padding:0 12px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;background:var(--bg2);}
+.gantt-left-head-row:first-child{border-bottom:1px solid var(--divider);}
+.gantt-left-head-row:last-child{border-bottom:2px solid var(--border);}
+.gantt-left-wi{display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--divider);overflow:hidden;}
+.gantt-left-wi:last-child{border-bottom:none;}
+.gantt-left-wi:hover{background:var(--bg2);}
+.gantt-wi-id{font-size:11px;font-weight:600;color:var(--primary);flex-shrink:0;white-space:nowrap;text-decoration:none;}
+.gantt-wi-id:hover{text-decoration:underline;}
+.gantt-wi-label{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.gantt-right{flex:1;overflow-x:auto;min-width:0;}
+.gantt-timeline{position:relative;display:inline-block;min-width:100%;}
+.gantt-months-row{display:flex;overflow:hidden;height:36px;background:var(--bg2);border-bottom:1px solid var(--divider);}
+.gantt-sprints-row{display:flex;overflow:hidden;height:36px;background:var(--bg2);border-bottom:2px solid var(--border);}
+.gantt-month-cell{flex-shrink:0;display:flex;align-items:center;padding:0 10px;font-size:12px;font-weight:700;color:var(--text2);text-transform:capitalize;border-right:1px solid var(--border);overflow:hidden;white-space:nowrap;}
+.gantt-month-cell.is-today-month{color:var(--primary);}
+.gantt-sprint-cell{flex-shrink:0;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:var(--text3);border-right:1px solid var(--divider);overflow:hidden;white-space:nowrap;gap:4px;}
+.gantt-sprint-cell.is-current{color:var(--primary);background:rgba(var(--primary-rgb),0.07);border:1px solid rgba(var(--primary-rgb),0.25);border-bottom:none;border-radius:4px 4px 0 0;}
+.gantt-sprint-cell.is-gap{background:var(--bg);}
+.gantt-body-rows{position:relative;}
+.gantt-wi-row{position:relative;border-bottom:1px solid var(--divider);}
+.gantt-wi-row:last-child{border-bottom:none;}
+.gantt-wi-row:hover{background:rgba(var(--primary-rgb),0.03);}
+.gantt-bar{position:absolute;top:8px;border-radius:6px;display:flex;align-items:center;padding:0 8px;min-width:12px;overflow:hidden;cursor:default;transition:filter var(--transition);}
+.gantt-bar:hover{filter:brightness(1.12);}
+.gantt-bar-label{font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
+.gantt-bar-link{color:rgba(255,255,255,0.85);display:inline-flex;align-items:center;flex-shrink:0;margin-left:4px;}
+.gantt-bar-link:hover{color:#fff;}
+.gantt-bar-link .material-icons-round{font-size:12px;}
+.gantt-today-line{position:absolute;top:0;bottom:0;width:2px;pointer-events:none;z-index:4;}
+.gantt-today-dot{position:absolute;top:-1px;left:-4px;width:10px;height:10px;border-radius:50%;}
+.gantt-empty{padding:48px 24px;text-align:center;color:var(--text3);font-size:13px;line-height:1.8;}
+@media(max-width:640px){.gantt-left{flex:0 0 140px;}.gantt-wi-id{font-size:10px;}.gantt-month-cell,.gantt-sprint-cell{font-size:10px;padding:0 6px;}}
 </style>
 </head>
 <body data-theme="yellow" data-mode="light">
@@ -410,16 +450,25 @@ tr:hover td{background:var(--chip);}
             <select class="input" id="bl-filter-sprint" style="min-width:160px" onchange="renderBacklog()">
               <option value="">Tous les sprints</option>
             </select>
-            <button class="btn btn-filled admin-only" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
+            <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
           </div>
         </div>
-        <div class="card" style="padding:0;overflow:hidden">
+        <div class="bl-tabs">
+          <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
+          <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
+        </div>
+        <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden">
           <div style="overflow-x:auto">
             <table class="bl-table" id="bl-table">
               <thead id="bl-thead"></thead>
               <tbody id="bl-tbody"></tbody>
               <tfoot id="bl-tfoot"></tfoot>
             </table>
+          </div>
+        </div>
+        <div id="bl-view-chrono" style="display:none">
+          <div class="card" style="padding:0;overflow:hidden">
+            <div id="bl-gantt-wrap"></div>
           </div>
         </div>
       </div>
@@ -1796,6 +1845,19 @@ async function delTeam(id){
 
 // ── BACKLOG ───────────────────────────────────────────────
 let blSort={col:'score',dir:'desc'};
+let blActiveTab='prio';
+function switchBlTab(tab){
+  blActiveTab=tab;
+  document.getElementById('bl-tab-prio').classList.toggle('active',tab==='prio');
+  document.getElementById('bl-tab-chrono').classList.toggle('active',tab==='chrono');
+  document.getElementById('bl-view-prio').style.display=tab==='prio'?'':'none';
+  document.getElementById('bl-view-chrono').style.display=tab==='chrono'?'':'none';
+  const addBtn=document.getElementById('bl-add-btn');
+  if(addBtn)addBtn.style.display=tab==='chrono'?'none':'';
+  const filterSel=document.getElementById('bl-filter-sprint');
+  if(filterSel)filterSel.style.display=tab==='chrono'?'none':'';
+  if(tab==='chrono')renderGantt();
+}
 
 const BL_REACH_TIPS='20 pts : 0-40% des utilisateurs\n40 pts : 40-60% des utilisateurs\n80 pts : 60-80% des utilisateurs\n100 pts : 100% des utilisateurs';
 const BL_IMPACT_TIPS='20 pts : Irritant faible\n40 pts : Irritant fort / Bug bloquant\n80 pts : Besoin réglementaire / conformité\n100 pts : Impact business direct';
@@ -1835,6 +1897,124 @@ function toggleBlSort(col){
   if(blSort.col===col)blSort.dir=blSort.dir==='asc'?'desc':'asc';
   else{blSort.col=col;blSort.dir=col==='score'?'desc':'asc';}
   renderBacklog();
+}
+
+function renderGantt(){
+  const wrap=document.getElementById('bl-gantt-wrap');
+  if(!wrap)return;
+  const JIRA='https://isagri.atlassian.net/browse/';
+  const mob=window.innerWidth<640;
+  const PX=mob?5:10; // px par jour
+  const ROW_H=40,MH=36,SH=36;
+  // WI avec sprint planifié, triés par sprint puis score RICE décroissant
+  const items=(S.backlog||[]).filter(r=>r.sprint_id).sort((a,b)=>{
+    const sa=S.sprints.find(s=>String(s.id)===String(a.sprint_id));
+    const sb=S.sprints.find(s=>String(s.id)===String(b.sprint_id));
+    const da=sa?.start?new Date(sa.start):new Date('9999-01-01');
+    const db=sb?.start?new Date(sb.start):new Date('9999-01-01');
+    return da-db||riceScore(b)-riceScore(a);
+  });
+  if(!items.length){
+    wrap.innerHTML=`<div class="gantt-empty">Aucun Work Item avec sprint planifié.<br><span style="font-size:12px">Assigne un sprint dans l'onglet Priorisation pour visualiser la chronologie.</span></div>`;
+    return;
+  }
+  // Plage de dates
+  const today=new Date();today.setHours(0,0,0,0);
+  const gStart=new Date(today.getFullYear(),today.getMonth(),1);
+  let gEnd=new Date(today.getTime()+90*86400000);
+  S.sprints.forEach(s=>{if(s.end){const e=new Date(s.end);if(e>gEnd)gEnd=e;}});
+  gEnd=new Date(gEnd.getFullYear(),gEnd.getMonth()+2,0);
+  const totalDays=Math.ceil((gEnd-gStart)/86400000)+1;
+  const totalW=totalDays*PX;
+  const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
+  // Durée moyenne d'un sprint en jours
+  const ds=S.sprints.filter(s=>s.start&&s.end);
+  const avgSD=ds.length?Math.round(ds.reduce((sum,s)=>sum+Math.ceil((new Date(s.end)-new Date(s.start))/86400000),0)/ds.length):14;
+  const effortDays=e=>{if(!e)return avgSD;if(e<=20)return 7;if(e<=40)return 14;if(e<=60)return avgSD;if(e<=80)return avgSD*2;return avgSD*3;};
+  // Sprints visibles triés
+  const vSprints=S.sprints.filter(s=>s.start&&s.end&&new Date(s.end)>=gStart&&new Date(s.start)<=gEnd).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  // Mois
+  const months=[];
+  let mc=new Date(gStart);
+  while(mc<=gEnd){
+    const ms=new Date(mc.getFullYear(),mc.getMonth(),1);
+    const me=new Date(mc.getFullYear(),mc.getMonth()+1,0);
+    const cs=ms<gStart?gStart:ms,ce=me>gEnd?gEnd:me;
+    const w=(Math.ceil((ce-cs)/86400000)+1)*PX;
+    months.push({label:ms.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}),w,today:today>=ms&&today<=me});
+    mc=new Date(mc.getFullYear(),mc.getMonth()+1,1);
+  }
+  // Cellules sprints avec gaps
+  const sCells=[];let pos=0;
+  vSprints.forEach(s=>{
+    const ss=new Date(s.start);ss.setHours(0,0,0,0);
+    const se=new Date(s.end);se.setHours(0,0,0,0);
+    const cSs=ss<gStart?gStart:ss,cSe=se>gEnd?gEnd:se;
+    const x=toX(cSs);
+    const w=Math.max(PX,(Math.ceil((cSe-cSs)/86400000)+1)*PX);
+    if(x>pos)sCells.push({gap:true,w:x-pos});
+    sCells.push({gap:false,s,w,cur:ss<=today&&se>=today});
+    pos=x+w;
+  });
+  if(pos<totalW)sCells.push({gap:true,w:totalW-pos});
+  // Ligne aujourd'hui
+  const todX=toX(today);
+  const showTod=todX>=0&&todX<=totalW;
+  // Palette de couleurs pour les barres
+  const COLS=['#7c3aed','#e05c3a','#0891b2','#d97706','#059669','#db2777','#0f766e','#c2410c'];
+  const bc=id=>COLS[Math.abs(id)%COLS.length];
+  // === HTML ===
+  // Colonne gauche
+  const leftRows=items.map(r=>{
+    const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
+    const lbl=(r.label||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="gantt-left-wi" style="height:${ROW_H}px" title="${lbl}">
+      ${href?`<a class="gantt-wi-id" href="${href}" target="_blank" rel="noopener">${r.jira_id}</a>`:`<span class="gantt-wi-id" style="color:var(--text3)">—</span>`}
+      <span class="gantt-wi-label">${lbl||'—'}</span>
+    </div>`;
+  }).join('');
+  // En-tête mois
+  const mHtml=months.map(m=>`<div class="gantt-month-cell ${m.today?'is-today-month':''}" style="width:${m.w}px">${m.label}</div>`).join('');
+  // En-tête sprints
+  const sHtml=sCells.map(c=>c.gap
+    ?`<div class="gantt-sprint-cell is-gap" style="width:${c.w}px"></div>`
+    :`<div class="gantt-sprint-cell ${c.cur?'is-current':''}" style="width:${c.w}px">
+      ${c.cur?'<span class="material-icons-round" style="font-size:10px;flex-shrink:0">radio_button_checked</span>':''}
+      <span style="overflow:hidden;text-overflow:ellipsis">${c.s.name}</span>
+    </div>`).join('');
+  // Barres WI
+  const bHtml=items.map(r=>{
+    const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
+    if(!sp?.start)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px"></div>`;
+    const bx=Math.max(0,toX(sp.start));
+    const bw=Math.max(16,effortDays(r.effort)*PX);
+    const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
+    const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const sc=riceScore(r);
+    return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px">
+      <div class="gantt-bar" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px" title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
+        <span class="gantt-bar-label">${r.jira_id||lbl}</span>
+        ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  // Ligne today
+  const todHtml=showTod?`<div class="gantt-today-line" style="left:${todX}px;background:var(--primary)"><div class="gantt-today-dot" style="background:var(--primary)"></div></div>`:'';
+  wrap.innerHTML=`<div class="gantt-wrap">
+    <div class="gantt-left">
+      <div class="gantt-left-head-row" style="height:${MH}px">Tickets</div>
+      <div class="gantt-left-head-row" style="height:${SH}px">Sprints</div>
+      ${leftRows}
+    </div>
+    <div class="gantt-right">
+      <div class="gantt-timeline" style="width:${totalW}px;position:relative">
+        ${todHtml}
+        <div class="gantt-months-row">${mHtml}</div>
+        <div class="gantt-sprints-row">${sHtml}</div>
+        <div class="gantt-body-rows">${bHtml}</div>
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderBacklog(){
@@ -1927,6 +2107,8 @@ function renderBacklog(){
       </td>
     </tr>`:'';
   }
+  // Mettre à jour la vue chronologie si active
+  if(blActiveTab==='chrono')renderGantt();
 }
 
 async function addBacklogItem(){
