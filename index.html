@@ -821,6 +821,8 @@ function doLogout(){
   CU=null;
   localStorage.removeItem('bcp_token');
   localStorage.removeItem('bcp_user');
+  localStorage.removeItem('bcp_team');
+  localStorage.removeItem('bcp_sprint');
   history.pushState({},'',BASE_PATH+'login'+_slug);
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
@@ -843,8 +845,11 @@ async function savePwd(){
 function initTeamSel(){
   const el=document.getElementById('team-sel-sidebar');
   if(!S.teams.length){if(el)el.style.display='none';return;}
-  // Admins/super_admins : toutes les équipes ; consultants : S.teams déjà filtré
-  if(!selectedTeamId||!S.teams.find(t=>String(t.id)===String(selectedTeamId))){
+  // Restaurer depuis localStorage si valide, sinon première équipe
+  const saved=localStorage.getItem('bcp_team');
+  if(saved&&S.teams.find(t=>String(t.id)===saved)){
+    selectedTeamId=saved;
+  } else if(!selectedTeamId||!S.teams.find(t=>String(t.id)===String(selectedTeamId))){
     selectedTeamId=String(S.teams[0].id);
   }
   if(el)el.style.display=S.teams.length>1?'':'none';
@@ -865,8 +870,10 @@ async function navTeam(dir){
   const newIdx=idx+dir;
   if(newIdx<0||newIdx>=S.teams.length)return;
   selectedTeamId=String(S.teams[newIdx].id);
+  localStorage.setItem('bcp_team',selectedTeamId);
   renderTeamSelector();
-  selectedSprintId=null; // reset sprint selection for the new team
+  selectedSprintId=null;
+  localStorage.removeItem('bcp_sprint');
   await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);
   initSprintSel();
   const activePage=document.querySelector('.page.active')?.id;
@@ -875,6 +882,7 @@ async function navTeam(dir){
   else if(activePage==='page-sprints')renderSprints();
   else if(activePage==='page-agenda')renderAgenda();
   else if(activePage==='page-backlog')renderBacklog();
+  else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams()]);renderSettings();}
 }
 
 // ── SPRINT SELECTOR ──────────────────────────────────────
@@ -890,14 +898,18 @@ function initSprintSel(){
     if(barEl)barEl.classList.remove('active');
     return;
   }
-  // Reset to current sprint if none selected or selection is stale
-  if(!selectedSprintId||!sprints.find(s=>String(s.id)===String(selectedSprintId))){
+  // Restaurer depuis localStorage si valide pour cette équipe, sinon sprint courant
+  const savedSprint=localStorage.getItem('bcp_sprint');
+  if(savedSprint&&sprints.find(s=>String(s.id)===savedSprint)){
+    selectedSprintId=savedSprint;
+  } else if(!selectedSprintId||!sprints.find(s=>String(s.id)===String(selectedSprintId))){
     const now=new Date();
     const cur=sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now)
       ||sprints.filter(s=>!s.closed).sort((a,b)=>new Date(a.start)-new Date(b.start))[0]
       ||sprints[sprints.length-1];
     selectedSprintId=String(cur.id);
   }
+  localStorage.setItem('bcp_sprint',selectedSprintId);
   if(sidebarEl)sidebarEl.style.display='';
   renderSprintSelector();
 }
@@ -948,6 +960,7 @@ function navSprint(dir){
   const newIdx=idx+dir;
   if(newIdx<0||newIdx>=sprints.length)return;
   selectedSprintId=String(sprints[newIdx].id);
+  localStorage.setItem('bcp_sprint',selectedSprintId);
   renderSprintSelector();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
@@ -955,6 +968,7 @@ function navSprint(dir){
 }
 function selectSprint(id){
   selectedSprintId=String(id);
+  localStorage.setItem('bcp_sprint',selectedSprintId);
   renderSprintSelector();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
