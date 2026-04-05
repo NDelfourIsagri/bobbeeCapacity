@@ -451,16 +451,18 @@ tr:hover td{background:var(--chip);}
       <div class="page" id="page-backlog">
         <div class="page-header">
           <div><div class="page-title">Backlog 📋</div><div class="page-sub">Priorisation RICE</div></div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <div class="bl-tabs" style="margin-bottom:0">
+            <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
+            <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
             <select class="input" id="bl-filter-sprint" style="min-width:160px" onchange="renderBacklog()">
               <option value="">Tous les sprints</option>
             </select>
             <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
           </div>
-        </div>
-        <div class="bl-tabs">
-          <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
-          <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
         </div>
         <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
           <div style="overflow:auto;flex:1;max-height:calc(100vh - 260px)">
