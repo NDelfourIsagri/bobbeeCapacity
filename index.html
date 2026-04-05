@@ -726,6 +726,11 @@ async function loadUsers(){
 async function loadTeams(){S.teams=await API.get('/api/teams');}
 async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId);else S.backlog=[];}
 
+// ── ROUTING ──────────────────────────────────────────────
+const BASE_PATH='/bobbeeCapacity/';
+const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',agenda:'planning',settings:'admin',users:'users'};
+const SLUG_PAGES=Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v])=>[v,k]));
+
 // ── APP STATE ────────────────────────────────────────────
 let CU=null;
 let calDate=new Date();
@@ -791,12 +796,20 @@ async function loginOk(u){
   document.querySelectorAll('.superadmin-only').forEach(el=>el.style.display=isSA?'':'none');
   await loadTeams();
   initTeamSel();
-  navTo('dashboard');
+  // Déterminer la page cible depuis l'URL courante
+  const _path=location.pathname.replace(BASE_PATH,'').replace(/\/$/,'');
+  const _sp=new URLSearchParams(location.search);
+  const _reqSlug=SLUG_PAGES[_path]?_path:(_sp.get('page')||'');
+  const _targetPage=SLUG_PAGES[_reqSlug]||'dashboard';
+  navTo(_targetPage);
 }
 function doLogout(){
+  const _activePage=document.querySelector('.page.active')?.id?.replace('page-','');
+  const _slug=_activePage&&_activePage!=='dashboard'?'?page='+(PAGE_SLUGS[_activePage]||_activePage):'';
   CU=null;
   localStorage.removeItem('bcp_token');
   localStorage.removeItem('bcp_user');
+  history.pushState({},'',BASE_PATH+'login'+_slug);
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
 }
@@ -937,7 +950,8 @@ function selectSprint(id){
 }
 
 // ── NAV ──────────────────────────────────────────────────
-async function navTo(p){
+async function navTo(p,noPush=false){
+  if(!noPush)history.pushState({page:p},'',BASE_PATH+(PAGE_SLUGS[p]||p));
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p)?.classList.add('active');
   document.querySelectorAll('.nav-item,.bottom-nav-item').forEach(x=>x.classList.remove('active'));
@@ -2198,6 +2212,8 @@ async function init(){
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{applyMode();scheduleMode();});
   setTheme(localStorage.getItem('bcp_theme')||'green');
   await loadChartJS();
+  // Listener bouton back/forward navigateur
+  window.addEventListener('popstate',e=>{if(CU&&e.state?.page)navTo(e.state.page,true);});
   const token=localStorage.getItem('bcp_token');
   if(token){
     try{
@@ -2205,7 +2221,17 @@ async function init(){
       localStorage.setItem('bcp_token',data.token);
       localStorage.setItem('bcp_user',JSON.stringify(data.user));
       loginOk(data.user);
-    }catch(e){}
+    }catch(e){
+      // Token invalide → rediriger vers login en préservant la page demandée
+      const _path=location.pathname.replace(BASE_PATH,'').replace(/\/$/,'');
+      const _slug=SLUG_PAGES[_path]?_path:'';
+      history.replaceState({},'',BASE_PATH+'login'+(_slug?'?page='+_slug:''));
+    }
+  } else {
+    // Pas de token → mettre l'URL sur /login en préservant la page demandée
+    const _path=location.pathname.replace(BASE_PATH,'').replace(/\/$/,'');
+    const _slug=SLUG_PAGES[_path]?_path:'';
+    history.replaceState({},'',BASE_PATH+'login'+(_slug?'?page='+_slug:''));
   }
 }
 init();

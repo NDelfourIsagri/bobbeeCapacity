@@ -1,0 +1,9 @@
+RewriteEngine On
+RewriteBase /bobbeeCapacity/
+
+# Laisser passer les fichiers et répertoires existants (CSS, JS, images, API…)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Toutes les routes SPA → index.html
+RewriteRule ^ index.html [L]
