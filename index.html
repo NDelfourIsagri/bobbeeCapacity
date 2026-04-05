@@ -462,13 +462,17 @@ tr:hover td{background:var(--chip);}
           <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
           <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
         </div>
-        <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden">
-          <div style="overflow:auto;max-height:calc(100vh - 260px)">
+        <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+          <div style="overflow:auto;flex:1;max-height:calc(100vh - 260px)">
             <table class="bl-table" id="bl-table">
               <thead id="bl-thead"></thead>
               <tbody id="bl-tbody"></tbody>
-              <tfoot id="bl-tfoot"></tfoot>
             </table>
+          </div>
+          <div id="bl-add-footer" style="display:none;border-top:1px dashed var(--border)">
+            <button onclick="addBacklogItem()" style="width:100%;background:none;border:none;padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text3);font-size:13px;font-weight:500;font-family:inherit;transition:all var(--transition)" onmouseover="this.style.background='var(--bg2)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text3)'">
+              <span class="material-icons-round" style="font-size:18px">add</span>Ajouter un élément
+            </button>
           </div>
         </div>
         <div id="bl-view-chrono" style="display:none">
@@ -2130,17 +2134,9 @@ function renderBacklog(){
       </tr>`;
     }).join('');
 
-  // Ligne d'ajout en pied de tableau (admin seulement)
-  const tfoot=document.getElementById('bl-tfoot');
-  if(tfoot){
-    tfoot.innerHTML=isAdmin?`<tr>
-      <td colspan="${cols}" style="padding:0">
-        <button onclick="addBacklogItem()" style="width:100%;background:none;border:none;border-top:1px dashed var(--border);padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text3);font-size:13px;font-weight:500;font-family:inherit;transition:all var(--transition)" onmouseover="this.style.background='var(--bg2)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text3)'">
-          <span class="material-icons-round" style="font-size:18px">add</span>Ajouter un élément
-        </button>
-      </td>
-    </tr>`:'';
-  }
+  // Bouton d'ajout toujours visible sous le tableau (admin seulement)
+  const addFooter=document.getElementById('bl-add-footer');
+  if(addFooter)addFooter.style.display=isAdmin?'':'none';
   // Mettre à jour la vue chronologie si active
   if(blActiveTab==='chrono')renderGantt();
 }
