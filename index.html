@@ -619,6 +619,14 @@ tr:hover td{background:var(--chip);}
       <div class="form-group"><label class="input-label">Vélocité individuelle (%)</label><input type="number" class="input" id="mm-vel" min="0" max="200" placeholder="Par défaut selon niveau"></div>
       <div class="form-group"><label class="input-label">Réunions (%)</label><input type="number" class="input" id="mm-mtg" min="0" max="100"></div>
     </div>
+    <div class="form-group">
+      <label class="input-label">Pays (jours fériés)</label>
+      <select class="input select" id="mm-country">
+        <option value="FR">🇫🇷 France</option>
+        <option value="ES">🇪🇸 Espagne</option>
+        <option value="MX">🇲🇽 Mexique</option>
+      </select>
+    </div>
     <div class="form-group admin-only" id="mm-teams-group">
       <label class="input-label">Équipes</label>
       <div id="mm-teams-check" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
@@ -1018,36 +1026,49 @@ function scheduleMode(){
 function applyMode(){document.body.setAttribute('data-mode',targetMode());}
 
 // ── HOLIDAYS ─────────────────────────────────────────────
-function holidays(year){
-  const a=year%19;
-  const b=Math.floor(year/100);
-  const c=year%100;
-  const d=Math.floor(b/4);
-  const e=b%4;
-  const f=Math.floor((b+8)/25);
-  const g=Math.floor((b-f+1)/3);
-  const h=(19*a+b-d-g+15)%30;
-  const i=Math.floor(c/4);
-  const k=c%4;
-  const l=(32+2*e+2*i-h-k)%7;
-  const m=Math.floor((a+11*h+22*l)/451);
-  const easterMonth=Math.floor((h+l-7*m+114)/31);
-  const easterDay=((h+l-7*m+114)%31)+1;
-  const easter=new Date(year, easterMonth-1, easterDay);
-  const add=(dt,n)=>{ const r=new Date(dt); r.setDate(r.getDate()+n); return r; };
+function holidays(year,country='FR'){
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const easterMonth=Math.floor((h+l-7*m+114)/31),easterDay=((h+l-7*m+114)%31)+1;
+  const easter=new Date(year,easterMonth-1,easterDay);
+  const add=(dt,n)=>{const r=new Date(dt);r.setDate(r.getDate()+n);return r;};
   const fmt=dt=>toDS(dt);
+  // Lundi le plus proche d'une date fixe (règle mexicaine)
+  const nearestMon=dt=>{const dw=dt.getDay();return add(dt,[1,0,-1,-2,-3,3,2][dw]);};
+  if(country==='ES') return new Set([
+    fmt(new Date(year,0,1)),   // Año Nuevo
+    fmt(add(easter,-2)),       // Viernes Santo
+    fmt(new Date(year,4,1)),   // Día del Trabajo
+    fmt(new Date(year,7,15)),  // Asunción
+    fmt(new Date(year,9,12)),  // Fiesta Nacional
+    fmt(new Date(year,10,1)),  // Todos los Santos
+    fmt(new Date(year,11,6)),  // Día de la Constitución
+    fmt(new Date(year,11,8)),  // Inmaculada Concepción
+    fmt(new Date(year,11,25)), // Navidad
+  ]);
+  if(country==='MX') return new Set([
+    fmt(new Date(year,0,1)),                      // Año Nuevo
+    fmt(nearestMon(new Date(year,1,5))),           // Constitución (lunes más cercano au 5 fév)
+    fmt(nearestMon(new Date(year,2,21))),          // Benito Juárez (lunes más cercano au 21 mars)
+    fmt(new Date(year,4,1)),                       // Día del Trabajo
+    fmt(new Date(year,8,16)),                      // Independencia
+    fmt(nearestMon(new Date(year,10,20))),         // Revolución (lunes más cercano au 20 nov)
+    fmt(new Date(year,11,25)),                     // Navidad
+  ]);
+  // France (par défaut)
   return new Set([
-    fmt(new Date(year,0,1)),
-    fmt(add(easter,1)),
-    fmt(new Date(year,4,1)),
-    fmt(new Date(year,4,8)),
-    fmt(add(easter,39)),
-    fmt(add(easter,50)),
-    fmt(new Date(year,6,14)),
-    fmt(new Date(year,7,15)),
-    fmt(new Date(year,10,1)),
-    fmt(new Date(year,10,11)),
-    fmt(new Date(year,11,25)),
+    fmt(new Date(year,0,1)),   // 1er janvier
+    fmt(add(easter,1)),        // Lundi de Pâques
+    fmt(new Date(year,4,1)),   // 1er mai
+    fmt(new Date(year,4,8)),   // 8 mai
+    fmt(add(easter,39)),       // Ascension
+    fmt(add(easter,50)),       // Lundi de Pentecôte
+    fmt(new Date(year,6,14)),  // 14 juillet
+    fmt(new Date(year,7,15)),  // 15 août
+    fmt(new Date(year,10,1)),  // 1er novembre
+    fmt(new Date(year,10,11)), // 11 novembre
+    fmt(new Date(year,11,25)), // 25 décembre
   ]);
 }
 
@@ -1058,9 +1079,10 @@ function dayH(dt){return dt.getDay()===5?7:8;}
 function calcCap(member,start,end,leaves){
   const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
   const startDt=parseDate(start),endDt=parseDate(end);
-  const hols=holidays(startDt.getFullYear());
+  const country=member.country||'FR';
+  const hols=holidays(startDt.getFullYear(),country);
   if(startDt.getFullYear()!==endDt.getFullYear())
-    holidays(endDt.getFullYear()).forEach(x=>hols.add(x));
+    holidays(endDt.getFullYear(),country).forEach(x=>hols.add(x));
   const mLeaves=leaves.filter(l=>l.memberId==member.id);
   let totH=0,lvH=0;
   let d=new Date(startDt);
@@ -1215,7 +1237,7 @@ function renderAgenda(){
   const leaves=S.leaves;
   const team=S.team;
   const yr=calDate.getFullYear(),mo=calDate.getMonth();
-  const hols=holidays(yr);
+  const holsFR=holidays(yr,'FR'); // header basé sur FR (majorité)
   const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   document.getElementById('plan-label').textContent=`${MONTHS[mo]} ${yr}`;
   const dim=new Date(yr,mo+1,0).getDate();
@@ -1228,7 +1250,7 @@ function renderAgenda(){
   }
   let html='<thead><tr><th class="th-member">Membre</th>';
   days.forEach(({d,dow,ds})=>{
-    const isWe=dow===0||dow===6,isHol=hols.has(ds),isTod=ds===todayStr;
+    const isWe=dow===0||dow===6,isHol=holsFR.has(ds),isTod=ds===todayStr;
     const dayN=['D','L','M','M','J','V','S'][dow];
     let cls='',sty='';
     if(isTod) cls=' th-today';
@@ -1237,14 +1259,18 @@ function renderAgenda(){
     html+=`<th class="${cls}" style="${sty}" id="thd-${ds}">${d}<br><span style="font-size:9px">${dayN}</span></th>`;
   });
   html+='</tr></thead><tbody>';
+  const COUNTRY_FLAG={FR:'🇫🇷',ES:'🇪🇸',MX:'🇲🇽'};
   team.forEach((m,mi)=>{
     const canEdit=true;
+    const mHols=holidays(yr,m.country||'FR');
+    const flag=COUNTRY_FLAG[m.country||'FR']||'';
     html+=`<tr><td class="td-member"><div style="display:flex;align-items:center;gap:8px;width:100%">
       <div style="width:22px;height:22px;border-radius:50%;background:${mc(mi)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${m.fname[0]||''}</div>
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.fname} ${m.lname}</span>
+      ${m.country&&m.country!=='FR'?`<span style="font-size:12px;flex-shrink:0" title="${m.country}">${flag}</span>`:''}
     </div></td>`;
     days.forEach(({ds,dow})=>{
-      const isWe=dow===0||dow===6,isHol=hols.has(ds),isTod=ds===todayStr;
+      const isWe=dow===0||dow===6,isHol=mHols.has(ds),isTod=ds===todayStr;
       const state=leaveState(leaves,m.id,ds);
       const amCls=state==='full'||state==='am'?'leave':'free';
       const pmCls=state==='full'||state==='pm'?'leave':'free';
@@ -1719,6 +1745,7 @@ async function openMemberModal(id=null){
   document.getElementById('mm-know').value=m?.know||70;document.getElementById('mm-adapt').value=m?.adapt||80;
   document.getElementById('mm-vel').value=m?.velocity!=null?m.velocity:(vg[m?.level||'intermediaire']||85);
   document.getElementById('mm-mtg').value=m?.meetings||(mg[m?.role||'dev']||20);
+  document.getElementById('mm-country').value=m?.country||'FR';
   // Équipes (admin seulement)
   const isAdmin=['admin','super_admin'].includes(CU?.role);
   const teamsGroup=document.getElementById('mm-teams-group');
@@ -1743,7 +1770,8 @@ async function saveMember(){
   const obj={fname,lname,role:document.getElementById('mm-role').value,level:document.getElementById('mm-level').value,
     know:Number(document.getElementById('mm-know').value),adapt:Number(document.getElementById('mm-adapt').value),
     velocity:velVal!==''?Number(velVal):null,
-    meetings:Number(document.getElementById('mm-mtg').value)};
+    meetings:Number(document.getElementById('mm-mtg').value),
+    country:document.getElementById('mm-country').value||'FR'};
   try{
     let memberId=editMemberId;
     if(editMemberId){await API.put('/api/team/'+editMemberId,obj);}
