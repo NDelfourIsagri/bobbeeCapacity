@@ -1992,9 +1992,10 @@ function renderGantt(){
   const bHtml=items.map(r=>{
     const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
     if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px"></div>`;
-    const bw=Math.max(16,effortDays(r.effort)*PX); // largeur = durée de l'effort
-    const endX=toX(sp.end);                        // x de fin = fin du sprint de livraison
-    const bx=Math.max(0,endX-bw);                 // x de début = fin - effort
+    const bwFull=Math.max(16,effortDays(r.effort)*PX); // largeur souhaitée = durée de l'effort
+    const endX=toX(sp.end)+PX;                        // x de fin = bord droit du dernier jour du sprint (inclusif)
+    const bx=Math.max(0,endX-bwFull);                 // x de début = fin - effort (clampé à 0)
+    const bw=endX-bx;                                  // largeur réelle (réduite si clampée à gauche)
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
