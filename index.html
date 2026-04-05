@@ -21,7 +21,8 @@
 
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);transition:background var(--transition),color var(--transition);}
-::-webkit-scrollbar{width:6px;height:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-track{background:var(--bg2);border-radius:4px;}::-webkit-scrollbar-thumb{background:rgba(var(--primary-rgb),0.35);border-radius:4px;}::-webkit-scrollbar-thumb:hover{background:rgba(var(--primary-rgb),0.65);}
+*{scrollbar-width:thin;scrollbar-color:rgba(var(--primary-rgb),0.35) var(--bg2);}
 
 /* AUTH */
 #auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 100%);padding:20px;}
@@ -184,8 +185,6 @@ tr:hover td{background:var(--chip);}
 .planning-outer{border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow-sm);overflow:hidden;}
 .planning-toolbar{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--divider);flex-wrap:wrap;gap:10px;}
 .planning-scroll{overflow:auto;max-height:calc(100vh - 260px);-webkit-overflow-scrolling:touch;}
-.planning-scroll::-webkit-scrollbar{width:6px;height:6px;}
-.planning-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
 /* Planning table */
 .ptable{border-collapse:separate;border-spacing:0;font-size:12px;width:max-content;}
@@ -237,7 +236,7 @@ tr:hover td{background:var(--chip);}
 .sprint-bar-sticky select{flex:1;padding:6px 10px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;}
 @media(max-width:1024px){.sprint-sel-sidebar{display:none;}.sprint-bar-sticky.active{display:flex;}.team-sel-sidebar{display:none;}}
 /* BACKLOG TABLE */
-.bl-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+.bl-table{min-width:100%;width:max-content;border-collapse:separate;border-spacing:0;font-size:13px;}
 .bl-table thead th{position:sticky;top:0;z-index:1;background:var(--bg2);}
 .bl-table th{padding:10px 8px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;background:var(--bg2);}
 .bl-table th:hover{color:var(--primary);}
@@ -281,8 +280,6 @@ tr:hover td{background:var(--chip);}
 .gantt-wi-id:hover{text-decoration:underline;}
 .gantt-wi-label{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
 .gantt-right{flex:1;overflow-x:auto;overflow-y:hidden;min-width:0;max-width:calc(100% - 260px);}
-.gantt-right::-webkit-scrollbar{height:6px;}
-.gantt-right::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 .gantt-timeline{position:relative;display:inline-block;min-width:100%;}
 .gantt-months-row{display:flex;overflow:hidden;height:36px;background:var(--bg2);border-bottom:1px solid var(--divider);}
 .gantt-sprints-row{display:flex;overflow:hidden;height:36px;background:var(--bg2);border-bottom:2px solid var(--border);}
@@ -1990,12 +1987,14 @@ function renderGantt(){
       ${c.cur?'<span class="material-icons-round" style="font-size:10px;flex-shrink:0">radio_button_checked</span>':''}
       <span style="overflow:hidden;text-overflow:ellipsis">${c.s.name}</span>
     </div>`).join('');
-  // Barres WI
+  // Barres WI — la barre SE TERMINE à la fin du sprint (date de livraison)
+  // et L'EFFORT détermine la durée (donc le début de la barre)
   const bHtml=items.map(r=>{
     const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
-    if(!sp?.start)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px"></div>`;
-    const bx=Math.max(0,toX(sp.start));
-    const bw=Math.max(16,effortDays(r.effort)*PX);
+    if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px"></div>`;
+    const bw=Math.max(16,effortDays(r.effort)*PX); // largeur = durée de l'effort
+    const endX=toX(sp.end);                        // x de fin = fin du sprint de livraison
+    const bx=Math.max(0,endX-bw);                 // x de début = fin - effort
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
