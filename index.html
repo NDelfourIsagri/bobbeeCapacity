@@ -270,6 +270,12 @@ tr:hover td{background:var(--chip);}
 #note-tip h1,#note-tip h2{font-size:13px;font-weight:700;margin:0 0 5px;color:var(--text);}
 #note-tip strong{color:var(--text);}#note-tip em{color:var(--text2);}
 #note-tip blockquote{border-left:2px solid var(--border);margin:4px 0;padding-left:8px;color:var(--text2);}
+/* Membres anciens dans l'agenda (partis de l'équipe) */
+tr.agenda-former{opacity:0.42;}
+tr.agenda-former td{background:repeating-linear-gradient(135deg,transparent,transparent 6px,rgba(0,0,0,.025) 6px,rgba(0,0,0,.025) 12px)!important;}
+tr.agenda-former .dcell{pointer-events:none!important;cursor:default!important;}
+tr.agenda-former .td-member{position:relative;}
+tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;right:4px;font-size:9px;color:var(--text3);font-style:italic;}
 /* Volet note (drawer) */
 .note-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:500;opacity:0;pointer-events:none;transition:opacity 0.25s;}
 .note-backdrop.open{opacity:1;pointer-events:all;}
@@ -680,8 +686,9 @@ tr:hover td{background:var(--chip);}
       </select>
     </div>
     <div class="form-group admin-only" id="mm-teams-group">
-      <label class="input-label">Équipes</label>
-      <div id="mm-teams-check" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+      <label class="input-label">Affectations équipe</label>
+      <div id="mm-teams-list" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
+      <button class="btn btn-outline btn-sm" style="margin-top:8px" type="button" onclick="addTeamRow()"><span class="material-icons-round" style="font-size:15px">add</span>Ajouter une équipe</button>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-member')">Annuler</button><button class="btn btn-filled" onclick="saveMember()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
   </div>
@@ -1193,7 +1200,7 @@ function renderDash(){
     :(sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now)
       ||sprints.filter(s=>!s.closed).sort((a,b)=>new Date(a.start)-new Date(b.start))[0]);
   document.getElementById('dash-sprint-label').textContent=cur?`${cur.name} · ${fd(cur.start)} → ${fd(cur.end)}`:'Aucun sprint actif';
-  const devs=team.filter(m=>m.role==='dev'||m.role==='tech_lead');
+  const devs=team.filter(m=>(m.role==='dev'||m.role==='tech_lead')&&(!cur||memberActiveInPeriod(m,cur.start,cur.end)));
   let totA=0,totP=0;
   if(cur)devs.forEach(m=>{const c=calcCap(m,cur.start,cur.end,leaves);totA+=c.availD;totP+=c.prodD;});
   const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
@@ -1278,9 +1285,10 @@ function renderDash(){
       </div>`;
     }).join('')}`:''
   document.getElementById('dash-obj').innerHTML=velBlock+objsBlock+backlogBlock;
-  document.getElementById('dash-team').innerHTML=team.length===0
+  const dashTeam=cur?team.filter(m=>memberActiveInPeriod(m,cur.start,cur.end)):team;
+  document.getElementById('dash-team').innerHTML=dashTeam.length===0
     ?'<p style="color:var(--text3);font-size:13px;grid-column:span 3">Aucun membre</p>'
-    :team.map((m,i)=>`<div class="member-card">
+    :dashTeam.map((m,i)=>`<div class="member-card">
       <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
       <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${m.meetings||20}% réun.</div></div>
       ${cur&&(m.role==='dev'||m.role==='tech_lead')?`<div style="text-align:right;flex-shrink:0"><div style="font-size:15px;font-weight:700;color:var(--primary)">${calcCap(m,cur.start,cur.end,leaves).prodD}j</div><div style="font-size:10px;color:var(--text3)">prod.</div></div>`:''}
@@ -1300,6 +1308,18 @@ function showConfirm(msg, onOk, title='Confirmation'){
 }
 
 // ── AGENDA ───────────────────────────────────────────────
+function memberActiveInPeriod(m,startDS,endDS){
+  if(!m.teamPeriods?.length)return true; // données sans historique = toujours actif
+  return m.teamPeriods.some(p=>
+    (!p.startDate||p.startDate<=endDS)&&(!p.endDate||p.endDate>=startDS)
+  );
+}
+function memberActiveInMonth(m,monthStart,monthEnd){return memberActiveInPeriod(m,monthStart,monthEnd);}
+function memberIsFormer(m){
+  if(!m.teamPeriods?.length)return false;
+  const today=toDS(new Date());
+  return m.teamPeriods.every(p=>p.endDate&&p.endDate<today);
+}
 function renderAgenda(){
   const leaves=S.leaves;
   const team=S.team;
@@ -1309,12 +1329,16 @@ function renderAgenda(){
   document.getElementById('plan-label').textContent=`${MONTHS[mo]} ${yr}`;
   const dim=new Date(yr,mo+1,0).getDate();
   const todayStr=toDS(new Date());
+  const monthStart=toDS(new Date(yr,mo,1));
+  const monthEnd=toDS(new Date(yr,mo,dim));
   const isAdmin=['admin','super_admin'].includes(CU.role);
   const days=[];
   for(let d=1;d<=dim;d++){
     const dt=new Date(yr,mo,d);
     days.push({d,dt,ds:toDS(dt),dow:dt.getDay()});
   }
+  // Filtrer les membres visibles ce mois
+  const visibleTeam=team.filter(m=>memberActiveInMonth(m,monthStart,monthEnd));
   let html='<thead><tr><th class="th-member">Membre</th>';
   days.forEach(({d,dow,ds})=>{
     const isWe=dow===0||dow===6,isHol=holsFR.has(ds),isTod=ds===todayStr;
@@ -1327,11 +1351,12 @@ function renderAgenda(){
   });
   html+='</tr></thead><tbody>';
   const COUNTRY_FLAG={FR:'🇫🇷',ES:'🇪🇸',MX:'🇲🇽'};
-  team.forEach((m,mi)=>{
-    const canEdit=true;
+  visibleTeam.forEach((m,mi)=>{
+    const former=memberIsFormer(m);
+    const canEdit=!former; // lecture seule pour les membres partis
     const mHols=holidays(yr,m.country||'FR');
     const flag=COUNTRY_FLAG[m.country||'FR']||'';
-    html+=`<tr><td class="td-member"><div style="display:flex;align-items:center;gap:8px;width:100%">
+    html+=`<tr${former?' class="agenda-former"':''}><td class="td-member"><div style="display:flex;align-items:center;gap:8px;width:100%">
       <div style="width:22px;height:22px;border-radius:50%;background:${mc(mi)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${m.fname[0]||''}</div>
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.fname} ${m.lname}</span>
       ${m.country&&m.country!=='FR'?`<span style="font-size:12px;flex-shrink:0" title="${m.country}">${flag}</span>`:''}
@@ -1720,9 +1745,15 @@ function renderCharts(){
     while(d<=en){if(d.getDay()>0&&d.getDay()<6){bL.push(d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));id.push(r2(tot*(1-dn/total)));rm.push(d<=now?r2(tot*(1-(dn/total)*0.9)):null);dn++;}d.setDate(d.getDate()+1);}
     dChart('chart-burndown','line',{labels:bL,datasets:[{label:'Idéal',data:id,borderColor:sc,borderDash:[5,5],fill:false,tension:0,pointRadius:0},{label:'Restant',data:rm,borderColor:pr,backgroundColor:pr+'20',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:pr}]},base);
   } else dChart('chart-burndown','line',{labels:[],datasets:[]},base);
-  const leaves=S.leaves,team=S.team,devs=team.filter(m=>m.role==='dev'||m.role==='tech_lead');
+  const leaves=S.leaves,team=S.team;
   const cP=[],cA=[];
-  sprints.forEach(s=>{let tp=0;devs.forEach(m=>{tp+=calcCap(m,s.start,s.end,leaves).prodD;});cP.push(r2(tp));cA.push(s.velocityActual||null);});
+  sprints.forEach(s=>{
+    let tp=0;
+    // Filtrer les devs actifs pendant CE sprint
+    const sDevs=team.filter(m=>(m.role==='dev'||m.role==='tech_lead')&&memberActiveInPeriod(m,s.start,s.end));
+    sDevs.forEach(m=>{tp+=calcCap(m,s.start,s.end,leaves).prodD;});
+    cP.push(r2(tp));cA.push(s.velocityActual||null);
+  });
   dChart('chart-capacity','bar',{labels,datasets:[
     {label:'Capacité (j)',data:cP,backgroundColor:pr+'44',borderColor:pr,borderWidth:2,borderRadius:8,yAxisID:'y'},
     {label:'Vélocité réalisée (pts)',data:cA,backgroundColor:sc+'44',borderColor:sc,borderWidth:2,borderRadius:8,yAxisID:'y1'}
@@ -1801,6 +1832,29 @@ async function saveMtgGrid(){
   await API.put('/api/config/mtg_grid',{value:g});
   S.config.mtg_grid=g;toast('Grille sauvegardée ✓','success');
 }
+function addTeamRow(assignment=null){
+  const list=document.getElementById('mm-teams-list');
+  if(!list)return;
+  const opts=S.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const div=document.createElement('div');
+  div.className='mm-team-row';
+  div.style.cssText='display:flex;gap:6px;align-items:center';
+  div.innerHTML=`
+    <select class="input select mm-tr-team" style="flex:1;min-width:0;font-size:13px;padding:5px 8px">
+      <option value="">— Équipe —</option>${opts}
+    </select>
+    <input type="date" class="input mm-tr-start" style="width:132px;font-size:12px;padding:5px 6px" title="Date d'arrivée">
+    <input type="date" class="input mm-tr-end" style="width:132px;font-size:12px;padding:5px 6px" title="Date de départ (vide = toujours actif)">
+    <button class="icon-btn" type="button" onclick="this.closest('.mm-team-row').remove()" title="Supprimer">
+      <span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span>
+    </button>`;
+  if(assignment){
+    div.querySelector('.mm-tr-team').value=assignment.teamId||'';
+    div.querySelector('.mm-tr-start').value=assignment.startDate||'';
+    div.querySelector('.mm-tr-end').value=assignment.endDate||'';
+  }
+  list.appendChild(div);
+}
 async function openMemberModal(id=null){
   editMemberId=id;
   const mg=S.config.mtg_grid||{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50};
@@ -1813,19 +1867,21 @@ async function openMemberModal(id=null){
   document.getElementById('mm-vel').value=m?.velocity!=null?m.velocity:(vg[m?.level||'intermediaire']||85);
   document.getElementById('mm-mtg').value=m?.meetings||(mg[m?.role||'dev']||20);
   document.getElementById('mm-country').value=m?.country||'FR';
-  // Équipes (admin seulement)
+  // Affectations équipes (admin seulement)
   const isAdmin=['admin','super_admin'].includes(CU?.role);
   const teamsGroup=document.getElementById('mm-teams-group');
-  const teamsCheck=document.getElementById('mm-teams-check');
+  const teamsList=document.getElementById('mm-teams-list');
   if(teamsGroup)teamsGroup.style.display=isAdmin?'':'none';
-  if(teamsCheck&&isAdmin&&S.teams.length){
-    let memberTeams=[];
-    if(id){try{memberTeams=await API.get('/api/team/'+id+'/teams');}catch(e){}}
-    teamsCheck.innerHTML=S.teams.map(t=>`
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);font-size:13px">
-        <input type="checkbox" value="${t.id}" ${memberTeams.includes(t.id)?'checked':''} style="accent-color:var(--primary)">
-        ${t.name}
-      </label>`).join('');
+  if(teamsList){teamsList.innerHTML='';}
+  if(isAdmin&&S.teams.length){
+    let assignments=[];
+    if(id){try{assignments=await API.get('/api/team/'+id+'/teams');}catch(e){}}
+    if(assignments.length){
+      assignments.forEach(a=>addTeamRow(a));
+    } else if(selectedTeamId){
+      // Nouveau membre : pré-remplir avec l'équipe courante
+      addTeamRow({teamId:selectedTeamId,startDate:'',endDate:''});
+    }
   }
   document.getElementById('modal-member').classList.add('open');
 }
@@ -1843,12 +1899,16 @@ async function saveMember(){
     let memberId=editMemberId;
     if(editMemberId){await API.put('/api/team/'+editMemberId,obj);}
     else{const r=await API.post('/api/team',obj);memberId=r.id;}
-    // Sauvegarder les équipes
+    // Sauvegarder les affectations équipes
     const isAdmin=['admin','super_admin'].includes(CU?.role);
     if(isAdmin&&memberId){
-      const boxes=document.querySelectorAll('#mm-teams-check input[type=checkbox]');
-      const teamIds=[...boxes].filter(b=>b.checked).map(b=>Number(b.value));
-      await API.put('/api/team/'+memberId+'/teams',{teamIds});
+      const rows=[...document.querySelectorAll('.mm-team-row')];
+      const periods=rows.map(row=>({
+        teamId:Number(row.querySelector('.mm-tr-team').value),
+        startDate:row.querySelector('.mm-tr-start').value||null,
+        endDate:row.querySelector('.mm-tr-end').value||null,
+      })).filter(p=>p.teamId);
+      await API.put('/api/team/'+memberId+'/teams',{periods});
     }
     await loadTeam();
     closeModal('modal-member');toast('Membre sauvegardé ✓','success');renderSettings();
