@@ -262,6 +262,14 @@ tr:hover td{background:var(--chip);}
 .bl-note-btn:hover{background:var(--bg2);}
 .bl-note-btn .material-icons-round{font-size:18px;color:var(--text3);transition:color var(--transition);}
 .bl-note-btn.has-note .material-icons-round{color:var(--primary);}
+/* Tooltip note riche */
+#note-tip{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:var(--radius-md);padding:12px 14px;font-size:13px;line-height:1.65;color:var(--text);box-shadow:var(--shadow-lg);pointer-events:none;display:none;max-width:340px;min-width:180px;max-height:260px;overflow:hidden;position:fixed;}
+#note-tip::after{content:'';position:absolute;bottom:0;left:0;right:0;height:36px;background:linear-gradient(transparent,var(--surface));pointer-events:none;}
+#note-tip p{margin:0 0 5px;}#note-tip p:last-child{margin-bottom:0;}
+#note-tip ul,#note-tip ol{margin:3px 0;padding-left:16px;}#note-tip li{margin:1px 0;}
+#note-tip h1,#note-tip h2{font-size:13px;font-weight:700;margin:0 0 5px;color:var(--text);}
+#note-tip strong{color:var(--text);}#note-tip em{color:var(--text2);}
+#note-tip blockquote{border-left:2px solid var(--border);margin:4px 0;padding-left:8px;color:var(--text2);}
 /* Volet note (drawer) */
 .note-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:500;opacity:0;pointer-events:none;transition:opacity 0.25s;}
 .note-backdrop.open{opacity:1;pointer-events:all;}
@@ -721,6 +729,7 @@ tr:hover td{background:var(--chip);}
 
 <div id="toast-container"></div>
 <div id="bl-tip"></div>
+<div id="note-tip"></div>
 
 <script>
 // ── COLORS ──────────────────────────────────────────────
@@ -2022,8 +2031,14 @@ async function _saveNote(itemId,html){
   if(btn){
     btn.className='bl-note-btn'+(clean?' has-note':'');
     btn.querySelector('.material-icons-round').textContent=clean?'sticky_note_2':'note_add';
-    const preview=clean?noteStripHtml(clean).substring(0,150).replace(/"/g,'&quot;'):'';
-    btn.title=clean?preview:'Ajouter une note';
+    if(clean){
+      btn.removeAttribute('title');
+      btn.onmouseenter=e=>showNoteTip(e,itemId);
+      btn.onmouseleave=()=>hideNoteTip();
+    } else {
+      btn.title='Ajouter une note';
+      btn.onmouseenter=null;btn.onmouseleave=null;
+    }
   }
   try{await API.put('/api/backlog/'+itemId+'/note',{note:clean});}
   catch(e){toast('Erreur sauvegarde note','error');}
@@ -2078,6 +2093,25 @@ function posBlTip(e){
   tip.style.left=x+'px';tip.style.top=y+'px';
 }
 function hideBlTip(){const tip=document.getElementById('bl-tip');if(tip)tip.style.display='none';}
+function showNoteTip(e,itemId){
+  const item=S.backlog.find(r=>r.id==itemId);
+  if(!item?.note)return;
+  const tip=document.getElementById('note-tip');
+  tip.innerHTML=item.note;
+  tip.style.display='block';
+  posNoteTip(e);
+}
+function posNoteTip(e){
+  const tip=document.getElementById('note-tip');if(!tip||tip.style.display==='none')return;
+  const m=12,vw=window.innerWidth,vh=window.innerHeight;
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=e.clientX+18,y=e.clientY-Math.round(h/2);
+  if(x+w>vw-m)x=e.clientX-w-18;
+  if(y<m)y=m;
+  if(y+h>vh-m)y=vh-h-m;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideNoteTip(){const tip=document.getElementById('note-tip');if(tip)tip.style.display='none';}
 
 function blSortIcon(col){
   if(blSort.col!==col)return `<span class="material-icons-round sort-icon">unfold_more</span>`;
@@ -2243,8 +2277,10 @@ function renderBacklog(){
   const sortable=(col,label,tip='',cls='',sty='')=>`<th class="${blSort.col===col?'sorted':''} ${cls}" style="${sty}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
   const noteIconHtml=r=>{
     const hasNote=!!(r.note&&r.note.trim());
-    const preview=hasNote?noteStripHtml(r.note).substring(0,150).replace(/"/g,'&quot;'):'';
-    return `<button class="bl-note-btn${hasNote?' has-note':''}" id="bl-note-${r.id}" onclick="openNotePanel(${r.id})" title="${hasNote?preview:'Ajouter une note'}"><span class="material-icons-round">${hasNote?'sticky_note_2':'note_add'}</span></button>`;
+    const evts=hasNote
+      ?`onmouseenter="showNoteTip(event,${r.id})" onmouseleave="hideNoteTip()"`
+      :`title="Ajouter une note"`;
+    return `<button class="bl-note-btn${hasNote?' has-note':''}" id="bl-note-${r.id}" onclick="openNotePanel(${r.id})" ${evts}><span class="material-icons-round">${hasNote?'sticky_note_2':'note_add'}</span></button>`;
   };
   document.getElementById('bl-thead').innerHTML=`<tr>
     <th class="bl-sk" style="width:36px;left:0"></th>
