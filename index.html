@@ -257,6 +257,34 @@ tr:hover td{background:var(--chip);}
 .bl-table .bl-select:focus{border-color:var(--primary);background:var(--bg);}
 .bl-score{font-weight:700;font-size:14px;color:var(--primary);text-align:center;}
 .bl-score.zero{color:var(--text3);font-weight:400;}
+/* Icône note dans tableau */
+.bl-note-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:none;background:transparent;cursor:pointer;transition:background var(--transition);padding:0;}
+.bl-note-btn:hover{background:var(--bg2);}
+.bl-note-btn .material-icons-round{font-size:18px;color:var(--text3);transition:color var(--transition);}
+.bl-note-btn.has-note .material-icons-round{color:var(--primary);}
+/* Volet note (drawer) */
+.note-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:500;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.note-backdrop.open{opacity:1;pointer-events:all;}
+.note-panel{position:fixed;top:0;right:0;width:500px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);box-shadow:-12px 0 40px rgba(0,0,0,0.18);z-index:501;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
+.note-panel.open{transform:translateX(0);}
+.note-panel-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;flex-shrink:0;}
+.note-panel-meta{flex:1;min-width:0;}
+.note-panel-jira{font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.5px;margin-bottom:3px;}
+.note-panel-lbl{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.note-panel-hint{font-size:11px;color:var(--text3);padding:6px 20px 0;flex-shrink:0;}
+.note-panel-body{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+/* Quill overrides pour correspondre au thème */
+.ql-toolbar.ql-snow{background:var(--bg2);border-color:var(--border)!important;border-radius:0;padding:8px 16px;flex-shrink:0;}
+.ql-container.ql-snow{border-color:var(--border)!important;flex:1;overflow-y:auto;font-family:inherit;font-size:14px;}
+.ql-editor{color:var(--text);padding:16px 20px;line-height:1.75;min-height:160px;}
+.ql-editor.ql-blank::before{color:var(--text3);font-style:normal;font-size:14px;}
+.ql-snow .ql-stroke{stroke:var(--text2)!important;}
+.ql-snow .ql-fill{fill:var(--text2)!important;}
+.ql-snow .ql-picker{color:var(--text2)!important;}
+.ql-snow.ql-toolbar button:hover .ql-stroke,.ql-snow.ql-toolbar button.ql-active .ql-stroke{stroke:var(--primary)!important;}
+.ql-snow.ql-toolbar button:hover .ql-fill,.ql-snow.ql-toolbar button.ql-active .ql-fill{fill:var(--primary)!important;}
+.ql-snow.ql-toolbar button:hover,.ql-snow.ql-toolbar button.ql-active{background:rgba(var(--primary-rgb),0.08);border-radius:4px;}
+@media(max-width:640px){.note-panel{width:100vw;}}
 /* RICE tooltip */
 .rice-th{display:inline-flex;align-items:center;gap:3px;}
 .rice-info{display:inline-flex;cursor:help;vertical-align:middle;}
@@ -591,6 +619,20 @@ tr:hover td{background:var(--chip);}
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-close-sprint')">Annuler</button><button class="btn btn-filled" onclick="doCloseSprint()"><span class="material-icons-round">check</span>Clôturer</button></div>
   </div>
 </div>
+
+<!-- VOLET NOTE -->
+<div class="note-backdrop" id="note-backdrop" onclick="closeNotePanel()"></div>
+<aside class="note-panel" id="note-panel">
+  <div class="note-panel-head">
+    <div class="note-panel-meta">
+      <div class="note-panel-jira" id="note-panel-jira"></div>
+      <div class="note-panel-lbl" id="note-panel-lbl"></div>
+    </div>
+    <button class="icon-btn" onclick="closeNotePanel()" title="Fermer — sauvegarde automatique"><span class="material-icons-round">close</span></button>
+  </div>
+  <div class="note-panel-hint" id="note-panel-hint"></div>
+  <div class="note-panel-body" id="note-panel-body"></div>
+</aside>
 
 <div class="modal-overlay" id="modal-member">
   <div class="modal">
@@ -1910,6 +1952,88 @@ async function delTeam(id){
   },'Supprimer l\'équipe');
 }
 
+// ── NOTE PANEL ───────────────────────────────────────────
+let _noteQuill=null,_noteItemId=null,_noteDirty=false,_noteReadOnly=false;
+
+function noteStripHtml(html){
+  const d=document.createElement('div');d.innerHTML=html||'';
+  return (d.textContent||d.innerText||'').replace(/\s+/g,' ').trim();
+}
+function loadQuill(){
+  return new Promise(res=>{
+    if(window.Quill){res();return;}
+    const lnk=document.createElement('link');lnk.rel='stylesheet';
+    lnk.href='https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css';
+    document.head.appendChild(lnk);
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js';
+    s.onload=res;document.head.appendChild(s);
+  });
+}
+async function openNotePanel(itemId){
+  const item=S.backlog.find(r=>r.id==itemId);if(!item)return;
+  _noteItemId=itemId;
+  _noteReadOnly=!['admin','super_admin'].includes(CU?.role);
+  document.getElementById('note-panel-jira').textContent=item.jira_id||'Sans ID Jira';
+  document.getElementById('note-panel-lbl').textContent=item.label||'Sans titre';
+  document.getElementById('note-panel-hint').textContent=_noteReadOnly?'Lecture seule':'Sauvegarde automatique à la fermeture';
+  document.getElementById('note-backdrop').classList.add('open');
+  document.getElementById('note-panel').classList.add('open');
+  await loadQuill();
+  const body=document.getElementById('note-panel-body');
+  if(!_noteQuill){
+    body.innerHTML=`
+      <div id="note-quill-toolbar">
+        <span class="ql-formats"><button class="ql-bold"></button><button class="ql-italic"></button><button class="ql-underline"></button><button class="ql-strike"></button></span>
+        <span class="ql-formats"><button class="ql-list" value="bullet"></button><button class="ql-list" value="ordered"></button></span>
+        <span class="ql-formats"><select class="ql-header"><option selected></option><option value="1"></option><option value="2"></option></select></span>
+        <span class="ql-formats"><button class="ql-blockquote"></button><button class="ql-clean"></button></span>
+      </div>
+      <div id="note-quill-editor" style="flex:1"></div>`;
+    _noteQuill=new Quill('#note-quill-editor',{
+      modules:{toolbar:'#note-quill-toolbar'},
+      placeholder:'Saisissez vos notes, observations, contexte…',
+      theme:'snow'
+    });
+    _noteQuill.on('text-change',()=>{_noteDirty=true;});
+    // Echap pour fermer
+    _noteQuill.keyboard.addBinding({key:27},()=>closeNotePanel());
+  }
+  _noteQuill.enable(!_noteReadOnly);
+  document.getElementById('note-quill-toolbar').style.display=_noteReadOnly?'none':'';
+  _noteQuill.root.innerHTML=item.note||'';
+  _noteDirty=false;
+  if(!_noteReadOnly)setTimeout(()=>_noteQuill.focus(),300);
+}
+async function closeNotePanel(){
+  if(_noteDirty&&_noteItemId!==null&&!_noteReadOnly){
+    await _saveNote(_noteItemId,_noteQuill.root.innerHTML);
+  }
+  document.getElementById('note-backdrop').classList.remove('open');
+  document.getElementById('note-panel').classList.remove('open');
+  _noteItemId=null;_noteDirty=false;
+}
+async function _saveNote(itemId,html){
+  const clean=html==='<p><br></p>'||html==='<p></p>'?'':html;
+  const item=S.backlog.find(r=>r.id==itemId);if(!item)return;
+  item.note=clean;
+  // Mettre à jour l'icône sans re-render complet
+  const btn=document.getElementById('bl-note-'+itemId);
+  if(btn){
+    btn.className='bl-note-btn'+(clean?' has-note':'');
+    btn.querySelector('.material-icons-round').textContent=clean?'sticky_note_2':'note_add';
+    const preview=clean?noteStripHtml(clean).substring(0,150).replace(/"/g,'&quot;'):'';
+    btn.title=clean?preview:'Ajouter une note';
+  }
+  try{await API.put('/api/backlog/'+itemId+'/note',{note:clean});}
+  catch(e){toast('Erreur sauvegarde note','error');}
+}
+// Fermer avec Echap depuis n'importe où
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('note-panel')?.classList.contains('open'))
+    closeNotePanel();
+});
+
 // ── BACKLOG ───────────────────────────────────────────────
 let blSort={col:'score',dir:'desc'};
 let blActiveTab='prio';
@@ -2114,13 +2238,19 @@ function renderBacklog(){
     if(typeof av==='string')return blSort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     return blSort.dir==='asc'?av-bv:bv-av;
   });
-  // En-tête — colonnes 1-3 sticky
-  const L2=36,L3=isAdmin?136:126; // offsets left: col1=0, col2=36, col3=136(admin)/126(cons)
+  // En-tête — colonnes sticky : icône | jira_id | libellé | note
+  const L2=36,jiraW=isAdmin?100:90,L3=L2+jiraW,labelW=isAdmin?220:200,L4=L3+labelW;
   const sortable=(col,label,tip='',cls='',sty='')=>`<th class="${blSort.col===col?'sorted':''} ${cls}" style="${sty}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
+  const noteIconHtml=r=>{
+    const hasNote=!!(r.note&&r.note.trim());
+    const preview=hasNote?noteStripHtml(r.note).substring(0,150).replace(/"/g,'&quot;'):'';
+    return `<button class="bl-note-btn${hasNote?' has-note':''}" id="bl-note-${r.id}" onclick="openNotePanel(${r.id})" title="${hasNote?preview:'Ajouter une note'}"><span class="material-icons-round">${hasNote?'sticky_note_2':'note_add'}</span></button>`;
+  };
   document.getElementById('bl-thead').innerHTML=`<tr>
     <th class="bl-sk" style="width:36px;left:0"></th>
     ${sortable('jira_id','ID Jira','','bl-sk',`left:${L2}px`)}
-    ${sortable('label','Libellé','','bl-sk bl-sk-sep',`left:${L3}px`)}
+    ${sortable('label','Libellé','','bl-sk',`left:${L3}px;min-width:${labelW}px`)}
+    <th class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
     ${sortable('sprint','Sprint prévu')}
     ${sortable('reach','Portée',BL_REACH_TIPS)}
     ${sortable('impact','Impact',BL_IMPACT_TIPS)}
@@ -2137,26 +2267,24 @@ function renderBacklog(){
     ?`<a href="${JIRA_BASE}${encodeURIComponent(id)}" target="_blank" rel="noopener" id="bl-jira-link-${rowId}" title="Ouvrir ${id} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`
     :`<span id="bl-jira-link-${rowId}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`;
 
-  const cols=isAdmin?10:9;
+  const cols=isAdmin?11:10;
   document.getElementById('bl-tbody').innerHTML=rows.length===0
     ?`<tr>
       <td class="bl-sk" style="width:36px;left:0;padding:32px 4px"></td>
-      <td class="bl-sk" style="min-width:${isAdmin?100:90}px;left:${L2}px;padding:32px 4px"></td>
-      <td class="bl-sk bl-sk-sep" style="min-width:${isAdmin?220:200}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
-      <td style="padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
+      <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
       ${isAdmin?'<td style="padding:32px 4px"></td>':''}
     </tr>`
     :rows.map(r=>{
       const score=r._score;
       if(!isAdmin) return `<tr>
         <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
-        <td class="bl-sk" style="min-width:90px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
-        <td class="bl-sk bl-sk-sep" style="min-width:200px;left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
         <td style="text-align:center">${r.reach||0}</td>
         <td style="text-align:center">${r.impact||0}</td>
@@ -2166,8 +2294,9 @@ function renderBacklog(){
       </tr>`;
       return `<tr>
         <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
-        <td class="bl-sk" style="min-width:100px;left:${L2}px"><input class="bl-input" style="width:100px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
-        <td class="bl-sk bl-sk-sep" style="min-width:220px;left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px"><input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
