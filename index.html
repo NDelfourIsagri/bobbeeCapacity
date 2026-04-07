@@ -1751,8 +1751,9 @@ function renderCharts(){
       td.setDate(td.getDate()+1);
     }
     // Réalisé (Done) vs En cours (In Progress)
-    const ptDone=cur.velocityActual??0;
-    const ptInProg=cur.closed?0:(cur.velocityCurrent??0);
+    // Number() requis : MySQL DECIMAL revient en string, + ferait de la concaténation sinon
+    const ptDone=Number(cur.velocityActual??0);
+    const ptInProg=cur.closed?0:Number(cur.velocityCurrent??0);
     const ptTotal=ptDone+ptInProg;
     const buL=[],scopeLine=[],idealLine=[],doneLine=[],totalLine=[];
     let dn=0;
