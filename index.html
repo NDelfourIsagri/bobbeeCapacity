@@ -1223,7 +1223,7 @@ function renderDash(){
         <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px">${c.mtgD}j réunions · ${RL[m.role]||m.role} · <span style="color:${c.hasCustomVel?'var(--primary)':'var(--text3)'}" title="${c.hasCustomVel?'Vélocité personnalisée':'Vélocité par niveau'}">${c.velPct}% vél.${c.hasCustomVel?' ✎':''}</span></div></div>`;}).join('');
   const objs=cur?.objectives||[];
-  const canToggle=cur&&!cur.closed;
+  const canToggle=cur&&!cur.closed&&['admin','super_admin'].includes(CU?.role);
   const isAdmin=['admin','super_admin'].includes(CU?.role);
   const inpStyle='width:100%;padding:6px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center';
   const velBlock=!cur?''
@@ -1277,7 +1277,7 @@ function renderDash(){
     <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Backlog du sprint</div>
     ${sprintBacklog.map(r=>{
       const score=r.effort>0?Math.round((r.reach*r.impact*r.confidence)/r.effort):0;
-      const jiraLink=r.jira_id?`<a href="https://jira.atlassian.net/browse/${r.jira_id}" target="_blank" style="font-size:10px;font-weight:600;color:var(--primary);text-decoration:none;flex-shrink:0">${r.jira_id}</a>`:'';
+      const jiraLink=r.jira_id?`<a href="https://isagri.atlassian.net/browse/${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="font-size:10px;font-weight:600;color:var(--primary);text-decoration:none;flex-shrink:0">${r.jira_id}</a>`:'';
       return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--divider)">
         ${jiraLink}
         <span style="font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()" data-tip="${(r.label||'').replace(/"/g,'&quot;')}">${r.label||'—'}</span>
