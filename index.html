@@ -180,6 +180,7 @@ tr:hover td{background:var(--chip);}
 .tl-item.current::before{background:var(--warning);box-shadow:0 0 0 2px var(--warning);animation:pulse 1.5s infinite;}
 .tl-item.overdue::before{background:var(--danger);box-shadow:0 0 0 2px var(--danger);animation:pulse 1.5s infinite;}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 /* ============ AGENDA / PLANNING ============ */
 .planning-outer{border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow-sm);overflow:hidden;}
@@ -419,6 +420,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
         <div class="nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
         <div class="nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
         <div class="nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
+        <div class="nav-item admin-only" onclick="navTo('backlog-jira')"><span class="material-icons-round">sync</span><span>Backlog Jira</span></div>
         <div class="nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
         <div class="nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Paramètres</span></div>
         <div class="nav-item admin-only" onclick="navTo('users')"><span class="material-icons-round">group</span><span>Utilisateurs</span></div>
@@ -526,6 +528,39 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
         </div>
       </div>
 
+      <!-- BACKLOG JIRA -->
+      <div class="page" id="page-backlog-jira">
+        <div class="page-header">
+          <div><div class="page-title">Backlog Jira 🔄</div><div class="page-sub">Synchronisation automatique</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <div class="bl-tabs" style="margin-bottom:0">
+            <button class="bl-tab active" id="jbl-tab-prio" onclick="switchJblTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
+            <button class="bl-tab" id="jbl-tab-chrono" onclick="switchJblTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select class="input" id="jbl-filter-sprint" style="min-width:160px" onchange="renderJiraBacklog()">
+              <option value="">Tous les sprints</option>
+            </select>
+            <button class="btn btn-filled admin-only" id="jbl-sync-btn" onclick="syncJiraBacklog()"><span class="material-icons-round">sync</span>Synchroniser</button>
+          </div>
+        </div>
+        <div id="jbl-sync-status" style="font-size:12px;color:var(--text3);margin-bottom:8px;min-height:18px"></div>
+        <div id="jbl-view-prio" class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+          <div style="overflow:auto;flex:1;max-height:calc(100vh - 280px)">
+            <table class="bl-table" id="jbl-table">
+              <thead id="jbl-thead"></thead>
+              <tbody id="jbl-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="jbl-view-chrono" style="display:none">
+          <div class="card" style="padding:0">
+            <div id="jbl-gantt-wrap" style="overflow:hidden;border-radius:inherit"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- CHARTS -->
       <div class="page" id="page-charts">
         <div class="page-header"><div><div class="page-title">Graphiques 📈</div><div class="page-sub">Progression et performance</div></div></div>
@@ -584,6 +619,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
     <div class="bottom-nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
     <div class="bottom-nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
     <div class="bottom-nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
+    <div class="bottom-nav-item admin-only" onclick="navTo('backlog-jira')"><span class="material-icons-round">sync</span><span>Jira</span></div>
     <div class="bottom-nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
     <div class="bottom-nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Params</span></div>
   </div></nav>
@@ -767,7 +803,7 @@ const API={
 const S={
   team:[],sprints:[],leaves:[],
   config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
-  users:[],teams:[],backlog:[]
+  users:[],teams:[],backlog:[],jiraBacklog:[]
 };
 let selectedTeamId=null;
 
@@ -798,10 +834,11 @@ async function loadUsers(){
 }
 async function loadTeams(){S.teams=await API.get('/api/teams');}
 async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId);else S.backlog=[];}
+async function loadJiraBacklog(){if(selectedTeamId)S.jiraBacklog=await API.get('/api/backlog?teamId='+selectedTeamId+'&source=jira');else S.jiraBacklog=[];}
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
-const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',agenda:'planning',settings:'admin',users:'users'};
+const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog','backlog-jira':'backlog-jira',agenda:'planning',settings:'admin',users:'users'};
 const SLUG_PAGES=Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v])=>[v,k]));
 
 // ── APP STATE ────────────────────────────────────────────
@@ -1050,6 +1087,7 @@ async function navTo(p,noPush=false){
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='backlog-jira'){await Promise.all([loadSprints(),loadJiraBacklog()]);renderJiraBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
 }
 
 // ── THEME ────────────────────────────────────────────────
@@ -2240,15 +2278,18 @@ function toggleBlSort(col){
   renderBacklog();
 }
 
-function renderGantt(){
-  const wrap=document.getElementById('bl-gantt-wrap');
+function renderGantt(){ renderGanttFor(S.backlog,'bl-gantt-wrap'); }
+function renderJiraGantt(){ renderGanttFor(S.jiraBacklog,'jbl-gantt-wrap'); }
+
+function renderGanttFor(backlogItems, wrapId){
+  const wrap=document.getElementById(wrapId);
   if(!wrap)return;
   const JIRA='https://isagri.atlassian.net/browse/';
   const mob=window.innerWidth<640;
   const PX=mob?5:10; // px par jour
   const ROW_H=40,MH=36,SH=36;
   // WI avec sprint planifié, triés par sprint puis score RICE décroissant
-  const items=(S.backlog||[]).filter(r=>r.sprint_id).sort((a,b)=>{
+  const items=(backlogItems||[]).filter(r=>r.sprint_id).sort((a,b)=>{
     const sa=S.sprints.find(s=>String(s.id)===String(a.sprint_id));
     const sb=S.sprints.find(s=>String(s.id)===String(b.sprint_id));
     const da=sa?.start?new Date(sa.start):new Date('9999-01-01');
@@ -2512,6 +2553,164 @@ function blDelete(id){
       renderBacklog();toast('Élément supprimé','success');
     }catch(e){toast(e.error||'Erreur','error');}
   },'Supprimer');
+}
+
+// ── BACKLOG JIRA ──────────────────────────────────────────
+let jblActiveTab='prio';
+let jblSort={col:'score',dir:'desc'};
+
+function switchJblTab(tab){
+  jblActiveTab=tab;
+  document.getElementById('jbl-tab-prio').classList.toggle('active',tab==='prio');
+  document.getElementById('jbl-tab-chrono').classList.toggle('active',tab==='chrono');
+  document.getElementById('jbl-view-prio').style.display=tab==='prio'?'':'none';
+  document.getElementById('jbl-view-chrono').style.display=tab==='chrono'?'':'none';
+  const filterSel=document.getElementById('jbl-filter-sprint');
+  if(filterSel)filterSel.style.display=tab==='chrono'?'none':'';
+  if(tab==='chrono')renderJiraGantt();
+}
+
+function toggleJblSort(col){
+  if(jblSort.col===col)jblSort.dir=jblSort.dir==='asc'?'desc':'asc';
+  else{jblSort.col=col;jblSort.dir=col==='score'?'desc':'asc';}
+  renderJiraBacklog();
+}
+
+function renderJiraBacklog(){
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  const openSprints=S.sprints.filter(s=>!s.closed);
+  const filterEl=document.getElementById('jbl-filter-sprint');
+  const filterVal=filterEl?filterEl.value:'';
+  if(filterEl){
+    const cur=filterEl.value;
+    filterEl.innerHTML='<option value="">Tous les sprints</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===cur?'selected':''}>${s.name}</option>`).join('');
+    filterEl.value=cur;
+  }
+  let rows=[...(S.jiraBacklog||[])];
+  if(filterVal)rows=rows.filter(r=>String(r.sprint_id)===String(filterVal));
+  rows=rows.map(r=>({...r,_score:riceScore(r)}));
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(jblSort.col==='score'){av=a._score;bv=b._score;}
+    else if(jblSort.col==='jira_id'){av=a.jira_id||'';bv=b.jira_id||'';}
+    else if(jblSort.col==='label'){av=a.label||'';bv=b.label||'';}
+    else if(jblSort.col==='sprint'){av=a.sprint_id||0;bv=b.sprint_id||0;}
+    else{av=a[jblSort.col]||0;bv=b[jblSort.col]||0;}
+    if(typeof av==='string')return jblSort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return jblSort.dir==='asc'?av-bv:bv-av;
+  });
+
+  const jblSortIcon=col=>{
+    if(jblSort.col!==col)return `<span class="material-icons-round sort-icon">unfold_more</span>`;
+    return `<span class="material-icons-round sort-icon">${jblSort.dir==='asc'?'arrow_upward':'arrow_downward'}</span>`;
+  };
+
+  const L2=36,jiraW=90,L3=L2+jiraW,labelW=200,descW=260,L4=L3+labelW+descW;
+  const sortable=(col,lbl,tip='',cls='',sty='')=>`<th class="${jblSort.col===col?'sorted':''} ${cls}" style="${sty}" onclick="toggleJblSort('${col}')"><div class="rice-th">${lbl}${tip?infoIcon(tip):''}${jblSortIcon(col)}</div></th>`;
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+
+  document.getElementById('jbl-thead').innerHTML=`<tr>
+    <th class="bl-sk" style="width:36px;left:0"></th>
+    ${sortable('jira_id','ID Jira','','bl-sk',`left:${L2}px`)}
+    ${sortable('label','Libellé','','bl-sk',`left:${L3}px;min-width:${labelW}px`)}
+    <th style="min-width:${descW}px;color:var(--text3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;padding:10px 8px">Description</th>
+    ${sortable('sprint','Sprint prévu')}
+    ${sortable('reach','Portée',BL_REACH_TIPS)}
+    ${sortable('impact','Impact',BL_IMPACT_TIPS)}
+    ${sortable('confidence','Confiance',BL_CONF_TIPS)}
+    ${sortable('effort','Effort',BL_EFFORT_TIPS)}
+    ${sortable('score','Score RICE')}
+    ${isAdmin?'<th></th>':''}
+  </tr>`;
+
+  const selOpts=(vals,cur)=>vals.map(v=>`<option value="${v}" ${Number(cur)===v?'selected':''}>${v||'—'}</option>`).join('');
+  const sprintOpts=(cur)=>'<option value="">—</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===String(cur)?'selected':''}>${s.name}</option>`).join('');
+
+  document.getElementById('jbl-tbody').innerHTML=rows.length===0
+    ?`<tr>
+      <td class="bl-sk" style="width:36px;left:0;padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucune feature Jira — cliquez sur Synchroniser</td>
+      <td colspan="7" style="padding:32px 4px"></td>
+      ${isAdmin?'<td style="padding:32px 4px"></td>':''}
+    </tr>`
+    :rows.map(r=>{
+      const score=r._score;
+      const descTrunc=(r.description||'').slice(0,120).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const descFull=(r.description||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      if(!isAdmin) return `<tr>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0"><a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a></td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id}</td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px">${(r.label||'').replace(/</g,'&lt;')}</td>
+        <td style="min-width:${descW}px;font-size:12px;color:var(--text2)" title="${descFull}">${descTrunc}${r.description&&r.description.length>120?'…':''}</td>
+        <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="text-align:center">${r.reach||0}</td>
+        <td style="text-align:center">${r.impact||0}</td>
+        <td style="text-align:center">${r.confidence||0}</td>
+        <td style="text-align:center">${r.effort||0}</td>
+        <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
+      </tr>`;
+      return `<tr>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0"><a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a></td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id}</td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px">${(r.label||'').replace(/</g,'&lt;')}</td>
+        <td style="min-width:${descW}px;font-size:12px;color:var(--text2)" title="${descFull}">${descTrunc}${r.description&&r.description.length>120?'…':''}</td>
+        <td style="min-width:140px"><select class="bl-select" onchange="jblUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
+        <td><select class="bl-select" onchange="jblUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
+        <td><select class="bl-select" onchange="jblUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
+        <td><select class="bl-select" onchange="jblUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
+        <td><select class="bl-select" onchange="jblUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,20,40,60,80,100],r.effort)}</select></td>
+        <td class="bl-score ${score===0?'zero':''}" id="jbl-score-${r.id}">${score||'—'}</td>
+        <td><button class="icon-btn" onclick="jblDelete(${r.id})" title="Retirer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
+      </tr>`;
+    }).join('');
+
+  if(jblActiveTab==='chrono')renderJiraGantt();
+}
+
+async function jblUpdate(id,patch){
+  const item=S.jiraBacklog.find(r=>r.id==id);if(!item)return;
+  Object.assign(item,patch);
+  const score=riceScore(item);
+  const scoreEl=document.getElementById('jbl-score-'+id);
+  if(scoreEl){scoreEl.textContent=score||'—';scoreEl.className='bl-score'+(score===0?' zero':'');}
+  try{
+    await API.put('/api/backlog/'+id,{
+      jiraId:item.jira_id,label:item.label,sprintId:item.sprint_id,
+      reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort
+    });
+  }catch(e){toast(e.error||'Erreur sauvegarde','error');}
+}
+
+function jblDelete(id){
+  showConfirm('Retirer cette feature du Backlog Jira ?',async()=>{
+    try{
+      await API.del('/api/backlog/'+id);
+      S.jiraBacklog=S.jiraBacklog.filter(r=>r.id!=id);
+      renderJiraBacklog();toast('Feature retirée','success');
+    }catch(e){toast(e.error||'Erreur','error');}
+  },'Retirer');
+}
+
+async function syncJiraBacklog(){
+  if(!selectedTeamId){toast('Sélectionnez une équipe','error');return;}
+  const btn=document.getElementById('jbl-sync-btn');
+  const status=document.getElementById('jbl-sync-status');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="material-icons-round" style="animation:spin 1s linear infinite">sync</span>Synchronisation…';}
+  if(status)status.textContent='Synchronisation en cours…';
+  try{
+    const r=await API.post('/api/jira/sync',{teamId:Number(selectedTeamId)});
+    const msg=`Synchronisé le ${new Date().toLocaleString('fr-FR')} — ${r.imported} importé(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s)`;
+    if(status)status.textContent=msg;
+    toast(`${r.imported} importé(s), ${r.updated} mis à jour`,'success');
+    await loadJiraBacklog();
+    renderJiraBacklog();
+  }catch(e){
+    toast(e.error||'Erreur de synchronisation','error');
+    if(status)status.textContent='Erreur lors de la synchronisation';
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">sync</span>Synchroniser';}
+  }
 }
 
 // ── UTILS ────────────────────────────────────────────────
