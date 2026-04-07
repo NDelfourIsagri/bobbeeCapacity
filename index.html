@@ -683,6 +683,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
         <option value="FR">🇫🇷 France</option>
         <option value="ES">🇪🇸 Espagne</option>
         <option value="MX">🇲🇽 Mexique</option>
+        <option value="MA">🇲🇦 Maroc</option>
       </select>
     </div>
     <div class="form-group admin-only" id="mm-teams-group">
@@ -1130,6 +1131,15 @@ function holidays(year,country='FR'){
     fmt(nearestMon(new Date(year,10,20))),         // Revolución (lunes más cercano au 20 nov)
     fmt(new Date(year,11,25)),                     // Navidad
   ]);
+  if(country==='MA') return new Set([
+    fmt(new Date(year,0,1)),   // 1er janvier
+    fmt(new Date(year,0,11)),  // 11 janvier - Fête de l'Indépendance
+    fmt(new Date(year,4,1)),   // 1er mai
+    fmt(new Date(year,6,30)),  // 30 juillet - Fête du Trône
+    fmt(new Date(year,7,21)),  // 21 août - Révolution
+    fmt(new Date(year,10,6)),  // 6 novembre - Marche Verte
+    fmt(new Date(year,11,25)), // 25 décembre
+  ]);
   // France (par défaut)
   return new Set([
     fmt(new Date(year,0,1)),   // 1er janvier
@@ -1350,7 +1360,7 @@ function renderAgenda(){
     html+=`<th class="${cls}" style="${sty}" id="thd-${ds}">${d}<br><span style="font-size:9px">${dayN}</span></th>`;
   });
   html+='</tr></thead><tbody>';
-  const COUNTRY_FLAG={FR:'🇫🇷',ES:'🇪🇸',MX:'🇲🇽'};
+  const COUNTRY_FLAG={FR:'🇫🇷',ES:'🇪🇸',MX:'🇲🇽',MA:'🇲🇦'};
   visibleTeam.forEach((m,mi)=>{
     const former=memberIsFormer(m);
     const canEdit=!former; // lecture seule pour les membres partis
