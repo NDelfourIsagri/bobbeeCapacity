@@ -1740,7 +1740,7 @@ function renderCharts(){
   if(cur){
     const st=new Date(cur.start),en=new Date(cur.end),tot=cur.velocityPlanned||0;
     const todayDS=toDS(new Date(now.getFullYear(),now.getMonth(),now.getDate()));
-    // Compter jours ouvrés total et écoulés
+    // Jours ouvrés total et écoulés
     let totalWD=0,elapsedWD=0;
     let td=new Date(st);
     while(td<=en){
@@ -1750,11 +1750,13 @@ function renderCharts(){
       }
       td.setDate(td.getDate()+1);
     }
-    // Points réalisés : vélocité actuelle (sprint en cours) ou définitive (clôturé)
-    const pointsDone=cur.closed?(cur.velocityActual??0):(cur.velocityCurrent??0);
-    const dailyRate=elapsedWD>0?pointsDone/elapsedWD:0;
-    const projectedFinal=r2(dailyRate*totalWD);
-    const buL=[],scopeLine=[],idealLine=[],doneLine=[],projLine=[];
+    // Réalisé (Done) vs En cours (In Progress)
+    const ptDone=cur.velocityActual??0;                        // stories terminées
+    const ptInProg=cur.closed?0:(cur.velocityCurrent??0);      // stories commencées non finies
+    const ptTotal=ptDone+ptInProg;                             // réalisé + en cours
+    const dailyRateTotal=elapsedWD>0?ptTotal/elapsedWD:0;
+    const projFinal=r2(dailyRateTotal*totalWD);
+    const buL=[],scopeLine=[],idealLine=[],doneLine=[],totalLine=[],projLine=[];
     let dn=0;
     td=new Date(st);
     while(td<=en){
@@ -1766,28 +1768,43 @@ function renderCharts(){
         const isElapsed=toDS(td)<=todayDS;
         const atBoundary=dn===elapsedWD;
         if(cur.closed){
-          doneLine.push(r2(pointsDone*dn/totalWD));
+          // Sprint clôturé : lignes linéaires sur toute la durée
+          doneLine.push(r2(ptDone*dn/totalWD));
+          totalLine.push(null); // inutile sur sprint clôturé
           projLine.push(null);
         } else if(elapsedWD===0){
-          doneLine.push(null);
-          projLine.push(null);
+          // Sprint futur
+          doneLine.push(null);totalLine.push(null);projLine.push(null);
         } else if(isElapsed){
-          doneLine.push(r2(pointsDone*dn/elapsedWD));
-          projLine.push(atBoundary?r2(pointsDone):null);
+          // Jours écoulés : progression linéaire 0 → valeur actuelle
+          doneLine.push(r2(ptDone*dn/elapsedWD));
+          totalLine.push(r2(ptTotal*dn/elapsedWD));
+          // Point de raccordement pour la projection
+          projLine.push(atBoundary?r2(ptTotal):null);
         } else {
+          // Jours futurs : projection du taux "réalisé+en cours"
           doneLine.push(null);
-          projLine.push(r2(pointsDone+dailyRate*(dn-elapsedWD)));
+          totalLine.push(null);
+          projLine.push(r2(ptTotal+dailyRateTotal*(dn-elapsedWD)));
         }
       }
       td.setDate(td.getDate()+1);
     }
     const warn=cv('--warning');
-    dChart('chart-burndown','line',{labels:buL,datasets:[
+    const succ=cv('--success')||'#22c55e';
+    const datasets=[
       {label:'Scope',data:scopeLine,borderColor:t2,borderDash:[4,4],borderWidth:1.5,fill:false,tension:0,pointRadius:0},
-      {label:'Idéal',data:idealLine,borderColor:sc,borderDash:[5,5],fill:false,tension:0,pointRadius:0,borderWidth:2},
-      {label:'Réalisé',data:doneLine,borderColor:pr,backgroundColor:pr+'28',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:pr,borderWidth:2},
-      {label:`Projection (${projectedFinal} pts)`,data:projLine,borderColor:warn,borderDash:[4,3],fill:false,tension:0,pointRadius:0,borderWidth:2},
-    ]},{...base,plugins:{...base.plugins,tooltip:{...base.plugins.tooltip,mode:'index',intersect:false}},
+      {label:'Idéal',data:idealLine,borderColor:sc,borderWidth:2,fill:false,tension:0,pointRadius:0},
+      {label:'Réalisé',data:doneLine,borderColor:succ,backgroundColor:succ+'28',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:succ,borderWidth:2.5},
+    ];
+    if(!cur.closed&&ptInProg>0){
+      datasets.push({label:'Réalisé + En cours',data:totalLine,borderColor:warn,backgroundColor:warn+'18',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:warn,borderWidth:2.5});
+      datasets.push({label:`Projection (${projFinal} pts)`,data:projLine,borderColor:warn,borderDash:[4,3],fill:false,tension:0,pointRadius:0,borderWidth:2});
+    } else if(!cur.closed){
+      datasets.push({label:`Projection (${projFinal} pts)`,data:projLine,borderColor:succ,borderDash:[4,3],fill:false,tension:0,pointRadius:0,borderWidth:2});
+    }
+    dChart('chart-burndown','line',{labels:buL,datasets},{...base,
+      plugins:{...base.plugins,tooltip:{...base.plugins.tooltip,mode:'index',intersect:false}},
       scales:{...base.scales,y:{...base.scales.y,min:0}}});
   } else dChart('chart-burndown','line',{labels:[],datasets:[]},base);
   const leaves=S.leaves,team=S.team;
