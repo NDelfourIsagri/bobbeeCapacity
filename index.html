@@ -1751,12 +1751,10 @@ function renderCharts(){
       td.setDate(td.getDate()+1);
     }
     // Réalisé (Done) vs En cours (In Progress)
-    const ptDone=cur.velocityActual??0;                        // stories terminées
-    const ptInProg=cur.closed?0:(cur.velocityCurrent??0);      // stories commencées non finies
-    const ptTotal=ptDone+ptInProg;                             // réalisé + en cours
-    const dailyRateTotal=elapsedWD>0?ptTotal/elapsedWD:0;
-    const projFinal=r2(dailyRateTotal*totalWD);
-    const buL=[],scopeLine=[],idealLine=[],doneLine=[],totalLine=[],projLine=[];
+    const ptDone=cur.velocityActual??0;
+    const ptInProg=cur.closed?0:(cur.velocityCurrent??0);
+    const ptTotal=ptDone+ptInProg;
+    const buL=[],scopeLine=[],idealLine=[],doneLine=[],totalLine=[];
     let dn=0;
     td=new Date(st);
     while(td<=en){
@@ -1766,26 +1764,16 @@ function renderCharts(){
         scopeLine.push(tot);
         idealLine.push(r2(tot*dn/totalWD));
         const isElapsed=toDS(td)<=todayDS;
-        const atBoundary=dn===elapsedWD;
         if(cur.closed){
-          // Sprint clôturé : lignes linéaires sur toute la durée
           doneLine.push(r2(ptDone*dn/totalWD));
-          totalLine.push(null); // inutile sur sprint clôturé
-          projLine.push(null);
+          totalLine.push(null);
         } else if(elapsedWD===0){
-          // Sprint futur
-          doneLine.push(null);totalLine.push(null);projLine.push(null);
+          doneLine.push(null);totalLine.push(null);
         } else if(isElapsed){
-          // Jours écoulés : progression linéaire 0 → valeur actuelle
           doneLine.push(r2(ptDone*dn/elapsedWD));
           totalLine.push(r2(ptTotal*dn/elapsedWD));
-          // Point de raccordement pour la projection
-          projLine.push(atBoundary?r2(ptTotal):null);
         } else {
-          // Jours futurs : projection du taux "réalisé+en cours"
-          doneLine.push(null);
-          totalLine.push(null);
-          projLine.push(r2(ptTotal+dailyRateTotal*(dn-elapsedWD)));
+          doneLine.push(null);totalLine.push(null);
         }
       }
       td.setDate(td.getDate()+1);
@@ -1796,13 +1784,8 @@ function renderCharts(){
       {label:'Scope',data:scopeLine,borderColor:t2,borderDash:[4,4],borderWidth:1.5,fill:false,tension:0,pointRadius:0},
       {label:'Idéal',data:idealLine,borderColor:sc,borderWidth:2,fill:false,tension:0,pointRadius:0},
       {label:'Réalisé',data:doneLine,borderColor:succ,backgroundColor:succ+'28',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:succ,borderWidth:2.5},
+      {label:'Réalisé + En cours',data:totalLine,borderColor:warn,backgroundColor:warn+'18',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:warn,borderWidth:2.5},
     ];
-    if(!cur.closed&&ptInProg>0){
-      datasets.push({label:'Réalisé + En cours',data:totalLine,borderColor:warn,backgroundColor:warn+'18',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:warn,borderWidth:2.5});
-      datasets.push({label:`Projection (${projFinal} pts)`,data:projLine,borderColor:warn,borderDash:[4,3],fill:false,tension:0,pointRadius:0,borderWidth:2});
-    } else if(!cur.closed){
-      datasets.push({label:`Projection (${projFinal} pts)`,data:projLine,borderColor:succ,borderDash:[4,3],fill:false,tension:0,pointRadius:0,borderWidth:2});
-    }
     dChart('chart-burndown','line',{labels:buL,datasets},{...base,
       plugins:{...base.plugins,tooltip:{...base.plugins.tooltip,mode:'index',intersect:false}},
       scales:{...base.scales,y:{...base.scales.y,min:0}}});
