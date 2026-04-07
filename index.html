@@ -420,7 +420,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
         <div class="nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
         <div class="nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
         <div class="nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
-        <div class="nav-item admin-only" onclick="navTo('backlog-jira')"><span class="material-icons-round">sync</span><span>Backlog Jira</span></div>
+        <div class="nav-item superadmin-only" onclick="navTo('backlog-jira')"><span class="material-icons-round">sync</span><span>Backlog Jira</span></div>
         <div class="nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
         <div class="nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Paramètres</span></div>
         <div class="nav-item admin-only" onclick="navTo('users')"><span class="material-icons-round">group</span><span>Utilisateurs</span></div>
@@ -542,7 +542,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
             <select class="input" id="jbl-filter-sprint" style="min-width:160px" onchange="renderJiraBacklog()">
               <option value="">Tous les sprints</option>
             </select>
-            <button class="btn btn-filled admin-only" id="jbl-sync-btn" onclick="syncJiraBacklog()"><span class="material-icons-round">sync</span>Synchroniser</button>
+            <button class="btn btn-filled superadmin-only" id="jbl-sync-btn" onclick="syncJiraBacklog()"><span class="material-icons-round">sync</span>Synchroniser</button>
           </div>
         </div>
         <div id="jbl-sync-status" style="font-size:12px;color:var(--text3);margin-bottom:8px;min-height:18px"></div>
@@ -619,7 +619,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
     <div class="bottom-nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
     <div class="bottom-nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
     <div class="bottom-nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
-    <div class="bottom-nav-item admin-only" onclick="navTo('backlog-jira')"><span class="material-icons-round">sync</span><span>Jira</span></div>
+    <div class="bottom-nav-item superadmin-only" onclick="navTo('backlog-jira')"><span class="material-icons-round">sync</span><span>Jira</span></div>
     <div class="bottom-nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
     <div class="bottom-nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Params</span></div>
   </div></nav>
