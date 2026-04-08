@@ -2097,15 +2097,27 @@ function renderTeamsList(){
   const tl=document.getElementById('teams-list');if(!tl)return;
   tl.innerHTML=S.teams.length===0?'<p style="color:var(--text3);font-size:13px">Aucune équipe</p>'
     :S.teams.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
-      <span style="font-size:14px;font-weight:600;min-width:90px">${t.name}</span>
+      <input class="input" style="width:130px;font-size:13px;font-weight:600"
+        value="${(t.name||'').replace(/"/g,'&quot;')}"
+        placeholder="Nom de l'équipe"
+        onchange="saveTeamName(${t.id},this.value.trim(),this)"
+        title="Nom de l'équipe">
       <input class="input" style="flex:1;min-width:220px;font-size:12px;font-family:monospace"
         placeholder="UID Jira (ex: dfec288c-42b6-4000-…)"
         value="${t.jira_team_id||''}"
-        data-tid="${t.id}"
         onchange="saveTeamJiraId(${t.id},this.value.trim())"
         title="UID de l'équipe dans Jira (champ Team[Team])">
       <button class="icon-btn" onclick="delTeam('${t.id}')" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button>
     </div>`).join('');
+}
+async function saveTeamName(id, name, el){
+  if(!name){toast('Le nom ne peut pas être vide','error');if(el){const t=S.teams.find(t=>t.id==id);if(t)el.value=t.name;}return;}
+  const t=S.teams.find(t=>t.id==id);if(!t)return;
+  try{
+    await API.put('/api/teams/'+id,{name,jiraTeamId:t.jira_team_id||undefined});
+    t.name=name;
+    toast('Équipe renommée ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');if(el)el.value=t.name;}
 }
 async function saveTeamJiraId(id, jiraTeamId){
   const t=S.teams.find(t=>t.id==id);if(!t)return;
