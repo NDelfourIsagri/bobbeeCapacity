@@ -587,9 +587,12 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
             <div class="card">
               <div class="settings-title"><span class="material-icons-round">corporate_fare</span>Équipes</div>
               <div id="teams-list" style="margin-bottom:16px"></div>
-              <div style="display:flex;gap:8px">
-                <input type="text" class="input" id="new-team-name" placeholder="Nom de l'équipe" style="flex:1" onkeydown="if(event.key==='Enter')addTeam()">
-                <button class="btn btn-filled" onclick="addTeam()"><span class="material-icons-round">add</span>Créer</button>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;gap:8px">
+                  <input type="text" class="input" id="new-team-name" placeholder="Nom de l'équipe" style="flex:1" onkeydown="if(event.key==='Enter')addTeam()">
+                  <button class="btn btn-filled" onclick="addTeam()"><span class="material-icons-round">add</span>Créer</button>
+                </div>
+                <input type="text" class="input" id="new-team-jira-uid" placeholder="UID Jira (optionnel — ex: dfec288c-42b6-4000-…)" style="font-size:12px;font-family:monospace">
               </div>
             </div>
             <div class="card">
@@ -2093,17 +2096,33 @@ async function saveUserTeams(){
 function renderTeamsList(){
   const tl=document.getElementById('teams-list');if(!tl)return;
   tl.innerHTML=S.teams.length===0?'<p style="color:var(--text3);font-size:13px">Aucune équipe</p>'
-    :S.teams.map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:14px;font-weight:600">${t.name}</span>
+    :S.teams.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:14px;font-weight:600;min-width:90px">${t.name}</span>
+      <input class="input" style="flex:1;min-width:220px;font-size:12px;font-family:monospace"
+        placeholder="UID Jira (ex: dfec288c-42b6-4000-…)"
+        value="${t.jira_team_id||''}"
+        data-tid="${t.id}"
+        onchange="saveTeamJiraId(${t.id},this.value.trim())"
+        title="UID de l'équipe dans Jira (champ Team[Team])">
       <button class="icon-btn" onclick="delTeam('${t.id}')" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button>
     </div>`).join('');
 }
+async function saveTeamJiraId(id, jiraTeamId){
+  const t=S.teams.find(t=>t.id==id);if(!t)return;
+  try{
+    await API.put('/api/teams/'+id,{name:t.name,jiraTeamId});
+    t.jira_team_id=jiraTeamId||null;
+    toast('UID Jira sauvegardé ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
 async function addTeam(){
   const inp=document.getElementById('new-team-name');
+  const inpUid=document.getElementById('new-team-jira-uid');
   const name=(inp?.value||'').trim();if(!name)return;
+  const jiraTeamId=(inpUid?.value||'').trim()||undefined;
   try{
-    const t=await API.post('/api/teams',{name});
-    S.teams.push(t);inp.value='';renderTeamsList();toast('Équipe créée ✓','success');
+    const t=await API.post('/api/teams',{name,jiraTeamId});
+    S.teams.push(t);inp.value='';if(inpUid)inpUid.value='';renderTeamsList();toast('Équipe créée ✓','success');
   }catch(e){toast(e.error||'Erreur','error');}
 }
 async function delTeam(id){
