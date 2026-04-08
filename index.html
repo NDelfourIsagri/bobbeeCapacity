@@ -506,6 +506,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
               <option value="">Tous les sprints</option>
             </select>
             <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
+            <button class="btn btn-outline superadmin-only" id="bl-sync-btn" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
           </div>
         </div>
         <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
@@ -2504,8 +2505,10 @@ function renderBacklog(){
     </tr>`
     :rows.map(r=>{
       const score=r._score;
+      const isJira=r.source==='jira';
+      const jiraBadge=isJira?'<span style="font-size:9px;background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;font-weight:700;line-height:1.4;display:block;text-align:center">JIRA</span>':'';
       if(!isAdmin) return `<tr>
-        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${isJira?jiraBadge:jiraIcon(r.jira_id,r.id)}</td>
         <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
         <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
@@ -2516,18 +2519,18 @@ function renderBacklog(){
         <td style="text-align:center">${r.effort||0}</td>
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
       </tr>`;
-      return `<tr>
-        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
-        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px"><input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())"></td>
-        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
-        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
+      return `<tr${isJira?' style="background:var(--bg2)"':''}>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0${isJira?';background:var(--bg2)':''}">${isJira?jiraBadge:jiraIcon(r.jira_id,r.id)}</td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px${isJira?';background:var(--bg2)':''}">${isJira?`<span style="color:var(--text2);font-size:12px;font-weight:600;padding:0 4px">${r.jira_id}</span>`:`<input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())">`}</td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px${isJira?';background:var(--bg2)':''}" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px${isJira?';background:var(--bg2)':''}">${noteIconHtml(r)}</td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,20,40,60,80,100],r.effort)}</select></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
-        <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
+        <td>${isJira?'':'<button class="icon-btn" onclick="blDelete('+r.id+')" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button>'}</td>
       </tr>`;
     }).join('');
 
@@ -2723,10 +2726,10 @@ function jblDelete(id){
   },'Retirer');
 }
 
-async function syncJiraBacklog(){
+async function syncJira(btnId, statusId){
   if(!selectedTeamId){toast('Sélectionnez une équipe','error');return;}
-  const btn=document.getElementById('jbl-sync-btn');
-  const status=document.getElementById('jbl-sync-status');
+  const btn=document.getElementById(btnId);
+  const status=statusId?document.getElementById(statusId):null;
   if(btn){btn.disabled=true;btn.innerHTML='<span class="material-icons-round" style="animation:spin 1s linear infinite">sync</span>Synchronisation…';}
   if(status)status.textContent='Synchronisation en cours…';
   try{
@@ -2734,15 +2737,17 @@ async function syncJiraBacklog(){
     const msg=`Synchronisé le ${new Date().toLocaleString('fr-FR')} — ${r.imported} importé(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s)`;
     if(status)status.textContent=msg;
     toast(`${r.imported} importé(s), ${r.updated} mis à jour`,'success');
-    await loadJiraBacklog();
+    await Promise.all([loadBacklog(),loadJiraBacklog()]);
+    renderBacklog();
     renderJiraBacklog();
   }catch(e){
     toast(e.error||'Erreur de synchronisation','error');
     if(status)status.textContent='Erreur lors de la synchronisation';
   }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">sync</span>Synchroniser';}
+    if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">sync</span>'+( btnId==='jbl-sync-btn'?'Synchroniser':'Sync Jira');}
   }
 }
+async function syncJiraBacklog(){return syncJira('jbl-sync-btn','jbl-sync-status');}
 
 // ── UTILS ────────────────────────────────────────────────
 function fd(ds){if(!ds)return '—';return new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
