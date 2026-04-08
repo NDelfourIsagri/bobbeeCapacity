@@ -506,7 +506,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
               <option value="">Tous les sprints</option>
             </select>
             <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
-            <button class="btn btn-outline superadmin-only" id="bl-sync-btn" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
+            <button class="btn btn-outline" id="bl-sync-btn" style="display:none" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
           </div>
         </div>
         <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
@@ -2537,6 +2537,9 @@ function renderBacklog(){
   // Bouton d'ajout toujours visible sous le tableau (admin seulement)
   const addFooter=document.getElementById('bl-add-footer');
   if(addFooter)addFooter.style.display=isAdmin?'':'none';
+  // Bouton sync Jira (super_admin seulement)
+  const syncBtn=document.getElementById('bl-sync-btn');
+  if(syncBtn)syncBtn.style.display=CU?.role==='super_admin'?'inline-flex':'none';
   // Mettre à jour la vue chronologie si active
   if(blActiveTab==='chrono')renderGantt();
 }
