@@ -492,14 +492,19 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
       <!-- BACKLOG -->
       <div class="page" id="page-backlog">
         <div class="page-header">
-          <div><div class="page-title">Backlog 📋</div><div class="page-sub">Priorisation RICE</div></div>
+          <div><div class="page-title" id="bl-page-title">Backlog 📋</div><div class="page-sub" id="bl-page-sub">Priorisation RICE</div></div>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <div class="bl-tabs" style="margin-bottom:0">
             <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
             <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div id="bl-method-wrap" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg2);border-radius:var(--radius-md);border:1px solid var(--border)">
+              <span style="font-size:12px;font-weight:600;color:var(--text3)">Méthode</span>
+              <button id="bl-method-rice" onclick="setBlMethod('rice')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RICE</button>
+              <button id="bl-method-rricce" onclick="setBlMethod('rricce')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RRICCE</button>
+            </div>
             <select class="input" id="bl-filter-sprint" style="min-width:160px" onchange="renderBacklog()">
               <option value="">Tous les sprints</option>
             </select>
@@ -2015,7 +2020,9 @@ async function saveUserTeams(){
 function renderTeamsList(){
   const tl=document.getElementById('teams-list');if(!tl)return;
   tl.innerHTML=S.teams.length===0?'<p style="color:var(--text3);font-size:13px">Aucune équipe</p>'
-    :S.teams.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+    :S.teams.map(t=>{
+      const m=t.scoring_method||'rice';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <input class="input" style="width:130px;font-size:13px;font-weight:600"
         value="${(t.name||'').replace(/"/g,'&quot;')}"
         placeholder="Nom de l'équipe"
@@ -2026,14 +2033,18 @@ function renderTeamsList(){
         value="${t.jira_team_id||''}"
         onchange="saveTeamJiraId(${t.id},this.value.trim())"
         title="UID de l'équipe dans Jira (champ Team[Team])">
+      <div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--bg2);border-radius:var(--radius-md);border:1px solid var(--border)" title="Méthode de scoring">
+        <button onclick="saveTeamScoringMethod(${t.id},'rice')" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;border:none;cursor:pointer;transition:all var(--transition);background:${m==='rice'?'var(--primary)':'transparent'};color:${m==='rice'?'#fff':'var(--text3)'}">RICE</button>
+        <button onclick="saveTeamScoringMethod(${t.id},'rricce')" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;border:none;cursor:pointer;transition:all var(--transition);background:${m==='rricce'?'var(--primary)':'transparent'};color:${m==='rricce'?'#fff':'var(--text3)'}">RRICCE</button>
+      </div>
       <button class="icon-btn" onclick="delTeam('${t.id}')" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button>
-    </div>`).join('');
+    </div>`;}).join('');
 }
 async function saveTeamName(id, name, el){
   if(!name){toast('Le nom ne peut pas être vide','error');if(el){const t=S.teams.find(t=>t.id==id);if(t)el.value=t.name;}return;}
   const t=S.teams.find(t=>t.id==id);if(!t)return;
   try{
-    await API.put('/api/teams/'+id,{name,jiraTeamId:t.jira_team_id||undefined});
+    await API.put('/api/teams/'+id,{name,jiraTeamId:t.jira_team_id||undefined,scoringMethod:t.scoring_method||'rice'});
     t.name=name;
     toast('Équipe renommée ✓','success');
   }catch(e){toast(e.error||'Erreur','error');if(el)el.value=t.name;}
@@ -2041,9 +2052,27 @@ async function saveTeamName(id, name, el){
 async function saveTeamJiraId(id, jiraTeamId){
   const t=S.teams.find(t=>t.id==id);if(!t)return;
   try{
-    await API.put('/api/teams/'+id,{name:t.name,jiraTeamId});
+    await API.put('/api/teams/'+id,{name:t.name,jiraTeamId,scoringMethod:t.scoring_method||'rice'});
     t.jira_team_id=jiraTeamId||null;
     toast('UID Jira sauvegardé ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+async function saveTeamScoringMethod(id, method){
+  const t=S.teams.find(t=>t.id==id);if(!t)return;
+  try{
+    await API.put('/api/teams/'+id,{name:t.name,jiraTeamId:t.jira_team_id||undefined,scoringMethod:method});
+    t.scoring_method=method;
+    renderTeamsList();
+    toast('Méthode mise à jour ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+async function setBlMethod(method){
+  if(!selectedTeamId)return;
+  const t=S.teams.find(t=>String(t.id)===String(selectedTeamId));if(!t)return;
+  try{
+    await API.put('/api/teams/'+t.id,{name:t.name,jiraTeamId:t.jira_team_id||undefined,scoringMethod:method});
+    t.scoring_method=method;
+    renderBacklog();
   }catch(e){toast(e.error||'Erreur','error');}
 }
 async function addTeam(){
@@ -2173,9 +2202,17 @@ const BL_REACH_TIPS='20 pts : 0-40% des utilisateurs\n40 pts : 40-60% des utilis
 const BL_IMPACT_TIPS='20 pts : Irritant faible\n40 pts : Irritant fort / Bug bloquant\n80 pts : Besoin réglementaire / conformité\n100 pts : Impact business direct';
 const BL_CONF_TIPS='20 pts : Hypothèse, intuition\n40 pts : Quelques retours utilisateurs\n80 pts : Retours support et terrain\n100 pts : Metrics, tests utilisateurs et réglementation';
 const BL_EFFORT_TIPS='20 : jusqu\'à 1 semaine\n40 : jusqu\'à 2 semaines\n60 : 1 sprint\n80 : 2 sprints\n100 : 3 sprints ou plus';
+const BL_RISK_TIPS='20 pts : Risque faible, solution connue et maîtrisée\n40 pts : Quelques incertitudes techniques ou dépendances internes\n80 pts : Dépendances externes ou techniques non maîtrisées\n100 pts : Risque élevé, impact fort en cas d\'échec (sécurité, données, prod)';
+const BL_CRIT_TIPS='20 pts : Nice to have, aucune urgence\n40 pts : Demande récurrente mais non bloquante\n80 pts : Engagement client ou deadline connue\n100 pts : Bloquant, obligation légale ou incident en production';
 
+function currentTeamMethod(){
+  const t=S.teams.find(t=>String(t.id)===String(selectedTeamId));
+  return t?.scoring_method||'rice';
+}
 function riceScore(r){
   if(!r.effort)return 0;
+  if(currentTeamMethod()==='rricce')
+    return Math.round((r.reach*r.risk*r.impact*r.criticality*r.confidence)/r.effort);
   return Math.round((r.reach*r.impact*r.confidence)/r.effort);
 }
 
@@ -2378,6 +2415,36 @@ function renderBacklog(){
     if(typeof av==='string')return blSort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     return blSort.dir==='asc'?av-bv:bv-av;
   });
+  // Méthode de scoring courante
+  const method=currentTeamMethod();
+  const isRricce=method==='rricce';
+  // Mettre à jour le titre de page
+  const titleEl=document.getElementById('bl-page-title');
+  const subEl=document.getElementById('bl-page-sub');
+  if(titleEl)titleEl.textContent='Backlog 📋';
+  if(subEl)subEl.textContent=isRricce?'Priorisation RRICCE':'Priorisation RICE';
+  // Mettre à jour l'apparence du switch méthode
+  const btnRice=document.getElementById('bl-method-rice');
+  const btnRricce=document.getElementById('bl-method-rricce');
+  const activeStyle='background:var(--primary);color:#fff';
+  const inactiveStyle='background:transparent;color:var(--text3)';
+  if(btnRice){btnRice.style.cssText+=';'+(!isRricce?activeStyle:inactiveStyle);}
+  if(btnRricce){btnRricce.style.cssText+=';'+(isRricce?activeStyle:inactiveStyle);}
+  // Masquer le switch pour les non-admins (lecture seule)
+  const methodWrap=document.getElementById('bl-method-wrap');
+  if(methodWrap){
+    if(!isAdmin){
+      btnRice&&(btnRice.style.pointerEvents='none');
+      btnRricce&&(btnRricce.style.pointerEvents='none');
+      btnRice&&(btnRice.style.opacity=!isRricce?'1':'0.4');
+      btnRricce&&(btnRricce.style.opacity=isRricce?'1':'0.4');
+    }else{
+      btnRice&&(btnRice.style.pointerEvents='');
+      btnRricce&&(btnRricce.style.pointerEvents='');
+      btnRice&&(btnRice.style.opacity='');
+      btnRricce&&(btnRricce.style.opacity='');
+    }
+  }
   // En-tête — colonnes sticky : icône | jira_id | libellé | note
   const L2=36,jiraW=isAdmin?100:90,L3=L2+jiraW,labelW=isAdmin?220:200,L4=L3+labelW;
   const sortable=(col,label,tip='',cls='',sty='')=>`<th class="${blSort.col===col?'sorted':''} ${cls}" style="${sty}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
@@ -2388,6 +2455,7 @@ function renderBacklog(){
       :`title="Ajouter une note"`;
     return `<button class="bl-note-btn${hasNote?' has-note':''}" id="bl-note-${r.id}" onclick="openNotePanel(${r.id})" ${evts}><span class="material-icons-round">${hasNote?'sticky_note_2':'note_add'}</span></button>`;
   };
+  const scoreLabel=isRricce?'Score RRICCE':'Score RICE';
   document.getElementById('bl-thead').innerHTML=`<tr>
     <th class="bl-sk" style="width:36px;left:0"></th>
     ${sortable('jira_id','ID Jira','','bl-sk',`left:${L2}px`)}
@@ -2395,10 +2463,12 @@ function renderBacklog(){
     <th class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
     ${sortable('sprint','Sprint prévu')}
     ${sortable('reach','Portée',BL_REACH_TIPS)}
+    ${isRricce?sortable('risk','Risque',BL_RISK_TIPS):''}
     ${sortable('impact','Impact',BL_IMPACT_TIPS)}
+    ${isRricce?sortable('criticality','Criticité',BL_CRIT_TIPS):''}
     ${sortable('confidence','Confiance',BL_CONF_TIPS)}
     ${sortable('effort','Effort',BL_EFFORT_TIPS)}
-    ${sortable('score','Score RICE')}
+    ${sortable('score',scoreLabel)}
     ${isAdmin?'<th></th>':''}
   </tr>`;
   // Corps
@@ -2409,7 +2479,6 @@ function renderBacklog(){
     ?`<a href="${JIRA_BASE}${encodeURIComponent(id)}" target="_blank" rel="noopener" id="bl-jira-link-${rowId}" title="Ouvrir ${id} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`
     :`<span id="bl-jira-link-${rowId}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`;
 
-  const cols=isAdmin?11:10;
   document.getElementById('bl-tbody').innerHTML=rows.length===0
     ?`<tr>
       <td class="bl-sk" style="width:36px;left:0;padding:32px 4px"></td>
@@ -2417,6 +2486,7 @@ function renderBacklog(){
       <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
       <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;padding:32px 4px"></td>
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
+      ${isRricce?'<td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>':''}
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
       ${isAdmin?'<td style="padding:32px 4px"></td>':''}
     </tr>`
@@ -2430,7 +2500,9 @@ function renderBacklog(){
         <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
         <td style="text-align:center">${r.reach||0}</td>
+        ${isRricce?`<td style="text-align:center">${r.risk||0}</td>`:''}
         <td style="text-align:center">${r.impact||0}</td>
+        ${isRricce?`<td style="text-align:center">${r.criticality||0}</td>`:''}
         <td style="text-align:center">${r.confidence||0}</td>
         <td style="text-align:center">${r.effort||0}</td>
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
@@ -2442,7 +2514,9 @@ function renderBacklog(){
         <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
+        ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{risk:Number(this.value)})">${selOpts([0,20,40,80,100],r.risk)}</select></td>`:''}
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
+        ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{criticality:Number(this.value)})">${selOpts([0,20,40,80,100],r.criticality)}</select></td>`:''}
         <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,20,40,60,80,100],r.effort)}</select></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
@@ -2493,7 +2567,8 @@ async function blUpdate(id,patch){
   try{
     await API.put('/api/backlog/'+id,{
       jiraId:item.jira_id,label:item.label,sprintId:item.sprint_id,
-      reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort
+      reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort,
+      risk:item.risk,criticality:item.criticality
     });
   }catch(e){toast(e.error||'Erreur sauvegarde','error');}
 }
