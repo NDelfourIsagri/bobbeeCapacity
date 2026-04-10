@@ -1,0 +1,1940 @@
+// ── COLORS ──────────────────────────────────────────────
+const COLORS=['#e91e63','#9c27b0','#3f51b5','#009688','#ff5722','#607d8b','#795548','#4caf50','#ff9800','#00bcd4'];
+const mc=i=>COLORS[i%COLORS.length];
+
+// ── API CLIENT ───────────────────────────────────────────
+const API={
+  async req(method,url,body){
+    const opts={method,headers:{'Content-Type':'application/json'}};
+    const t=localStorage.getItem('bcp_token');
+    if(t)opts.headers['Authorization']='Bearer '+t;
+    if(body!==undefined)opts.body=JSON.stringify(body);
+    const r=await fetch(url,opts);
+    const data=await r.json().catch(()=>({}));
+    if(r.status===401){doLogout();throw{error:'Session expirée'};}
+    if(!r.ok)throw data;
+    return data;
+  },
+  get:url=>API.req('GET',url),
+  post:(url,body)=>API.req('POST',url,body),
+  put:(url,body)=>API.req('PUT',url,body),
+  del:(url,body)=>API.req('DELETE',url,body),
+};
+
+// ── STATE ────────────────────────────────────────────────
+const S={
+  team:[],sprints:[],leaves:[],
+  config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
+  users:[],teams:[],backlog:[]
+};
+let selectedTeamId=null;
+
+function normSprint(s){
+  return{id:s.id,name:s.name,
+    start:s.start_date||s.start,end:s.end_date||s.end,
+    velocityPlanned:s.velocity_planned??s.velocityPlanned??0,
+    velocityCurrent:s.velocity_current??s.velocityCurrent??null,
+    velocityActual:s.velocity_actual??s.velocityActual??null,
+    confidence:s.confidence||0,objectives:s.objectives||[],closed:!!s.closed};
+}
+async function loadTeam(){
+  const q=selectedTeamId?`?teamId=${selectedTeamId}`:'';
+  S.team=await API.get('/api/team'+q);
+}
+async function loadSprints(){
+  const q=selectedTeamId?`?teamId=${selectedTeamId}`:'';
+  S.sprints=(await API.get('/api/sprints'+q)).map(normSprint);
+}
+async function loadLeaves(){S.leaves=await API.get('/api/leaves');}
+async function loadConfig(){const d=await API.get('/api/config');if(d.vel_grid)S.config.vel_grid=d.vel_grid;if(d.mtg_grid)S.config.mtg_grid=d.mtg_grid;}
+async function loadUsers(){
+  S.users=await API.get('/api/users');
+  // Charger les équipes de chaque utilisateur
+  await Promise.all(S.users.map(async u=>{
+    try{u._teamIds=await API.get('/api/users/'+u.id+'/teams');}catch(e){u._teamIds=[];}
+  }));
+}
+async function loadTeams(){S.teams=await API.get('/api/teams');}
+async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId);else S.backlog=[];}
+
+// ── ROUTING ──────────────────────────────────────────────
+const BASE_PATH='/bobbeeCapacity/';
+const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',agenda:'planning',settings:'admin',users:'users'};
+const SLUG_PAGES=Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v])=>[v,k]));
+
+// ── APP STATE ────────────────────────────────────────────
+let CU=null;
+let calDate=new Date();
+let editSprintId=null,closeSprintId=null,sprintStars=0,tmpObjs=[];
+let selectedSprintId=null;
+let editMemberId=null;
+let charts={};
+
+// ── AUTH ─────────────────────────────────────────────────
+async function switchAuthTab(t){
+  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',i===(t==='login'?0:1)));
+  document.getElementById('login-form').style.display=t==='login'?'':'none';
+  document.getElementById('register-form').style.display=t==='register'?'':'none';
+  if(t==='register'){
+    try{
+      const teams=await fetch('/api/teams/public').then(r=>r.json());
+      const c=document.getElementById('reg-teams');
+      if(c)c.innerHTML=teams.length===0?'<span style="color:var(--text3);font-size:12px">Aucune équipe disponible</span>'
+        :teams.map(tm=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);font-size:13px"><input type="checkbox" value="${tm.id}" style="accent-color:var(--primary)"> ${tm.name}</label>`).join('');
+    }catch(e){}
+  }
+}
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pwd=document.getElementById('login-pwd').value;
+  try{
+    const data=await API.post('/api/auth/login',{email,pwd});
+    localStorage.setItem('bcp_token',data.token);
+    localStorage.setItem('bcp_user',JSON.stringify(data.user));
+    document.getElementById('login-error').style.display='none';
+    loginOk(data.user);
+  }catch(e){document.getElementById('login-error').style.display='block';}
+}
+async function doRegister(){
+  const fname=document.getElementById('reg-fname').value.trim();
+  const lname=document.getElementById('reg-lname').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pwd=document.getElementById('reg-pwd').value;
+  const err=document.getElementById('reg-error');
+  if(!fname||!lname||!email||!pwd){err.textContent='Remplissez tous les champs.';err.style.display='block';return;}
+  if(pwd.length<6){err.textContent='Mot de passe trop court.';err.style.display='block';return;}
+  try{
+    const boxes=document.querySelectorAll('#reg-teams input[type=checkbox]');
+    const teamIds=[...boxes].filter(b=>b.checked).map(b=>Number(b.value));
+    const data=await API.post('/api/auth/create',{fname,lname,email,pwd,teamIds});
+    localStorage.setItem('bcp_token',data.token);
+    localStorage.setItem('bcp_user',JSON.stringify(data.user));
+    loginOk(data.user);toast('Bienvenue 🐝','success');
+  }catch(e){err.textContent=e.error||'Erreur lors de la création.';err.style.display='block';}
+}
+async function loginOk(u){
+  CU=u;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  const ini=(u.fname[0]||'')+(u.lname[0]||'');
+  document.getElementById('sidebar-avatar').textContent=ini.toUpperCase();
+  document.getElementById('sidebar-name').textContent=u.fname+' '+u.lname;
+  const roleLabel={super_admin:'Super Admin',admin:'Administrateur',consultant:'Consultant'};
+  document.getElementById('sidebar-role').textContent=roleLabel[u.role]||'Consultant';
+  const isA=['admin','super_admin'].includes(u.role);
+  const isSA=u.role==='super_admin';
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isA?'':'none');
+  document.querySelectorAll('.superadmin-only').forEach(el=>el.style.display=isSA?'':'none');
+  await loadTeams();
+  initTeamSel();
+  // Déterminer la page cible depuis l'URL courante
+  const _path=location.pathname.replace(BASE_PATH,'').replace(/\/$/,'');
+  const _sp=new URLSearchParams(location.search);
+  const _reqSlug=SLUG_PAGES[_path]?_path:(_sp.get('page')||'');
+  const _targetPage=SLUG_PAGES[_reqSlug]||'dashboard';
+  navTo(_targetPage);
+}
+function doLogout(){
+  const _activePage=document.querySelector('.page.active')?.id?.replace('page-','');
+  const _slug=_activePage&&_activePage!=='dashboard'?'?page='+(PAGE_SLUGS[_activePage]||_activePage):'';
+  CU=null;
+  localStorage.removeItem('bcp_token');
+  localStorage.removeItem('bcp_user');
+  localStorage.removeItem('bcp_team');
+  localStorage.removeItem('bcp_sprint');
+  history.pushState({},'',BASE_PATH+'login'+_slug);
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
+function openPwdModal(){['pwd-cur','pwd-new','pwd-cf'].forEach(id=>document.getElementById(id).value='');document.getElementById('pwd-err').style.display='none';document.getElementById('modal-pwd').classList.add('open');}
+async function savePwd(){
+  const cur=document.getElementById('pwd-cur').value;
+  const nw=document.getElementById('pwd-new').value;
+  const cf=document.getElementById('pwd-cf').value;
+  const err=document.getElementById('pwd-err');
+  if(nw.length<6){err.textContent='Min. 6 caractères.';err.style.display='block';return;}
+  if(nw!==cf){err.textContent='Ne correspondent pas.';err.style.display='block';return;}
+  try{
+    await API.put('/api/auth/password',{current:cur,next:nw});
+    closeModal('modal-pwd');toast('Mot de passe mis à jour ✓','success');
+  }catch(e){err.textContent=e.error||'Mot de passe actuel incorrect.';err.style.display='block';}
+}
+
+// ── TEAM SELECTOR ───────────────────────────────────────
+function initTeamSel(){
+  const el=document.getElementById('team-sel-sidebar');
+  if(!S.teams.length){if(el)el.style.display='none';return;}
+  // Restaurer depuis localStorage si valide, sinon première équipe
+  const saved=localStorage.getItem('bcp_team');
+  if(saved&&S.teams.find(t=>String(t.id)===saved)){
+    selectedTeamId=saved;
+  } else if(!selectedTeamId||!S.teams.find(t=>String(t.id)===String(selectedTeamId))){
+    selectedTeamId=String(S.teams[0].id);
+  }
+  if(el)el.style.display=S.teams.length>1?'':'none';
+  renderTeamSelector();
+}
+function renderTeamSelector(){
+  const useSelect=CU?.role==='super_admin'||S.teams.length>2;
+  const arrowRow=document.getElementById('tm-arrow-row');
+  const selectRow=document.getElementById('tm-select-row');
+  if(arrowRow)arrowRow.style.display=useSelect?'none':'';
+  if(selectRow)selectRow.style.display=useSelect?'':'none';
+  if(useSelect){
+    const sel=document.getElementById('tm-select');
+    if(sel){
+      sel.innerHTML=S.teams.map(t=>`<option value="${t.id}" ${String(t.id)===String(selectedTeamId)?'selected':''}>${t.name}</option>`).join('');
+      sel.value=String(selectedTeamId);
+    }
+  }else{
+    const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
+    const t=S.teams[idx];
+    const nameEl=document.getElementById('tm-sel-name');
+    const prevBtn=document.getElementById('tm-btn-prev');
+    const nextBtn=document.getElementById('tm-btn-next');
+    if(nameEl)nameEl.textContent=t?t.name:'—';
+    if(prevBtn)prevBtn.style.visibility=idx>0?'visible':'hidden';
+    if(nextBtn)nextBtn.style.visibility=idx<S.teams.length-1?'visible':'hidden';
+  }
+}
+async function selectTeam(id){
+  if(String(id)===String(selectedTeamId))return;
+  selectedTeamId=String(id);
+  localStorage.setItem('bcp_team',selectedTeamId);
+  renderTeamSelector();
+  selectedSprintId=null;
+  localStorage.removeItem('bcp_sprint');
+  await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);
+  const activePage=document.querySelector('.page.active')?.id?.replace('page-','');
+  if(activePage)navTo(activePage);
+}
+async function navTeam(dir){
+  const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=S.teams.length)return;
+  selectedTeamId=String(S.teams[newIdx].id);
+  localStorage.setItem('bcp_team',selectedTeamId);
+  renderTeamSelector();
+  selectedSprintId=null;
+  localStorage.removeItem('bcp_sprint');
+  await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);
+  initSprintSel();
+  const activePage=document.querySelector('.page.active')?.id;
+  if(activePage==='page-dashboard')renderDash();
+  else if(activePage==='page-charts')renderCharts();
+  else if(activePage==='page-sprints')renderSprints();
+  else if(activePage==='page-agenda')renderAgenda();
+  else if(activePage==='page-backlog')renderBacklog();
+  else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams()]);renderSettings();}
+}
+
+// ── SPRINT SELECTOR ──────────────────────────────────────
+function sprintsSorted(){
+  return S.sprints.slice().sort((a,b)=>new Date(a.start)-new Date(b.start));
+}
+function initSprintSel(){
+  const sprints=sprintsSorted();
+  const sidebarEl=document.getElementById('sprint-sel-sidebar');
+  const barEl=document.getElementById('sprint-bar-sticky');
+  if(!sprints.length){
+    if(sidebarEl)sidebarEl.style.display='none';
+    if(barEl)barEl.classList.remove('active');
+    return;
+  }
+  // Restaurer depuis localStorage si valide pour cette équipe, sinon sprint courant
+  const savedSprint=localStorage.getItem('bcp_sprint');
+  if(savedSprint&&sprints.find(s=>String(s.id)===savedSprint)){
+    selectedSprintId=savedSprint;
+  } else if(!selectedSprintId||!sprints.find(s=>String(s.id)===String(selectedSprintId))){
+    const now=new Date();
+    const cur=sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now)
+      ||sprints.filter(s=>!s.closed).sort((a,b)=>new Date(a.start)-new Date(b.start))[0]
+      ||sprints[sprints.length-1];
+    selectedSprintId=String(cur.id);
+  }
+  localStorage.setItem('bcp_sprint',selectedSprintId);
+  if(sidebarEl)sidebarEl.style.display='';
+  renderSprintSelector();
+}
+// Calcule le statut d'un sprint : closed | overdue | current | planned
+function sprintSt(s){
+  if(s.closed) return {text:'Terminé', badge:'badge-success', tl:'done'};
+  const now=new Date(),started=new Date(s.start)<=now,ended=new Date(s.end)<now;
+  if(ended)   return {text:'Dépassé', badge:'badge-danger',  tl:'overdue'};
+  if(started) return {text:'En cours',badge:'badge-warning', tl:'current'};
+  return              {text:'Planifié',badge:'badge-primary', tl:''};
+}
+function renderSprintSelector(){
+  const sprints=sprintsSorted();
+  const idx=sprints.findIndex(s=>String(s.id)===String(selectedSprintId));
+  const s=sprints[idx];
+  if(!s)return;
+  const st=sprintSt(s);
+  const statusText=st.text,statusClass=st.badge;
+  const badge=`<span class="badge ${statusClass}" style="font-size:10px">${statusText}</span>`;
+  const hasPrev=idx>0,hasNext=idx<sprints.length-1;
+  // Desktop sidebar
+  const nameEl=document.getElementById('sp-sel-name');
+  const statusEl=document.getElementById('sp-sel-status');
+  const prevBtn=document.getElementById('sp-btn-prev');
+  const nextBtn=document.getElementById('sp-btn-next');
+  if(nameEl)nameEl.textContent=s.name;
+  if(statusEl)statusEl.innerHTML=badge;
+  if(prevBtn)prevBtn.style.visibility=hasPrev?'visible':'hidden';
+  if(nextBtn)nextBtn.style.visibility=hasNext?'visible':'hidden';
+  // Mobile/tablet bar
+  const sel=document.getElementById('sp-sel-select');
+  const prevMBtn=document.getElementById('sp-btn-prev-m');
+  const nextMBtn=document.getElementById('sp-btn-next-m');
+  if(sel){
+    sel.innerHTML=sprints.map(sp=>`<option value="${sp.id}" ${String(sp.id)===String(selectedSprintId)?'selected':''}>${sp.name}</option>`).join('');
+  }
+  if(prevMBtn)prevMBtn.style.visibility=hasPrev?'visible':'hidden';
+  if(nextMBtn)nextMBtn.style.visibility=hasNext?'visible':'hidden';
+  // Show/hide sticky bar depending on active page
+  const activePage=document.querySelector('.page.active')?.id;
+  const showBar=activePage==='page-dashboard'||activePage==='page-charts';
+  const barEl=document.getElementById('sprint-bar-sticky');
+  if(barEl)barEl.classList.toggle('active',showBar);
+}
+function navSprint(dir){
+  const sprints=sprintsSorted();
+  const idx=sprints.findIndex(s=>String(s.id)===String(selectedSprintId));
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=sprints.length)return;
+  selectedSprintId=String(sprints[newIdx].id);
+  localStorage.setItem('bcp_sprint',selectedSprintId);
+  renderSprintSelector();
+  const activePage=document.querySelector('.page.active')?.id;
+  if(activePage==='page-dashboard')renderDash();
+  if(activePage==='page-charts')renderCharts();
+}
+function selectSprint(id){
+  selectedSprintId=String(id);
+  localStorage.setItem('bcp_sprint',selectedSprintId);
+  renderSprintSelector();
+  const activePage=document.querySelector('.page.active')?.id;
+  if(activePage==='page-dashboard')renderDash();
+  if(activePage==='page-charts')renderCharts();
+}
+
+// ── NAV ──────────────────────────────────────────────────
+async function navTo(p,noPush=false){
+  if(!noPush)history.pushState({page:p},'',BASE_PATH+(PAGE_SLUGS[p]||p));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p)?.classList.add('active');
+  document.querySelectorAll('.nav-item,.bottom-nav-item').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll(`[onclick="navTo('${p}')"]`).forEach(x=>x.classList.add('active'));
+  if(p==='dashboard'){await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);initSprintSel();renderDash();syncJiraVelocities().then(()=>loadSprints().then(()=>{renderDash();initSprintSel();})).catch(()=>{});}
+  if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='sprints'){await loadSprints();renderSprints();document.getElementById('sprint-bar-sticky')?.classList.remove('active');syncJiraVelocities().then(()=>loadSprints().then(()=>renderSprints())).catch(()=>{});}
+  if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
+  if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+}
+
+// ── THEME ────────────────────────────────────────────────
+function setTheme(t){
+  document.body.setAttribute('data-theme',t);localStorage.setItem('bcp_theme',t);
+  document.querySelectorAll('[data-theme]:not(body)').forEach(el=>el.classList.toggle('active',el.getAttribute('data-theme')===t));
+}
+// ── SUNRISE / SUNSET (Paris 48.8566°N 2.3522°E) ──────────
+function parisSunTimes(date){
+  // L'équation solaire doit être évaluée au midi UTC du jour concerné,
+  // pas à l'heure courante — sinon le JD fractionnaire fausse le transit solaire.
+  const noon=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate(),12,0,0));
+  const lat=48.8566*Math.PI/180;
+  // Paris est à l'est : l_w négatif → Jstar = n - l_w/360 = n + lon/360
+  const lonDeg=2.3522;
+  const JD=noon.getTime()/86400000+2440587.5; // JD entier+0 à midi UTC
+  const n=JD-2451545.0;
+  const Jstar=n+lonDeg/360; // signe correct pour longitude est
+  const M=(357.5291+0.98560028*Jstar)%360;
+  const Mr=M*Math.PI/180;
+  const C=1.9148*Math.sin(Mr)+0.02*Math.sin(2*Mr)+0.0003*Math.sin(3*Mr);
+  const lam=((M+C+180+102.9372)%360)*Math.PI/180;
+  const Jtr=2451545.0+Jstar+0.0053*Math.sin(Mr)-0.0069*Math.sin(2*lam);
+  const sinD=Math.sin(lam)*Math.sin(23.4397*Math.PI/180);
+  const cosO=(Math.sin(-0.8333*Math.PI/180)-Math.sin(lat)*sinD)/(Math.cos(lat)*Math.cos(Math.asin(sinD)));
+  if(Math.abs(cosO)>1)return null;
+  const omega=Math.acos(cosO)*180/Math.PI;
+  const jd2d=jd=>new Date((jd-2440587.5)*86400000);
+  return{rise:jd2d(Jtr-omega/360),set:jd2d(Jtr+omega/360)};
+}
+let _modeTimer=null;
+function targetMode(){
+  if(window.matchMedia('(prefers-color-scheme: dark)').matches)return'dark';
+  const now=new Date(),t=parisSunTimes(now);
+  if(!t)return'light';
+  return(now>=t.rise&&now<=t.set)?'light':'dark';
+}
+function scheduleMode(){
+  if(_modeTimer){clearTimeout(_modeTimer);_modeTimer=null;}
+  if(window.matchMedia('(prefers-color-scheme: dark)').matches)return;
+  const now=new Date(),t=parisSunTimes(now);
+  if(!t)return;
+  let next;
+  if(now<t.rise)next=t.rise;
+  else if(now<t.set)next=t.set;
+  else{const tom=new Date(now);tom.setUTCDate(tom.getUTCDate()+1);next=parisSunTimes(tom)?.rise;}
+  if(next){const delay=next-now;_modeTimer=setTimeout(()=>{applyMode();scheduleMode();},delay);}
+}
+function applyMode(){document.body.setAttribute('data-mode',targetMode());}
+
+// ── HOLIDAYS ─────────────────────────────────────────────
+function holidays(year,country='FR'){
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const easterMonth=Math.floor((h+l-7*m+114)/31),easterDay=((h+l-7*m+114)%31)+1;
+  const easter=new Date(year,easterMonth-1,easterDay);
+  const add=(dt,n)=>{const r=new Date(dt);r.setDate(r.getDate()+n);return r;};
+  const fmt=dt=>toDS(dt);
+  // Lundi le plus proche d'une date fixe (règle mexicaine)
+  const nearestMon=dt=>{const dw=dt.getDay();return add(dt,[1,0,-1,-2,-3,3,2][dw]);};
+  if(country==='ES') return new Set([
+    fmt(new Date(year,0,1)),   // Año Nuevo
+    fmt(add(easter,-2)),       // Viernes Santo
+    fmt(new Date(year,4,1)),   // Día del Trabajo
+    fmt(new Date(year,7,15)),  // Asunción
+    fmt(new Date(year,9,12)),  // Fiesta Nacional
+    fmt(new Date(year,10,1)),  // Todos los Santos
+    fmt(new Date(year,11,6)),  // Día de la Constitución
+    fmt(new Date(year,11,8)),  // Inmaculada Concepción
+    fmt(new Date(year,11,25)), // Navidad
+  ]);
+  if(country==='MX') return new Set([
+    fmt(new Date(year,0,1)),                      // Año Nuevo
+    fmt(nearestMon(new Date(year,1,5))),           // Constitución (lunes más cercano au 5 fév)
+    fmt(nearestMon(new Date(year,2,21))),          // Benito Juárez (lunes más cercano au 21 mars)
+    fmt(new Date(year,4,1)),                       // Día del Trabajo
+    fmt(new Date(year,8,16)),                      // Independencia
+    fmt(nearestMon(new Date(year,10,20))),         // Revolución (lunes más cercano au 20 nov)
+    fmt(new Date(year,11,25)),                     // Navidad
+  ]);
+  if(country==='MA') return new Set([
+    fmt(new Date(year,0,1)),   // 1er janvier
+    fmt(new Date(year,0,11)),  // 11 janvier - Fête de l'Indépendance
+    fmt(new Date(year,4,1)),   // 1er mai
+    fmt(new Date(year,6,30)),  // 30 juillet - Fête du Trône
+    fmt(new Date(year,7,21)),  // 21 août - Révolution
+    fmt(new Date(year,10,6)),  // 6 novembre - Marche Verte
+    fmt(new Date(year,11,25)), // 25 décembre
+  ]);
+  // France (par défaut)
+  return new Set([
+    fmt(new Date(year,0,1)),   // 1er janvier
+    fmt(add(easter,1)),        // Lundi de Pâques
+    fmt(new Date(year,4,1)),   // 1er mai
+    fmt(new Date(year,4,8)),   // 8 mai
+    fmt(add(easter,39)),       // Ascension
+    fmt(add(easter,50)),       // Lundi de Pentecôte
+    fmt(new Date(year,6,14)),  // 14 juillet
+    fmt(new Date(year,7,15)),  // 15 août
+    fmt(new Date(year,10,1)),  // 1er novembre
+    fmt(new Date(year,10,11)), // 11 novembre
+    fmt(new Date(year,11,25)), // 25 décembre
+  ]);
+}
+
+// ── CAPACITY ─────────────────────────────────────────────
+const r2=v=>Math.round(v*100)/100;
+function dayH(dt){return dt.getDay()===5?7:8;}
+
+function calcCap(member,start,end,leaves){
+  const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
+  const startDt=parseDate(start),endDt=parseDate(end);
+  const country=member.country||'FR';
+  const hols=holidays(startDt.getFullYear(),country);
+  if(startDt.getFullYear()!==endDt.getFullYear())
+    holidays(endDt.getFullYear(),country).forEach(x=>hols.add(x));
+  const mLeaves=leaves.filter(l=>l.memberId==member.id);
+  let totH=0,lvH=0;
+  let d=new Date(startDt);
+  while(d<=endDt){
+    const dow=d.getDay();
+    if(dow>0&&dow<6){
+      const ds=toDS(d);
+      if(!hols.has(ds)){
+        const h=dayH(d);totH+=h;
+        const lv=mLeaves.find(l=>l.date===ds);
+        if(lv) lvH+=(lv.type==='full'?h:h/2);
+      }
+    }
+    d.setDate(d.getDate()+1);
+  }
+  const avail=totH-lvH;
+  const mtgH=avail*(member.meetings||20)/100;
+  const velPct=member.velocity!=null?member.velocity:(vg[member.level]??85);
+  const hasCustomVel=member.velocity!=null;
+  const prodH=(avail-mtgH)*(velPct/100)*(((member.know||70)+(member.adapt||80))/200);
+  return {totD:r2(totH/8),availD:r2(avail/8),mtgD:r2(mtgH/8),prodD:r2(prodH/8),velPct,hasCustomVel};
+}
+
+// ── DASHBOARD ────────────────────────────────────────────
+function countWorkDays(start,end){
+  if(!start||!end||start>end)return 0;
+  const hols=holidays(start.getFullYear());
+  if(start.getFullYear()!==end.getFullYear())holidays(end.getFullYear()).forEach(x=>hols.add(x));
+  let count=0,d=new Date(start);
+  while(d<=end){const dow=d.getDay();if(dow>0&&dow<6&&!hols.has(toDS(d)))count++;d.setDate(d.getDate()+1);}
+  return count;
+}
+const RL={dev:'Développeur',tech_lead:'Tech Lead',qa:'QA',squad_lead:'Squad Lead',po:'PO'};
+const LB={alternant:'badge-warning',junior:'badge-primary',intermediaire:'badge-success',senior:'badge-success'};
+
+function renderDash(){
+  const sprints=S.sprints,team=S.team,leaves=S.leaves;
+  const now=new Date();
+  const cur=selectedSprintId
+    ?sprints.find(s=>String(s.id)===String(selectedSprintId))
+    :(sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now)
+      ||sprints.filter(s=>!s.closed).sort((a,b)=>new Date(a.start)-new Date(b.start))[0]);
+  document.getElementById('dash-sprint-label').textContent=cur?`${cur.name} · ${fd(cur.start)} → ${fd(cur.end)}`:'Aucun sprint actif';
+  const devs=team.filter(m=>(m.role==='dev'||m.role==='tech_lead')&&(!cur||memberActiveInPeriod(m,cur.start,cur.end)));
+  let totA=0,totP=0;
+  if(cur)devs.forEach(m=>{const c=calcCap(m,cur.start,cur.end,leaves);totA+=c.availD;totP+=c.prodD;});
+  const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const sprintStart=cur?parseDate(cur.start):null;
+  const sprintEnd=cur?parseDate(cur.end):null;
+  const totalDays=cur?countWorkDays(sprintStart,sprintEnd):0;
+  const fromDay=cur?(todayMid>=sprintStart?todayMid:sprintStart):null;
+  const remainDays=cur?Math.max(0,countWorkDays(fromDay,sprintEnd)):0;
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="card stat-card"><div class="stat-value">${devs.length}</div><div class="stat-label">Développeurs</div><div class="stat-sub">${team.length} membres total</div></div>
+    <div class="card stat-card"><div class="stat-value">${r2(totP)}j</div><div class="stat-label">Capacité productive</div><div class="stat-sub">sur ${r2(totA)}j disponibles</div></div>
+    <div class="card stat-card"><div class="stat-value">${cur?.velocityPlanned||'—'}</div><div class="stat-label">Points planifiés</div><div class="stat-sub">Vélocité cible</div></div>
+    <div class="card stat-card"><div class="stat-value">${cur?remainDays+'j':'—'}</div><div class="stat-label">Jours restants</div><div class="stat-sub">${cur?`sur ${totalDays}j ouvrés`:'—'}</div></div>`;
+  document.getElementById('dash-cap').innerHTML=!cur||devs.length===0
+    ?'<p style="color:var(--text3);font-size:13px">Configurez l\'équipe et un sprint</p>'
+    :devs.map(m=>{const c=calcCap(m,cur.start,cur.end,leaves);const pct=Math.round(c.prodD/Math.max(.01,c.totD)*100);
+      return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span style="font-weight:600">${m.fname} ${m.lname} <span class="badge ${LB[m.level]||'badge-primary'}" style="font-size:10px">${m.level}</span></span>
+        <span style="color:var(--text3)">${c.prodD}j prod / ${c.availD}j dispo / ${c.totD}j bruts</span></div>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">${c.mtgD}j réunions · ${RL[m.role]||m.role} · <span style="color:${c.hasCustomVel?'var(--primary)':'var(--text3)'}" title="${c.hasCustomVel?'Vélocité personnalisée':'Vélocité par niveau'}">${c.velPct}% vél.${c.hasCustomVel?' ✎':''}</span></div></div>`;}).join('');
+  const objs=cur?.objectives||[];
+  const canToggle=cur&&!cur.closed&&['admin','super_admin'].includes(CU?.role);
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  const inpStyle='width:100%;padding:6px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;text-align:center';
+  const velBlock=!cur?''
+    :cur.closed?`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;padding:10px 12px;background:var(--bg);border-radius:var(--radius-md);border:1.5px solid var(--border)">
+      <span class="material-icons-round" style="color:var(--success);font-size:22px">verified</span>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Vélocité définitive</div>
+        <div style="font-size:22px;font-weight:700;color:var(--success)">${cur.velocityActual!=null?cur.velocityActual:'—'}<span style="font-size:12px;color:var(--text3);margin-left:4px">pts</span></div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--divider);margin-bottom:10px"></div>`
+    :`
+    <div style="display:flex;gap:16px;margin-bottom:10px;padding:8px 12px;background:var(--bg);border-radius:var(--radius-md);border:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">En cours</div>
+        <div style="font-size:18px;font-weight:700;color:var(--primary)">${cur.velocityCurrent!=null?cur.velocityCurrent:'—'}<span style="font-size:11px;color:var(--text3);margin-left:3px">pts</span></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Réalisé</div>
+        <div style="font-size:18px;font-weight:700;color:var(--success)">${cur.velocityActual!=null?cur.velocityActual:'—'}<span style="font-size:11px;color:var(--text3);margin-left:3px">pts</span></div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--divider);margin-bottom:10px"></div>`;
+  const objsBlock=!cur?'<p style="color:var(--text3);font-size:13px">Aucun sprint actif</p>'
+    :objs.length===0?'<p style="color:var(--text3);font-size:13px">Aucun objectif</p>'
+    :objs.map(o=>`<div class="objective-item" ${canToggle?`onclick="toggleObj('${cur.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('');
+  const sprintBacklog=cur?(S.backlog||[]).filter(r=>String(r.sprint_id)===String(cur.id)).sort((a,b)=>{const sc=r=>r.effort>0?Math.round((r.reach*r.impact*r.confidence)/r.effort):0;return sc(b)-sc(a);}):[];
+  const backlogBlock=cur&&sprintBacklog.length>0?`
+    <div style="height:1px;background:var(--divider);margin:10px 0"></div>
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Backlog du sprint</div>
+    ${sprintBacklog.map(r=>{
+      const score=r.effort>0?Math.round((r.reach*r.impact*r.confidence)/r.effort):0;
+      const jiraLink=r.jira_id?`<a href="https://isagri.atlassian.net/browse/${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="font-size:10px;font-weight:600;color:var(--primary);text-decoration:none;flex-shrink:0">${r.jira_id}</a>`:'';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--divider)">
+        ${jiraLink}
+        <span style="font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()" data-tip="${(r.label||'').replace(/"/g,'&quot;')}">${r.label||'—'}</span>
+        ${score>0?`<span style="font-size:10px;font-weight:700;color:var(--primary);flex-shrink:0">${score}</span>`:''}
+      </div>`;
+    }).join('')}`:''
+  document.getElementById('dash-obj').innerHTML=velBlock+objsBlock+backlogBlock;
+  const dashTeam=cur?team.filter(m=>memberActiveInPeriod(m,cur.start,cur.end)):team;
+  document.getElementById('dash-team').innerHTML=dashTeam.length===0
+    ?'<p style="color:var(--text3);font-size:13px;grid-column:span 3">Aucun membre</p>'
+    :dashTeam.map((m,i)=>`<div class="member-card">
+      <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
+      <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${m.meetings||20}% réun.</div></div>
+      ${cur&&(m.role==='dev'||m.role==='tech_lead')?`<div style="text-align:right;flex-shrink:0"><div style="font-size:15px;font-weight:700;color:var(--primary)">${calcCap(m,cur.start,cur.end,leaves).prodD}j</div><div style="font-size:10px;color:var(--text3)">prod.</div></div>`:''}
+    </div>`).join('');
+}
+
+function parseDate(ds){ const [y,m,d]=ds.split('-').map(Number); return new Date(y,m-1,d); }
+function toDS(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function showConfirm(msg, onOk, title='Confirmation'){
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-msg').textContent=msg;
+  const btn=document.getElementById('confirm-ok-btn');
+  const fresh=btn.cloneNode(true);
+  btn.parentNode.replaceChild(fresh,btn);
+  fresh.addEventListener('click',()=>{closeModal('modal-confirm');onOk();});
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+// ── AGENDA ───────────────────────────────────────────────
+function memberActiveInPeriod(m,startDS,endDS){
+  if(!m.teamPeriods?.length)return true; // données sans historique = toujours actif
+  return m.teamPeriods.some(p=>
+    (!p.startDate||p.startDate<=endDS)&&(!p.endDate||p.endDate>=startDS)
+  );
+}
+function memberActiveInMonth(m,monthStart,monthEnd){return memberActiveInPeriod(m,monthStart,monthEnd);}
+function memberIsFormer(m){
+  if(!m.teamPeriods?.length)return false;
+  const today=toDS(new Date());
+  return m.teamPeriods.every(p=>p.endDate&&p.endDate<today);
+}
+function renderAgenda(){
+  const leaves=S.leaves;
+  const team=S.team;
+  const yr=calDate.getFullYear(),mo=calDate.getMonth();
+  const holsFR=holidays(yr,'FR'); // header basé sur FR (majorité)
+  const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  document.getElementById('plan-label').textContent=`${MONTHS[mo]} ${yr}`;
+  const dim=new Date(yr,mo+1,0).getDate();
+  const todayStr=toDS(new Date());
+  const monthStart=toDS(new Date(yr,mo,1));
+  const monthEnd=toDS(new Date(yr,mo,dim));
+  const isAdmin=['admin','super_admin'].includes(CU.role);
+  const days=[];
+  for(let d=1;d<=dim;d++){
+    const dt=new Date(yr,mo,d);
+    days.push({d,dt,ds:toDS(dt),dow:dt.getDay()});
+  }
+  // Filtrer les membres visibles ce mois
+  const visibleTeam=team.filter(m=>memberActiveInMonth(m,monthStart,monthEnd));
+  let html='<thead><tr><th class="th-member">Membre</th>';
+  days.forEach(({d,dow,ds})=>{
+    const isWe=dow===0||dow===6,isHol=holsFR.has(ds),isTod=ds===todayStr;
+    const dayN=['D','L','M','M','J','V','S'][dow];
+    let cls='',sty='';
+    if(isTod) cls=' th-today';
+    else if(isWe) sty='opacity:.35;';
+    else if(isHol) sty='color:var(--warning);';
+    html+=`<th class="${cls}" style="${sty}" id="thd-${ds}">${d}<br><span style="font-size:9px">${dayN}</span></th>`;
+  });
+  html+='</tr></thead><tbody>';
+  const COUNTRY_FLAG={FR:'🇫🇷',ES:'🇪🇸',MX:'🇲🇽',MA:'🇲🇦'};
+  visibleTeam.forEach((m,mi)=>{
+    const former=memberIsFormer(m);
+    const canEdit=!former; // lecture seule pour les membres partis
+    const mHols=holidays(yr,m.country||'FR');
+    const flag=COUNTRY_FLAG[m.country||'FR']||'';
+    html+=`<tr${former?' class="agenda-former"':''}><td class="td-member"><div style="display:flex;align-items:center;gap:8px;width:100%">
+      <div style="width:22px;height:22px;border-radius:50%;background:${mc(mi)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0">${m.fname[0]||''}</div>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.fname} ${m.lname}</span>
+      ${m.country&&m.country!=='FR'?`<span style="font-size:12px;flex-shrink:0" title="${m.country}">${flag}</span>`:''}
+    </div></td>`;
+    days.forEach(({ds,dow})=>{
+      const isWe=dow===0||dow===6,isHol=mHols.has(ds),isTod=ds===todayStr;
+      const state=leaveState(leaves,m.id,ds);
+      const amCls=state==='full'||state==='am'?'leave':'free';
+      const pmCls=state==='full'||state==='pm'?'leave':'free';
+      let tdCls='';
+      if(isTod&&!isWe&&!isHol) tdCls=' td-today';
+      else if(isWe) tdCls=' td-we';
+      else if(isHol) tdCls=' td-hol';
+      let dcCls='dcell';
+      if(isWe||isHol) dcCls+=' disabled';
+      if(isTod&&!isWe&&!isHol) dcCls+=' dcell-today';
+      const dataAttrs=canEdit&&!isWe&&!isHol?`data-mid="${m.id}" data-ds="${ds}" data-state="${state||''}"`:'';
+      html+=`<td class="${tdCls}"><div class="${dcCls}" ${dataAttrs}>
+        <div class="h ${amCls}">${amCls==='leave'?'▪':''}</div>
+        <div class="h ${pmCls}">${pmCls==='leave'?'▪':''}</div>
+      </div></td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+='</tbody>';
+  document.getElementById('plan-table').innerHTML=html;
+  const tbl=document.getElementById('plan-table');
+  const fresh=tbl.cloneNode(true);
+  tbl.parentNode.replaceChild(fresh,tbl);
+  fresh.addEventListener('click',ev=>{
+    const cell=ev.target.closest('.dcell[data-mid]');
+    if(!cell)return;
+    const mid=cell.dataset.mid,ds=cell.dataset.ds,state=cell.dataset.state||null;
+    setLeave(mid,ds,state==='full'?null:'full');
+  });
+  fresh.addEventListener('contextmenu',ev=>{
+    const cell=ev.target.closest('.dcell[data-mid]');
+    if(!cell)return;
+    const mid=cell.dataset.mid,ds=cell.dataset.ds,state=cell.dataset.state||null;
+    showCtx(ev,mid,ds,state);
+  });
+  const isCurMo=new Date().getFullYear()===yr&&new Date().getMonth()===mo;
+  if(isCurMo){
+    requestAnimationFrame(()=>{
+      const th=document.getElementById(`thd-${todayStr}`);
+      const scr=document.getElementById('plan-scroll');
+      if(th&&scr) scr.scrollLeft=Math.max(0,th.offsetLeft-170);
+    });
+  }
+  renderLeaveList(leaves,team);
+}
+
+function groupLeaves(leaves,team){
+  const groups=[];
+  team.forEach(m=>{
+    const mLeaves=leaves.filter(l=>l.memberId==m.id).sort((a,b)=>a.date>b.date?1:-1);
+    if(!mLeaves.length)return;
+    let cur=null;
+    mLeaves.forEach(l=>{
+      if(cur && l.type===cur.type){
+        const prev=new Date(cur.endDate);
+        const next=new Date(l.date);
+        const diffDays=(next-prev)/86400000;
+        if(diffDays<=3){cur.endDate=l.date;cur.ids.push(l.id);return;}
+      }
+      cur={memberId:m.id,member:m,startDate:l.date,endDate:l.date,type:l.type,reason:l.reason,ids:[l.id]};
+      groups.push(cur);
+    });
+  });
+  return groups;
+}
+
+function renderLeaveList(leaves,team){
+  const tl={full:'Journée',am:'Matin',pm:'Après-midi'};
+  const el=document.getElementById('leave-list');if(!el)return;
+  if(leaves.length===0){el.innerHTML='<p style="color:var(--text3);font-size:13px">Aucun congé enregistré</p>';return;}
+  const groups=groupLeaves(leaves,team);
+  window._leaveGroups={};
+  el.innerHTML=groups.sort((a,b)=>a.startDate>b.startDate?1:-1).map((g,gi)=>{
+    window._leaveGroups[gi]=g.ids;
+    const idx=team.findIndex(t=>t.id==g.memberId);
+    const isSameDay=g.startDate===g.endDate;
+    const canDel=true;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--divider)">
+      <div style="width:32px;height:32px;border-radius:50%;background:${mc(idx>=0?idx:0)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">${g.member?.fname[0]||'?'}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${g.member?g.member.fname+' '+g.member.lname:'?'}</div>
+        <div style="font-size:12px;color:var(--text3)">
+          ${isSameDay?fd(g.startDate):fd(g.startDate)+' → '+fd(g.endDate)}
+          · <span class="badge badge-danger" style="font-size:10px">${tl[g.type]||g.type}</span>
+          ${g.reason?' · '+g.reason:''}
+        </div>
+      </div>
+      ${canDel?`<button class="icon-btn leave-del-btn" data-gi="${gi}" title="Supprimer cette période">
+        <span class="material-icons-round" style="font-size:18px;color:var(--danger)">delete</span>
+      </button>`:''}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.leave-del-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const ids=window._leaveGroups[btn.dataset.gi];
+      showConfirm(
+        `Supprimer cette période (${ids.length} jour${ids.length>1?'s':''}) ?`,
+        async()=>{await API.del('/api/leaves',{ids});await loadLeaves();renderAgenda();toast('Période supprimée ✓','success');},
+        'Supprimer le congé'
+      );
+    });
+  });
+}
+
+function leaveState(leaves,memberId,ds){
+  return (leaves.find(l=>l.memberId==memberId&&l.date===ds)||{}).type||null;
+}
+async function setLeave(memberId,ds,type){
+  if(type){
+    await API.post('/api/leaves',{memberId,date:ds,type,reason:''});
+  }else{
+    const lv=S.leaves.find(l=>String(l.memberId)===String(memberId)&&l.date===ds);
+    if(lv)await API.del('/api/leaves',{ids:[lv.id]});
+  }
+  await loadLeaves();
+  renderAgenda();
+}
+
+// Context menu
+let _ctx=null;
+function hideCtx(){if(_ctx){_ctx.remove();_ctx=null;}}
+document.addEventListener('click',hideCtx);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')hideCtx();});
+function showCtx(e,memberId,ds,state){
+  e.preventDefault();e.stopPropagation();hideCtx();
+  const actions=[];
+  if(state!=='full') actions.push({icon:'wb_sunny',label:'Journée complète',fn:()=>setLeave(memberId,ds,'full')});
+  if(state!=='am')   actions.push({icon:'light_mode',label:'Matin uniquement',fn:()=>setLeave(memberId,ds,'am')});
+  if(state!=='pm')   actions.push({icon:'nights_stay',label:'Après-midi uniquement',fn:()=>setLeave(memberId,ds,'pm')});
+  if(state) actions.push(null,{icon:'close',label:'Retirer le congé',fn:()=>setLeave(memberId,ds,null),danger:true});
+  const m=document.createElement('div');m.id='ctx';
+  m.innerHTML=actions.map(a=>a===null?'<div class="ctx-sep"></div>'
+    :`<div class="ctx-item${a.danger?' ctx-danger':''}"><span class="material-icons-round">${a.icon}</span>${a.label}</div>`).join('');
+  document.body.appendChild(m);_ctx=m;
+  let ai=0;
+  m.querySelectorAll('.ctx-item').forEach(el=>{
+    while(actions[ai]===null)ai++;
+    const fn=actions[ai++].fn;
+    el.addEventListener('click',ev=>{ev.stopPropagation();fn();hideCtx();});
+  });
+  m.style.left=e.clientX+'px';m.style.top=e.clientY+'px';
+  requestAnimationFrame(()=>{
+    const r=m.getBoundingClientRect(),vw=window.innerWidth,vh=window.innerHeight;
+    if(r.right>vw-8)m.style.left=(e.clientX-r.width)+'px';
+    if(r.bottom>vh-8)m.style.top=(e.clientY-r.height)+'px';
+  });
+}
+
+function calPrev(){calDate.setMonth(calDate.getMonth()-1);renderAgenda();}
+function calNext(){calDate.setMonth(calDate.getMonth()+1);renderAgenda();}
+
+function openLeaveModal(){
+  const team=S.team;
+  const sel=document.getElementById('lm-user');
+  sel.disabled=false;
+  sel.innerHTML=team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
+  ['lm-start','lm-end','lm-reason'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('lm-type').value='full';
+  document.getElementById('modal-leave').classList.add('open');
+}
+async function saveLeave(){
+  const memberId=document.getElementById('lm-user').value;
+  const start=document.getElementById('lm-start').value;
+  const end=document.getElementById('lm-end').value||start;
+  const type=document.getElementById('lm-type').value;
+  const reason=document.getElementById('lm-reason').value;
+  if(!memberId||!start){toast('Champs obligatoires manquants','error');return;}
+  if(parseDate(end)<parseDate(start)){toast('Date de fin invalide','error');return;}
+  const hols=holidays(parseDate(start).getFullYear());
+  const promises=[];
+  let d=parseDate(start);const eD=parseDate(end);
+  while(d<=eD){
+    const dow=d.getDay(),ds=toDS(d);
+    if(dow>0&&dow<6&&!hols.has(ds)){
+      promises.push(API.post('/api/leaves',{memberId,date:ds,type,reason}));
+    }
+    d.setDate(d.getDate()+1);
+  }
+  try{
+    await Promise.all(promises);
+    await loadLeaves();
+    closeModal('modal-leave');toast('Congé enregistré ✓','success');renderAgenda();
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+
+// ── SPRINTS ──────────────────────────────────────────────
+function renderSprints(){
+  const sprints=S.sprints.slice().sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const now=new Date(),isAdmin=['admin','super_admin'].includes(CU.role);
+  document.getElementById('sprints-list').innerHTML=sprints.length===0
+    ?'<div class="card" style="text-align:center;color:var(--text3);padding:48px">Aucun sprint créé</div>'
+    :'<div class="timeline">'+sprints.map(s=>{
+      const st=sprintSt(s);
+      const tl='tl-item'+(st.tl?' '+st.tl:'');
+      const objs=s.objectives||[],dO=objs.filter(o=>o.done).length;
+      const stars=Array(5).fill(0).map((_,i)=>`<span class="material-icons-round conf-star ${i<(s.confidence||0)?'':'empty'}" style="font-size:14px">${i<(s.confidence||0)?'star':'star_border'}</span>`).join('');
+      return `<div class="${tl}"><div class="sprint-card" style="margin-bottom:16px">
+        <div class="sprint-card-header">
+          <div>
+            <div class="sprint-name">${s.name}</div>
+            <div class="sprint-dates">${fd(s.start)} → ${fd(s.end)}</div>
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span class="badge ${st.badge}">${st.text}</span>
+              <div>${stars}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            ${isAdmin&&!s.closed?`<button class="btn btn-outline btn-sm" onclick="openSprintModal('${s.id}')"><span class="material-icons-round">edit</span></button>`:''}
+            ${isAdmin&&!s.closed&&st.tl!==''?`<button class="btn btn-filled btn-sm" onclick="openCloseModal('${s.id}')"><span class="material-icons-round">check</span>Clôturer</button>`:''}
+            ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="delSprint('${s.id}')"><span class="material-icons-round">delete</span></button>`:''}
+          </div>
+        </div>
+        <div class="sprint-card-body">
+          <div class="grid-3" style="gap:12px;margin-bottom:${objs.length?12:0}px">
+            <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Planifié</div><div style="font-size:22px;font-weight:700;color:var(--primary)">${s.velocityPlanned||'—'} pts</div></div>
+            <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">En cours</div>
+              <div style="font-size:22px;font-weight:700;color:var(--warning)">${s.velocityCurrent||'—'}${s.velocityCurrent?' pts':''}</div>
+            </div>
+            <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Réalisé</div>
+              <div style="font-size:22px;font-weight:700;color:${s.velocityActual?'var(--success)':'var(--text3)'}">${s.velocityActual||'—'}${s.velocityActual?' pts':''}</div>
+            </div>
+          </div>
+          ${objs.length?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">${dO}/${objs.length} objectifs</div>${objs.map(o=>`<div class="objective-item" ${!s.closed?`onclick="toggleObj('${s.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('')}`:''}
+        </div>
+      </div></div>`;}).join('')+'</div>';
+}
+async function toggleObj(sprintId,objId){
+  const s=S.sprints.find(x=>String(x.id)===String(sprintId));
+  if(!s||s.closed)return;
+  const obj=(s.objectives||[]).find(o=>String(o.id)===String(objId));
+  if(!obj)return;
+  obj.done=!obj.done;
+  try{
+    await API.put('/api/sprints/'+sprintId,{
+      name:s.name,start:s.start,end:s.end,
+      velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
+      velocityActual:s.velocityActual,confidence:s.confidence,
+      objectives:s.objectives,closed:s.closed,
+    });
+    const activePage=document.querySelector('.page.active')?.id;
+    if(activePage==='page-dashboard')renderDash();
+    else if(activePage==='page-sprints')renderSprints();
+  }catch(e){
+    obj.done=!obj.done; // rollback mémoire
+    toast(e.error||'Erreur de sauvegarde','error');
+  }
+}
+function openSprintModal(id=null){
+  editSprintId=id;sprintStars=0;tmpObjs=[];
+  const s=id?S.sprints.find(x=>x.id==id):null;
+  document.getElementById('sprint-modal-title').textContent=id?'Modifier le sprint':'Nouveau sprint';
+  document.getElementById('sm-name').value=s?.name||'';
+  document.getElementById('sm-start').value=s?.start||'';
+  document.getElementById('sm-end').value=s?.end||'';
+  document.getElementById('sm-vel').value=s?.velocityPlanned||'';
+  if(s?.objectives)tmpObjs=[...s.objectives];
+  if(s?.confidence){sprintStars=s.confidence;}
+  updateStars();renderTmpObjs();
+  document.getElementById('modal-sprint').classList.add('open');
+}
+function setStar(v){sprintStars=v;updateStars();}
+function updateStars(){document.querySelectorAll('#sm-stars .star').forEach((s,i)=>s.classList.toggle('filled',i<sprintStars));}
+function addObj(){const v=document.getElementById('sm-obj-in').value.trim();if(!v)return;tmpObjs.push({id:'o'+Date.now(),text:v,done:false});document.getElementById('sm-obj-in').value='';renderTmpObjs();}
+function renderTmpObjs(){document.getElementById('sm-objs').innerHTML=tmpObjs.map((o,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="flex:1;font-size:13px">${o.text}</span><button class="icon-btn" onclick="tmpObjs.splice(${i},1);renderTmpObjs()"><span class="material-icons-round" style="font-size:16px">close</span></button></div>`).join('');}
+async function saveSprint(){
+  const name=document.getElementById('sm-name').value.trim();
+  const start=document.getElementById('sm-start').value;
+  const end=document.getElementById('sm-end').value;
+  const vp=Number(document.getElementById('sm-vel').value);
+  if(!name||!start||!end){toast('Champs obligatoires manquants','error');return;}
+  try{
+    if(editSprintId){
+      const s=S.sprints.find(x=>x.id==editSprintId);
+      await API.put('/api/sprints/'+editSprintId,{
+        name,start,end,velocityPlanned:vp,
+        velocityCurrent:s?.velocityCurrent||null,
+        velocityActual:s?.velocityActual||null,
+        confidence:sprintStars,objectives:tmpObjs,closed:s?.closed||false,
+      });
+    }else{
+      await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs,teamId:selectedTeamId?Number(selectedTeamId):null});
+    }
+    await loadSprints();
+    closeModal('modal-sprint');toast('Sprint sauvegardé ✓','success');renderSprints();
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+function delSprint(id){
+  showConfirm('Supprimer ce sprint ?',async()=>{
+    await API.del('/api/sprints/'+id);
+    await loadSprints();renderSprints();toast('Sprint supprimé','success');
+  },'Supprimer le sprint');
+}
+function openCloseModal(id){
+  closeSprintId=id;
+  const s=S.sprints.find(x=>x.id==id);
+  document.getElementById('scm-vel').value=s?.velocityCurrent||s?.velocityActual||'';
+  const objs=s?.objectives||[];
+  document.getElementById('scm-objs').innerHTML=objs.map((o,i)=>`<div class="objective-item"><div class="checkbox ${o.done?'checked':''}" onclick="toggleCloseObj(${i})"></div><span style="font-size:13px">${o.text}</span></div>`).join('');
+  document.getElementById('modal-close-sprint').classList.add('open');
+}
+function toggleCloseObj(i){
+  const s=S.sprints.find(x=>x.id==closeSprintId);
+  if(s)s.objectives[i].done=!s.objectives[i].done;
+  document.querySelectorAll('#scm-objs .checkbox')[i]?.classList.toggle('checked');
+}
+async function doCloseSprint(){
+  const va=Number(document.getElementById('scm-vel').value);
+  const s=S.sprints.find(x=>x.id==closeSprintId);if(!s)return;
+  await API.put('/api/sprints/'+closeSprintId,{
+    name:s.name,start:s.start,end:s.end,
+    velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
+    velocityActual:va,confidence:s.confidence,
+    objectives:s.objectives,closed:true,
+  });
+  await loadSprints();
+  closeModal('modal-close-sprint');toast('Sprint clôturé ✓','success');renderSprints();
+}
+
+// ── CHARTS ───────────────────────────────────────────────
+function cv(v){return getComputedStyle(document.body).getPropertyValue(v).trim();}
+function dChart(id,type,data,opts){if(charts[id]){charts[id].destroy();delete charts[id];}charts[id]=new Chart(document.getElementById(id),{type,data,options:opts});}
+function renderCharts(){
+  const now=new Date();
+  // Sprint sélectionné dans la sidebar (peut être à venir)
+  const selSprint=selectedSprintId?S.sprints.find(s=>String(s.id)===String(selectedSprintId)):null;
+  // 3 derniers sprints commencés, hors sprint sélectionné, triés chronologiquement
+  const past3=S.sprints
+    .filter(s=>new Date(s.start)<=now&&String(s.id)!==String(selectedSprintId))
+    .sort((a,b)=>new Date(a.start)-new Date(b.start))
+    .slice(-3);
+  // Combiné et trié : 3 derniers + sprint sélectionné
+  const sprints=[...past3,...(selSprint?[selSprint]:[])]
+    .sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const pr=cv('--primary'),sc=cv('--secondary'),t2=cv('--text2'),dv=cv('--divider'),ff='Inter,sans-serif';
+  const base={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:t2,font:{family:ff,size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleFont:{family:ff},bodyFont:{family:ff}}},
+    scales:{x:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv}},y:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv},beginAtZero:true}}};
+  const labels=sprints.map(s=>s.name);
+  dChart('chart-velocity','bar',{labels,datasets:[
+    {label:'Planifiée',data:sprints.map(s=>s.velocityPlanned||0),backgroundColor:pr+'55',borderColor:pr,borderWidth:2,borderRadius:8},
+    {label:'Réalisée',data:sprints.map(s=>s.velocityActual||null),backgroundColor:sc+'55',borderColor:sc,borderWidth:2,borderRadius:8}
+  ]},base);
+  const gS=sprints.filter(s=>s.closed&&(s.objectives||[]).length>0);
+  dChart('chart-goals','line',{labels:gS.map(s=>s.name),datasets:[{label:'% objectifs atteints',data:gS.map(s=>Math.round(s.objectives.filter(o=>o.done).length/s.objectives.length*100)),borderColor:pr,backgroundColor:pr+'20',fill:true,tension:0.4,pointBackgroundColor:pr,pointRadius:5}]},
+    {...base,scales:{...base.scales,y:{...base.scales.y,max:100,ticks:{callback:v=>v+'%'}}}});
+  const cur=selectedSprintId
+    ?S.sprints.find(s=>String(s.id)===String(selectedSprintId))
+    :S.sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
+  if(cur){
+    const st=new Date(cur.start),en=new Date(cur.end),tot=cur.velocityPlanned||0;
+    const todayDS=toDS(new Date(now.getFullYear(),now.getMonth(),now.getDate()));
+    // Jours ouvrés total et écoulés
+    let totalWD=0,elapsedWD=0;
+    let td=new Date(st);
+    while(td<=en){
+      if(td.getDay()>0&&td.getDay()<6){
+        totalWD++;
+        if(toDS(td)<=todayDS) elapsedWD++;
+      }
+      td.setDate(td.getDate()+1);
+    }
+    // Réalisé (Done) vs En cours (In Progress)
+    // Number() requis : MySQL DECIMAL revient en string, + ferait de la concaténation sinon
+    const ptDone=Number(cur.velocityActual??0);
+    const ptInProg=cur.closed?0:Number(cur.velocityCurrent??0);
+    const ptTotal=ptDone+ptInProg;
+    const buL=[],scopeLine=[],idealLine=[],doneLine=[],totalLine=[];
+    let dn=0;
+    td=new Date(st);
+    while(td<=en){
+      if(td.getDay()>0&&td.getDay()<6){
+        dn++;
+        buL.push(td.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}));
+        scopeLine.push(tot);
+        idealLine.push(r2(tot*dn/totalWD));
+        const isElapsed=toDS(td)<=todayDS;
+        if(cur.closed){
+          doneLine.push(r2(ptDone*dn/totalWD));
+          totalLine.push(null);
+        } else if(elapsedWD===0){
+          doneLine.push(null);totalLine.push(null);
+        } else if(isElapsed){
+          doneLine.push(r2(ptDone*dn/elapsedWD));
+          totalLine.push(r2(ptTotal*dn/elapsedWD));
+        } else {
+          doneLine.push(null);totalLine.push(null);
+        }
+      }
+      td.setDate(td.getDate()+1);
+    }
+    const warn=cv('--warning');
+    const succ=cv('--success')||'#22c55e';
+    const datasets=[
+      {label:'Scope',data:scopeLine,borderColor:t2,borderDash:[4,4],borderWidth:1.5,fill:false,tension:0,pointRadius:0},
+      {label:'Idéal',data:idealLine,borderColor:sc,borderWidth:2,fill:false,tension:0,pointRadius:0},
+      {label:'Réalisé',data:doneLine,borderColor:succ,backgroundColor:succ+'28',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:succ,borderWidth:2.5},
+      {label:'Réalisé + En cours',data:totalLine,borderColor:warn,backgroundColor:warn+'18',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:warn,borderWidth:2.5},
+    ];
+    dChart('chart-burndown','line',{labels:buL,datasets},{...base,
+      plugins:{...base.plugins,tooltip:{...base.plugins.tooltip,mode:'index',intersect:false}},
+      scales:{...base.scales,y:{...base.scales.y,min:0}}});
+  } else dChart('chart-burndown','line',{labels:[],datasets:[]},base);
+  const leaves=S.leaves,team=S.team;
+  const cP=[],cA=[];
+  sprints.forEach(s=>{
+    let tp=0;
+    // Filtrer les devs actifs pendant CE sprint
+    const sDevs=team.filter(m=>(m.role==='dev'||m.role==='tech_lead')&&memberActiveInPeriod(m,s.start,s.end));
+    sDevs.forEach(m=>{tp+=calcCap(m,s.start,s.end,leaves).prodD;});
+    cP.push(r2(tp));cA.push(s.velocityActual||null);
+  });
+  dChart('chart-capacity','bar',{labels,datasets:[
+    {label:'Capacité (j)',data:cP,backgroundColor:pr+'44',borderColor:pr,borderWidth:2,borderRadius:8,yAxisID:'y'},
+    {label:'Vélocité réalisée (pts)',data:cA,backgroundColor:sc+'44',borderColor:sc,borderWidth:2,borderRadius:8,yAxisID:'y1'}
+  ]},{...base,scales:{x:{ticks:{color:t2},grid:{color:dv}},y:{type:'linear',position:'left',ticks:{color:t2},grid:{color:dv},beginAtZero:true},y1:{type:'linear',position:'right',ticks:{color:t2},grid:{drawOnChartArea:false},beginAtZero:true}}});
+}
+
+// ── SETTINGS ─────────────────────────────────────────────
+const LV={alternant:'Alternant',junior:'Junior',intermediaire:'Intermédiaire',senior:'Senior'};
+function renderSettings(){
+  const isSA=CU?.role==='super_admin';
+  document.getElementById('settings-grid').style.gridTemplateColumns=isSA?'1fr 1fr':'1fr';
+  const team=S.team,vg=S.config.vel_grid||{},mg=S.config.mtg_grid||{};
+  const tl=document.getElementById('team-list');
+  tl.innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
+    :team.map((m,i)=>`<div class="member-card" draggable="true" data-id="${m.id}" style="margin-bottom:8px">
+      <div class="drag-handle"><span class="material-icons-round" style="font-size:18px">drag_indicator</span></div>
+      <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
+      <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · ${m.meetings||20}% réun. · <span style="color:${m.velocity!=null?'var(--primary)':'var(--text3)'}">${m.velocity!=null?m.velocity:(vg[m.level]||85)}% vél.${m.velocity!=null?' ✎':''}</span></div></div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
+        <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
+      </div></div>`).join('');
+  tl.querySelectorAll('.member-card').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+      // defer class addition so the ghost image captures the normal state
+      requestAnimationFrame(()=>card.classList.add('dragging'));
+    });
+    card.addEventListener('dragend',()=>{
+      tl.querySelectorAll('.member-card').forEach(c=>c.classList.remove('dragging','drag-over'));
+    });
+    card.addEventListener('dragover',e=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave',e=>{
+      // ignore if still within the same card (child elements trigger dragleave)
+      if(!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
+    });
+    card.addEventListener('drop',async e=>{
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const srcId=e.dataTransfer.getData('text/plain');
+      if(!srcId||srcId===card.dataset.id)return;
+      // work with string IDs to avoid numeric/string indexOf mismatch
+      const ids=S.team.map(m=>String(m.id));
+      const fi=ids.indexOf(srcId), ti=ids.indexOf(String(card.dataset.id));
+      if(fi<0||ti<0)return;
+      ids.splice(fi,1);ids.splice(ti,0,srcId);
+      await API.put('/api/team/reorder',{ids});
+      await loadTeam();renderSettings();toast('Ordre mis à jour ✓','success');
+    });
+  });
+  document.getElementById('vel-grid').innerHTML=Object.entries(vg).map(([k,v])=>`<div class="velocity-item"><label>${LV[k]||k}</label><input type="number" class="input" id="vg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du potentiel</div></div>`).join('');
+  document.getElementById('mtg-grid').innerHTML=Object.entries(mg).map(([k,v])=>`<div class="velocity-item"><label>${RL[k]||k}</label><input type="number" class="input" id="mg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du temps</div></div>`).join('');
+  if(isSA) renderTeamsList();
+}
+async function moveTeamMember(i,dir){
+  const t=[...S.team];const j=i+dir;
+  if(j<0||j>=t.length)return;
+  [t[i],t[j]]=[t[j],t[i]];
+  await API.put('/api/team/reorder',{ids:t.map(m=>m.id)});
+  await loadTeam();renderSettings();toast('Ordre mis à jour ✓','success');
+}
+async function saveVelGrid(){
+  const keys=['alternant','junior','intermediaire','senior'],g={};
+  keys.forEach(k=>{const el=document.getElementById('vg-'+k);if(el)g[k]=Number(el.value);});
+  await API.put('/api/config/vel_grid',{value:g});
+  S.config.vel_grid=g;toast('Grille sauvegardée ✓','success');
+}
+async function saveMtgGrid(){
+  const keys=['dev','tech_lead','qa','squad_lead','po'],g={};
+  keys.forEach(k=>{const el=document.getElementById('mg-'+k);if(el)g[k]=Number(el.value);});
+  await API.put('/api/config/mtg_grid',{value:g});
+  S.config.mtg_grid=g;toast('Grille sauvegardée ✓','success');
+}
+function addTeamRow(assignment=null){
+  const list=document.getElementById('mm-teams-list');
+  if(!list)return;
+  const opts=S.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const div=document.createElement('div');
+  div.className='mm-team-row';
+  div.style.cssText='display:flex;gap:6px;align-items:center';
+  div.innerHTML=`
+    <select class="input select mm-tr-team" style="flex:1;min-width:0;font-size:13px;padding:5px 8px">
+      <option value="">— Équipe —</option>${opts}
+    </select>
+    <input type="date" class="input mm-tr-start" style="width:132px;font-size:12px;padding:5px 6px" title="Date d'arrivée">
+    <input type="date" class="input mm-tr-end" style="width:132px;font-size:12px;padding:5px 6px" title="Date de départ (vide = toujours actif)">
+    <button class="icon-btn" type="button" onclick="this.closest('.mm-team-row').remove()" title="Supprimer">
+      <span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span>
+    </button>`;
+  if(assignment){
+    div.querySelector('.mm-tr-team').value=assignment.teamId||'';
+    div.querySelector('.mm-tr-start').value=assignment.startDate||'';
+    div.querySelector('.mm-tr-end').value=assignment.endDate||'';
+  }
+  list.appendChild(div);
+}
+async function openMemberModal(id=null){
+  editMemberId=id;
+  const mg=S.config.mtg_grid||{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50};
+  const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
+  const m=id?S.team.find(t=>t.id==id):null;
+  document.getElementById('member-modal-title').textContent=id?'Modifier le membre':'Nouveau membre';
+  document.getElementById('mm-fname').value=m?.fname||'';document.getElementById('mm-lname').value=m?.lname||'';
+  document.getElementById('mm-role').value=m?.role||'dev';document.getElementById('mm-level').value=m?.level||'intermediaire';
+  document.getElementById('mm-know').value=m?.know||70;document.getElementById('mm-adapt').value=m?.adapt||80;
+  document.getElementById('mm-vel').value=m?.velocity!=null?m.velocity:(vg[m?.level||'intermediaire']||85);
+  document.getElementById('mm-mtg').value=m?.meetings||(mg[m?.role||'dev']||20);
+  document.getElementById('mm-country').value=m?.country||'FR';
+  // Affectations équipes (admin seulement)
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  const teamsGroup=document.getElementById('mm-teams-group');
+  const teamsList=document.getElementById('mm-teams-list');
+  if(teamsGroup)teamsGroup.style.display=isAdmin?'':'none';
+  if(teamsList){teamsList.innerHTML='';}
+  if(isAdmin&&S.teams.length){
+    let assignments=[];
+    if(id){try{assignments=await API.get('/api/team/'+id+'/teams');}catch(e){}}
+    if(assignments.length){
+      assignments.forEach(a=>addTeamRow(a));
+    } else if(selectedTeamId){
+      // Nouveau membre : pré-remplir avec l'équipe courante
+      addTeamRow({teamId:selectedTeamId,startDate:'',endDate:''});
+    }
+  }
+  document.getElementById('modal-member').classList.add('open');
+}
+async function saveMember(){
+  const fname=document.getElementById('mm-fname').value.trim();
+  const lname=document.getElementById('mm-lname').value.trim();
+  if(!fname||!lname){toast('Prénom et nom obligatoires','error');return;}
+  const velVal=document.getElementById('mm-vel').value;
+  const obj={fname,lname,role:document.getElementById('mm-role').value,level:document.getElementById('mm-level').value,
+    know:Number(document.getElementById('mm-know').value),adapt:Number(document.getElementById('mm-adapt').value),
+    velocity:velVal!==''?Number(velVal):null,
+    meetings:Number(document.getElementById('mm-mtg').value),
+    country:document.getElementById('mm-country').value||'FR'};
+  try{
+    let memberId=editMemberId;
+    if(editMemberId){await API.put('/api/team/'+editMemberId,obj);}
+    else{const r=await API.post('/api/team',obj);memberId=r.id;}
+    // Sauvegarder les affectations équipes
+    const isAdmin=['admin','super_admin'].includes(CU?.role);
+    if(isAdmin&&memberId){
+      const rows=[...document.querySelectorAll('.mm-team-row')];
+      const periods=rows.map(row=>({
+        teamId:Number(row.querySelector('.mm-tr-team').value),
+        startDate:row.querySelector('.mm-tr-start').value||null,
+        endDate:row.querySelector('.mm-tr-end').value||null,
+      })).filter(p=>p.teamId);
+      await API.put('/api/team/'+memberId+'/teams',{periods});
+    }
+    await loadTeam();
+    closeModal('modal-member');toast('Membre sauvegardé ✓','success');renderSettings();
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+function delMember(id){
+  showConfirm('Supprimer ce membre de l\'équipe ?',async()=>{
+    await API.del('/api/team/'+id);
+    await loadTeam();renderSettings();toast('Membre supprimé','success');
+  },'Supprimer le membre');
+}
+
+// ── USERS ────────────────────────────────────────────────
+const ROLE_BADGE={super_admin:'badge-warning',admin:'badge-success',consultant:'badge-primary'};
+const ROLE_LABEL={super_admin:'Super Admin',admin:'Admin',consultant:'Consultant'};
+function renderUsers(){
+  const isSA=CU?.role==='super_admin';
+  document.getElementById('users-tbody').innerHTML=S.users.map(u=>{
+    const isSelf=u.id==CU.id;
+    const badge=`<span class="badge ${ROLE_BADGE[u.role]||'badge-primary'}">${ROLE_LABEL[u.role]||u.role}</span>`;
+    let actions='<span style="color:var(--text3);font-size:12px">Vous</span>';
+    if(!isSelf){
+      if(isSA){
+        const opts=['super_admin','admin','consultant'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_LABEL[r]}</option>`).join('');
+        actions=`<div style="display:flex;align-items:center;gap:6px">
+          <select class="input" style="padding:4px 8px;font-size:12px;height:auto" onchange="setRole('${u.id}',this.value)">${opts}</select>
+          <button class="icon-btn" onclick="delUser('${u.id}')" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button>
+        </div>`;
+      } else {
+        actions=`<button class="btn btn-outline btn-sm" onclick="toggleRole('${u.id}')"><span class="material-icons-round" style="font-size:14px">swap_horiz</span>${u.role==='admin'?'→ Consultant':'→ Admin'}</button>`;
+      }
+    }
+    const teamBadges=(u._teamIds||[]).map(tid=>{const t=S.teams.find(x=>String(x.id)===String(tid));return t?`<span class="badge badge-primary" style="font-size:10px">${t.name}</span>`:''}).join(' ');
+    const teamsCell=`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${teamBadges||'<span style="color:var(--text3);font-size:12px">—</span>'}${isSA||['admin','super_admin'].includes(CU?.role)?`<button class="icon-btn" onclick="openUserTeamsModal('${u.id}')" title="Éditer équipes" style="margin-left:4px"><span class="material-icons-round" style="font-size:14px">edit</span></button>`:''}</div>`;
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:28px;height:28px;font-size:11px">${(u.fname[0]||'')+(u.lname[0]||'')}</div><span>${u.fname} ${u.lname}</span></div></td>
+      <td style="color:var(--text2)">${u.email}</td>
+      <td>${badge}</td>
+      <td>${teamsCell}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+async function toggleRole(id){
+  const u=S.users.find(x=>x.id==id);if(!u)return;
+  await API.put('/api/users/'+id+'/role',{role:u.role==='admin'?'consultant':'admin'});
+  await loadUsers();renderUsers();toast('Rôle mis à jour ✓','success');
+}
+async function setRole(id,role){
+  try{
+    await API.put('/api/users/'+id+'/role',{role});
+    await loadUsers();renderUsers();toast('Rôle mis à jour ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');await loadUsers();renderUsers();}
+}
+async function delUser(id){
+  const u=S.users.find(x=>x.id==id);if(!u)return;
+  showConfirm(`Supprimer l'utilisateur ${u.fname} ${u.lname} ?`,async()=>{
+    try{
+      await API.del('/api/users/'+id);
+      await loadUsers();renderUsers();toast('Utilisateur supprimé','success');
+    }catch(e){toast(e.error||'Erreur','error');}
+  },'Supprimer l\'utilisateur');
+}
+
+let editUserTeamsId=null;
+async function openUserTeamsModal(userId){
+  editUserTeamsId=userId;
+  const u=S.users.find(x=>String(x.id)===String(userId));
+  document.getElementById('ut-user-label').textContent=u?`${u.fname} ${u.lname}`:'';
+  const current=u?._teamIds||[];
+  document.getElementById('ut-teams-check').innerHTML=S.teams.map(t=>`
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--border);font-size:13px;font-weight:500">
+      <input type="checkbox" value="${t.id}" ${current.includes(t.id)?'checked':''} style="accent-color:var(--primary)">
+      ${t.name}
+    </label>`).join('');
+  document.getElementById('modal-user-teams').classList.add('open');
+}
+async function saveUserTeams(){
+  const boxes=document.querySelectorAll('#ut-teams-check input[type=checkbox]');
+  const teamIds=[...boxes].filter(b=>b.checked).map(b=>Number(b.value));
+  try{
+    await API.put('/api/users/'+editUserTeamsId+'/teams',{teamIds});
+    await loadUsers();renderUsers();closeModal('modal-user-teams');toast('Équipes mises à jour ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+
+// ── TEAMS ────────────────────────────────────────────────
+function renderTeamsList(){
+  const tl=document.getElementById('teams-list');if(!tl)return;
+  tl.innerHTML=S.teams.length===0?'<p style="color:var(--text3);font-size:13px">Aucune équipe</p>'
+    :S.teams.map(t=>{
+      const m=t.scoring_method||'rice';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <input class="input" style="width:130px;font-size:13px;font-weight:600"
+        value="${(t.name||'').replace(/"/g,'&quot;')}"
+        placeholder="Nom de l'équipe"
+        onchange="saveTeamName(${t.id},this.value.trim(),this)"
+        title="Nom de l'équipe">
+      <input class="input" style="flex:1;min-width:220px;font-size:12px;font-family:monospace"
+        placeholder="UID Jira (ex: dfec288c-42b6-4000-…)"
+        value="${t.jira_team_id||''}"
+        onchange="saveTeamJiraId(${t.id},this.value.trim())"
+        title="UID de l'équipe dans Jira (champ Team[Team])">
+      <div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--bg2);border-radius:var(--radius-md);border:1px solid var(--border)" title="Méthode de scoring">
+        <button onclick="saveTeamScoringMethod(${t.id},'rice')" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;border:none;cursor:pointer;transition:all var(--transition);background:${m==='rice'?'var(--primary)':'transparent'};color:${m==='rice'?'#fff':'var(--text3)'}">RICE</button>
+        <button onclick="saveTeamScoringMethod(${t.id},'rricce')" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;border:none;cursor:pointer;transition:all var(--transition);background:${m==='rricce'?'var(--primary)':'transparent'};color:${m==='rricce'?'#fff':'var(--text3)'}">RRICCE</button>
+      </div>
+      <button class="icon-btn" onclick="delTeam('${t.id}')" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button>
+    </div>`;}).join('');
+}
+async function saveTeamName(id, name, el){
+  if(!name){toast('Le nom ne peut pas être vide','error');if(el){const t=S.teams.find(t=>t.id==id);if(t)el.value=t.name;}return;}
+  const t=S.teams.find(t=>t.id==id);if(!t)return;
+  try{
+    await API.put('/api/teams/'+id,{name,jiraTeamId:t.jira_team_id||undefined,scoringMethod:t.scoring_method||'rice'});
+    t.name=name;
+    toast('Équipe renommée ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');if(el)el.value=t.name;}
+}
+async function saveTeamJiraId(id, jiraTeamId){
+  const t=S.teams.find(t=>t.id==id);if(!t)return;
+  try{
+    await API.put('/api/teams/'+id,{name:t.name,jiraTeamId,scoringMethod:t.scoring_method||'rice'});
+    t.jira_team_id=jiraTeamId||null;
+    toast('UID Jira sauvegardé ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+async function saveTeamScoringMethod(id, method){
+  const t=S.teams.find(t=>t.id==id);if(!t)return;
+  try{
+    await API.put('/api/teams/'+id,{name:t.name,jiraTeamId:t.jira_team_id||undefined,scoringMethod:method});
+    t.scoring_method=method;
+    renderTeamsList();
+    toast('Méthode mise à jour ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+async function setBlMethod(method){
+  if(!selectedTeamId)return;
+  const t=S.teams.find(t=>String(t.id)===String(selectedTeamId));if(!t)return;
+  try{
+    await API.put('/api/teams/'+t.id,{name:t.name,jiraTeamId:t.jira_team_id||undefined,scoringMethod:method});
+    t.scoring_method=method;
+    renderBacklog();
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+async function addTeam(){
+  const inp=document.getElementById('new-team-name');
+  const inpUid=document.getElementById('new-team-jira-uid');
+  const name=(inp?.value||'').trim();if(!name)return;
+  const jiraTeamId=(inpUid?.value||'').trim()||undefined;
+  try{
+    const t=await API.post('/api/teams',{name,jiraTeamId});
+    S.teams.push(t);inp.value='';if(inpUid)inpUid.value='';renderTeamsList();toast('Équipe créée ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+async function delTeam(id){
+  showConfirm('Supprimer cette équipe ?',async()=>{
+    try{
+      await API.del('/api/teams/'+id);
+      S.teams=S.teams.filter(t=>String(t.id)!==String(id));renderTeamsList();toast('Équipe supprimée','success');
+    }catch(e){toast(e.error||'Erreur','error');}
+  },'Supprimer l\'équipe');
+}
+
+// ── NOTE PANEL ───────────────────────────────────────────
+let _noteQuill=null,_noteItemId=null,_noteDirty=false,_noteReadOnly=false;
+
+function noteStripHtml(html){
+  const d=document.createElement('div');d.innerHTML=html||'';
+  return (d.textContent||d.innerText||'').replace(/\s+/g,' ').trim();
+}
+function loadQuill(){
+  return new Promise(res=>{
+    if(window.Quill){res();return;}
+    const lnk=document.createElement('link');lnk.rel='stylesheet';
+    lnk.href='https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css';
+    document.head.appendChild(lnk);
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js';
+    s.onload=res;document.head.appendChild(s);
+  });
+}
+async function openNotePanel(itemId){
+  const item=S.backlog.find(r=>r.id==itemId);if(!item)return;
+  _noteItemId=itemId;
+  _noteReadOnly=!['admin','super_admin'].includes(CU?.role);
+  document.getElementById('note-panel-jira').textContent=item.jira_id||'Sans ID Jira';
+  document.getElementById('note-panel-lbl').textContent=item.label||'Sans titre';
+  document.getElementById('note-panel-hint').textContent=_noteReadOnly?'Lecture seule':'Sauvegarde automatique à la fermeture';
+  document.getElementById('note-backdrop').classList.add('open');
+  document.getElementById('note-panel').classList.add('open');
+  await loadQuill();
+  const body=document.getElementById('note-panel-body');
+  if(!_noteQuill){
+    body.innerHTML=`
+      <div id="note-quill-toolbar">
+        <span class="ql-formats"><button class="ql-bold"></button><button class="ql-italic"></button><button class="ql-underline"></button><button class="ql-strike"></button></span>
+        <span class="ql-formats"><button class="ql-list" value="bullet"></button><button class="ql-list" value="ordered"></button></span>
+        <span class="ql-formats"><select class="ql-header"><option selected></option><option value="1"></option><option value="2"></option></select></span>
+        <span class="ql-formats"><button class="ql-blockquote"></button><button class="ql-clean"></button></span>
+      </div>
+      <div id="note-quill-editor" style="flex:1"></div>`;
+    _noteQuill=new Quill('#note-quill-editor',{
+      modules:{toolbar:'#note-quill-toolbar'},
+      placeholder:'Saisissez vos notes, observations, contexte…',
+      theme:'snow'
+    });
+    _noteQuill.on('text-change',()=>{_noteDirty=true;});
+    // Echap pour fermer
+    _noteQuill.keyboard.addBinding({key:27},()=>closeNotePanel());
+  }
+  _noteQuill.enable(!_noteReadOnly);
+  document.getElementById('note-quill-toolbar').style.display=_noteReadOnly?'none':'';
+  _noteQuill.root.innerHTML=item.note||'';
+  _noteDirty=false;
+  if(!_noteReadOnly)setTimeout(()=>_noteQuill.focus(),300);
+}
+async function closeNotePanel(){
+  if(_noteDirty&&_noteItemId!==null&&!_noteReadOnly){
+    await _saveNote(_noteItemId,_noteQuill.root.innerHTML);
+  }
+  document.getElementById('note-backdrop').classList.remove('open');
+  document.getElementById('note-panel').classList.remove('open');
+  _noteItemId=null;_noteDirty=false;
+}
+async function _saveNote(itemId,html){
+  const clean=html==='<p><br></p>'||html==='<p></p>'?'':html;
+  const item=S.backlog.find(r=>r.id==itemId);if(!item)return;
+  item.note=clean;
+  // Mettre à jour l'icône sans re-render complet
+  const btn=document.getElementById('bl-note-'+itemId);
+  if(btn){
+    btn.className='bl-note-btn'+(clean?' has-note':'');
+    btn.querySelector('.material-icons-round').textContent=clean?'sticky_note_2':'note_add';
+    if(clean){
+      btn.removeAttribute('title');
+      btn.onmouseenter=e=>showNoteTip(e,itemId);
+      btn.onmouseleave=()=>hideNoteTip();
+    } else {
+      btn.title='Ajouter une note';
+      btn.onmouseenter=null;btn.onmouseleave=null;
+    }
+  }
+  try{await API.put('/api/backlog/'+itemId+'/note',{note:clean});}
+  catch(e){toast('Erreur sauvegarde note','error');}
+}
+// Fermer avec Echap depuis n'importe où
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('note-panel')?.classList.contains('open'))
+    closeNotePanel();
+});
+
+// ── BACKLOG ───────────────────────────────────────────────
+let blSort={col:'score',dir:'desc'};
+let blActiveTab='prio';
+function switchBlTab(tab){
+  blActiveTab=tab;
+  document.getElementById('bl-tab-prio').classList.toggle('active',tab==='prio');
+  document.getElementById('bl-tab-chrono').classList.toggle('active',tab==='chrono');
+  document.getElementById('bl-view-prio').style.display=tab==='prio'?'':'none';
+  document.getElementById('bl-view-chrono').style.display=tab==='chrono'?'':'none';
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  const addBtn=document.getElementById('bl-add-btn');
+  if(addBtn)addBtn.style.display=tab==='chrono'||!isAdmin?'none':'';
+  const syncBtn=document.getElementById('bl-sync-btn');
+  if(syncBtn)syncBtn.style.display=tab==='chrono'||!isAdmin?'none':'inline-flex';
+  const filterSel=document.getElementById('bl-filter-sprint');
+  if(filterSel)filterSel.style.display=tab==='chrono'?'none':'';
+  const methodWrap=document.getElementById('bl-method-wrap');
+  if(methodWrap)methodWrap.style.display=tab==='chrono'?'none':'flex';
+  if(tab==='chrono')renderGantt();
+}
+
+const BL_REACH_TIPS='20 pts : 0-40% des utilisateurs\n40 pts : 40-60% des utilisateurs\n80 pts : 60-80% des utilisateurs\n100 pts : 100% des utilisateurs';
+const BL_IMPACT_TIPS='20 pts : Irritant faible\n40 pts : Irritant fort / Bug bloquant\n80 pts : Besoin réglementaire / conformité\n100 pts : Impact business direct';
+const BL_CONF_TIPS='20 pts : Hypothèse, intuition\n40 pts : Quelques retours utilisateurs\n80 pts : Retours support et terrain\n100 pts : Metrics, tests utilisateurs et réglementation';
+const BL_EFFORT_TIPS='1 : jusqu\'à 1 semaine\n2 : jusqu\'à 2 semaines\n3 : 1 sprint\n5 : 2 sprints\n8 : 3 sprints ou plus';
+const BL_RISK_TIPS='1 : Aucun risque si non livré, fonctionnalité optionnelle\n2 : Insatisfaction utilisateur probable mais tolérable\n5 : Perte de clients ou dégradation significative de l\'expérience\n8 : Risque légal, financier ou perte majeure de clients si non livré';
+const BL_CRIT_TIPS='1 : Nice to have, aucune urgence\n2 : Demande récurrente mais non bloquante\n5 : Engagement client ou deadline connue\n8 : Bloquant, obligation légale ou incident en production';
+
+function currentTeamMethod(){
+  const t=S.teams.find(t=>String(t.id)===String(selectedTeamId));
+  return t?.scoring_method||'rice';
+}
+function riceScore(r){
+  if(!r.effort)return 0;
+  if(currentTeamMethod()==='rricce')
+    return Math.round((r.reach*r.risk*r.impact*r.criticality*r.confidence)/r.effort);
+  return Math.round((r.reach*r.impact*r.confidence)/r.effort);
+}
+
+function infoIcon(tip){
+  return `<span class="rice-info" data-tip="${tip.replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"><span class="material-icons-round">info</span></span>`;
+}
+function showBlTip(e,el){
+  const tip=document.getElementById('bl-tip');
+  tip.innerHTML=(el.dataset.tip||'').replace(/\n/g,'<br>');
+  tip.style.display='block';
+  posBlTip(e);
+}
+function posBlTip(e){
+  const tip=document.getElementById('bl-tip');if(!tip||tip.style.display==='none')return;
+  const m=8,w=tip.offsetWidth,h=tip.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;
+  let x=e.clientX+12,y=e.clientY-h-8;
+  if(x+w>vw-m)x=e.clientX-w-12;
+  if(y<m)y=e.clientY+12;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideBlTip(){const tip=document.getElementById('bl-tip');if(tip)tip.style.display='none';}
+function showNoteTip(e,itemId){
+  const item=S.backlog.find(r=>r.id==itemId);
+  if(!item?.note)return;
+  const tip=document.getElementById('note-tip');
+  tip.innerHTML=item.note;
+  tip.style.display='block';
+  posNoteTip(e);
+}
+function posNoteTip(e){
+  const tip=document.getElementById('note-tip');if(!tip||tip.style.display==='none')return;
+  const m=12,vw=window.innerWidth,vh=window.innerHeight;
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=e.clientX+18,y=e.clientY-Math.round(h/2);
+  if(x+w>vw-m)x=e.clientX-w-18;
+  if(y<m)y=m;
+  if(y+h>vh-m)y=vh-h-m;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideNoteTip(){const tip=document.getElementById('note-tip');if(tip)tip.style.display='none';}
+
+function blSortIcon(col){
+  if(blSort.col!==col)return `<span class="material-icons-round sort-icon">unfold_more</span>`;
+  return `<span class="material-icons-round sort-icon">${blSort.dir==='asc'?'arrow_upward':'arrow_downward'}</span>`;
+}
+
+function toggleBlSort(col){
+  if(blSort.col===col)blSort.dir=blSort.dir==='asc'?'desc':'asc';
+  else{blSort.col=col;blSort.dir=col==='score'?'desc':'asc';}
+  renderBacklog();
+}
+
+function renderGantt(){ renderGanttFor(S.backlog,'bl-gantt-wrap'); }
+
+function renderGanttFor(backlogItems, wrapId){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap)return;
+  const JIRA='https://isagri.atlassian.net/browse/';
+  const mob=window.innerWidth<640;
+  const PX=mob?5:10; // px par jour
+  const ROW_H=40,MH=36,SH=36;
+  // WI avec sprint planifié, triés par sprint puis score RICE décroissant
+  const items=(backlogItems||[]).filter(r=>r.sprint_id).sort((a,b)=>{
+    const sa=S.sprints.find(s=>String(s.id)===String(a.sprint_id));
+    const sb=S.sprints.find(s=>String(s.id)===String(b.sprint_id));
+    const da=sa?.start?new Date(sa.start):new Date('9999-01-01');
+    const db=sb?.start?new Date(sb.start):new Date('9999-01-01');
+    return da-db||riceScore(b)-riceScore(a);
+  });
+  if(!items.length){
+    wrap.innerHTML=`<div class="gantt-empty">Aucun Work Item avec sprint planifié.<br><span style="font-size:12px">Assigne un sprint dans l'onglet Priorisation pour visualiser la chronologie.</span></div>`;
+    return;
+  }
+  // Plage de dates
+  const today=new Date();today.setHours(0,0,0,0);
+  const gStart=new Date(today.getFullYear(),today.getMonth(),1);
+  let gEnd=new Date(today.getTime()+90*86400000);
+  S.sprints.forEach(s=>{if(s.end){const e=new Date(s.end);if(e>gEnd)gEnd=e;}});
+  gEnd=new Date(gEnd.getFullYear(),gEnd.getMonth()+2,0);
+  const totalDays=Math.ceil((gEnd-gStart)/86400000)+1;
+  const totalW=totalDays*PX;
+  const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
+  // Durée moyenne d'un sprint en jours
+  const ds=S.sprints.filter(s=>s.start&&s.end);
+  const avgSD=ds.length?Math.round(ds.reduce((sum,s)=>sum+Math.ceil((new Date(s.end)-new Date(s.start))/86400000),0)/ds.length):14;
+  const effortDays=e=>{if(!e)return avgSD;if(e<=1)return 7;if(e<=2)return 14;if(e<=3)return avgSD;if(e<=5)return avgSD*2;return avgSD*3;};
+  // Sprints visibles triés
+  const vSprints=S.sprints.filter(s=>s.start&&s.end&&new Date(s.end)>=gStart&&new Date(s.start)<=gEnd).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  // Mois
+  const months=[];
+  let mc=new Date(gStart);
+  while(mc<=gEnd){
+    const ms=new Date(mc.getFullYear(),mc.getMonth(),1);
+    const me=new Date(mc.getFullYear(),mc.getMonth()+1,0);
+    const cs=ms<gStart?gStart:ms,ce=me>gEnd?gEnd:me;
+    const w=(Math.ceil((ce-cs)/86400000)+1)*PX;
+    months.push({label:ms.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}),w,today:today>=ms&&today<=me});
+    mc=new Date(mc.getFullYear(),mc.getMonth()+1,1);
+  }
+  // Cellules sprints avec gaps
+  const sCells=[];let pos=0;
+  vSprints.forEach(s=>{
+    const ss=new Date(s.start);ss.setHours(0,0,0,0);
+    const se=new Date(s.end);se.setHours(0,0,0,0);
+    const cSs=ss<gStart?gStart:ss,cSe=se>gEnd?gEnd:se;
+    const x=toX(cSs);
+    const w=Math.max(PX,(Math.ceil((cSe-cSs)/86400000)+1)*PX);
+    if(x>pos)sCells.push({gap:true,w:x-pos});
+    sCells.push({gap:false,s,w,cur:ss<=today&&se>=today});
+    pos=x+w;
+  });
+  if(pos<totalW)sCells.push({gap:true,w:totalW-pos});
+  // Ligne aujourd'hui
+  const todX=toX(today);
+  const showTod=todX>=0&&todX<=totalW;
+  // Palette de couleurs pour les barres
+  const COLS=['#7c3aed','#e05c3a','#0891b2','#d97706','#059669','#db2777','#0f766e','#c2410c'];
+  const bc=id=>COLS[Math.abs(id)%COLS.length];
+  // === HTML ===
+  // Colonne gauche
+  const leftRows=items.map(r=>{
+    const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
+    const lbl=(r.label||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="gantt-left-wi" style="height:${ROW_H}px" title="${lbl}">
+      ${href?`<a class="gantt-wi-id" href="${href}" target="_blank" rel="noopener">${r.jira_id}</a>`:`<span class="gantt-wi-id" style="color:var(--text3)">—</span>`}
+      <span class="gantt-wi-label">${lbl||'—'}</span>
+    </div>`;
+  }).join('');
+  // En-tête mois
+  const mHtml=months.map(m=>`<div class="gantt-month-cell ${m.today?'is-today-month':''}" style="width:${m.w}px">${m.label}</div>`).join('');
+  // En-tête sprints
+  const sHtml=sCells.map(c=>c.gap
+    ?`<div class="gantt-sprint-cell is-gap" style="width:${c.w}px"></div>`
+    :`<div class="gantt-sprint-cell ${c.cur?'is-current':''}" style="width:${c.w}px">
+      ${c.cur?'<span class="material-icons-round" style="font-size:10px;flex-shrink:0">radio_button_checked</span>':''}
+      <span style="overflow:hidden;text-overflow:ellipsis">${c.s.name}</span>
+    </div>`).join('');
+  // Barres WI — la barre SE TERMINE à la fin du sprint (date de livraison)
+  // et L'EFFORT détermine la durée (donc le début de la barre)
+  const bHtml=items.map(r=>{
+    const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
+    if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px"></div>`;
+    const bwFull=Math.max(16,effortDays(r.effort)*PX); // largeur souhaitée = durée de l'effort
+    const endX=toX(sp.end)+PX;                        // x de fin = bord droit du dernier jour du sprint (inclusif)
+    const bx=Math.max(0,endX-bwFull);                 // x de début = fin - effort (clampé à 0)
+    const bw=endX-bx;                                  // largeur réelle (réduite si clampée à gauche)
+    const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
+    const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const sc=riceScore(r);
+    return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px">
+      <div class="gantt-bar" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px" title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
+        <span class="gantt-bar-label">${r.jira_id||lbl}</span>
+        ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  // Ligne today
+  const todHtml=showTod?`<div class="gantt-today-line" style="left:${todX}px;background:var(--primary)"><div class="gantt-today-dot" style="background:var(--primary)"></div></div>`:'';
+  wrap.innerHTML=`<div class="gantt-wrap">
+    <div class="gantt-left">
+      <div class="gantt-left-head-row" style="height:${MH}px">Tickets</div>
+      <div class="gantt-left-head-row" style="height:${SH}px">Sprints</div>
+      ${leftRows}
+    </div>
+    <div class="gantt-right">
+      <div class="gantt-timeline" style="width:${totalW}px;position:relative">
+        ${todHtml}
+        <div class="gantt-months-row">${mHtml}</div>
+        <div class="gantt-sprints-row">${sHtml}</div>
+        <div class="gantt-body-rows">${bHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderBacklog(){
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  // Remplir le filtre sprint
+  const openSprints=S.sprints.filter(s=>!s.closed);
+  const filterEl=document.getElementById('bl-filter-sprint');
+  const filterVal=filterEl?filterEl.value:'';
+  if(filterEl){
+    const cur=filterEl.value;
+    filterEl.innerHTML='<option value="">Tous les sprints</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===cur?'selected':''}>${s.name}</option>`).join('');
+    filterEl.value=cur;
+  }
+  // Filtrer
+  let rows=[...S.backlog];
+  if(filterVal)rows=rows.filter(r=>String(r.sprint_id)===String(filterVal));
+  // Calculer le score
+  rows=rows.map(r=>({...r,_score:riceScore(r)}));
+  // Trier
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(blSort.col==='score'){av=a._score;bv=b._score;}
+    else if(blSort.col==='jira_id'){av=a.jira_id||'';bv=b.jira_id||'';}
+    else if(blSort.col==='label'){av=a.label||'';bv=b.label||'';}
+    else if(blSort.col==='sprint'){av=a.sprint_id||0;bv=b.sprint_id||0;}
+    else{av=a[blSort.col]||0;bv=b[blSort.col]||0;}
+    if(typeof av==='string')return blSort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return blSort.dir==='asc'?av-bv:bv-av;
+  });
+  // Méthode de scoring courante
+  const method=currentTeamMethod();
+  const isRricce=method==='rricce';
+  // Mettre à jour le titre de page
+  const titleEl=document.getElementById('bl-page-title');
+  const subEl=document.getElementById('bl-page-sub');
+  if(titleEl)titleEl.textContent='Backlog 📋';
+  if(subEl)subEl.textContent=isRricce?'Priorisation RRICCE':'Priorisation RICE';
+  // Mettre à jour l'apparence du switch méthode
+  const btnRice=document.getElementById('bl-method-rice');
+  const btnRricce=document.getElementById('bl-method-rricce');
+  const activeStyle='background:var(--primary);color:#fff';
+  const inactiveStyle='background:transparent;color:var(--text3)';
+  if(btnRice){btnRice.style.cssText+=';'+(!isRricce?activeStyle:inactiveStyle);}
+  if(btnRricce){btnRricce.style.cssText+=';'+(isRricce?activeStyle:inactiveStyle);}
+  // Masquer le switch pour les non-admins (lecture seule)
+  const methodWrap=document.getElementById('bl-method-wrap');
+  if(methodWrap){
+    if(!isAdmin){
+      btnRice&&(btnRice.style.pointerEvents='none');
+      btnRricce&&(btnRricce.style.pointerEvents='none');
+      btnRice&&(btnRice.style.opacity=!isRricce?'1':'0.4');
+      btnRricce&&(btnRricce.style.opacity=isRricce?'1':'0.4');
+    }else{
+      btnRice&&(btnRice.style.pointerEvents='');
+      btnRricce&&(btnRricce.style.pointerEvents='');
+      btnRice&&(btnRice.style.opacity='');
+      btnRricce&&(btnRricce.style.opacity='');
+    }
+  }
+  // En-tête — colonnes sticky : icône | jira_id | libellé | note
+  const L2=36,jiraW=isAdmin?100:90,L3=L2+jiraW,labelW=isAdmin?220:200,L4=L3+labelW;
+  const sortable=(col,label,tip='',cls='',sty='')=>`<th class="${blSort.col===col?'sorted':''} ${cls}" style="${sty}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
+  const noteIconHtml=r=>{
+    const hasNote=!!(r.note&&r.note.trim());
+    const evts=hasNote
+      ?`onmouseenter="showNoteTip(event,${r.id})" onmouseleave="hideNoteTip()"`
+      :`title="Ajouter une note"`;
+    return `<button class="bl-note-btn${hasNote?' has-note':''}" id="bl-note-${r.id}" onclick="openNotePanel(${r.id})" ${evts}><span class="material-icons-round">${hasNote?'sticky_note_2':'note_add'}</span></button>`;
+  };
+  const scoreLabel=isRricce?'Score RRICCE':'Score RICE';
+  document.getElementById('bl-thead').innerHTML=`<tr>
+    <th class="bl-sk" style="width:36px;left:0"></th>
+    ${sortable('jira_id','ID Jira','','bl-sk',`left:${L2}px`)}
+    ${sortable('label','Libellé','','bl-sk',`left:${L3}px;min-width:${labelW}px`)}
+    <th class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
+    ${sortable('sprint','Sprint prévu')}
+    ${sortable('reach','Portée',BL_REACH_TIPS)}
+    ${isRricce?sortable('risk','Risque',BL_RISK_TIPS):''}
+    ${sortable('impact','Impact',BL_IMPACT_TIPS)}
+    ${isRricce?sortable('criticality','Criticité',BL_CRIT_TIPS):''}
+    ${sortable('confidence','Confiance',BL_CONF_TIPS)}
+    ${sortable('effort','Effort',BL_EFFORT_TIPS)}
+    <th style="text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px" title="Estimation validée par le tech lead"><span class="material-icons-round" style="font-size:15px;vertical-align:middle;color:var(--text3)">engineering</span> Dev</th>
+    ${sortable('score',scoreLabel)}
+    ${isAdmin?'<th></th>':''}
+  </tr>`;
+  // Corps
+  const selOpts=(vals,cur)=>vals.map(v=>`<option value="${v}" ${Number(cur)===v?'selected':''}>${v||'—'}</option>`).join('');
+  const sprintOpts=(cur)=>'<option value="">—</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===String(cur)?'selected':''}>${s.name}</option>`).join('');
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+  const jiraIcon=(id,rowId)=>id
+    ?`<a href="${JIRA_BASE}${encodeURIComponent(id)}" target="_blank" rel="noopener" id="bl-jira-link-${rowId}" title="Ouvrir ${id} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`
+    :`<span id="bl-jira-link-${rowId}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`;
+
+  document.getElementById('bl-tbody').innerHTML=rows.length===0
+    ?`<tr>
+      <td class="bl-sk" style="width:36px;left:0;padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;padding:32px 4px"></td>
+      <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
+      <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
+      ${isRricce?'<td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>':''}
+      <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
+      ${isAdmin?'<td style="padding:32px 4px"></td>':''}
+    </tr>`
+    :rows.map(r=>{
+      const score=r._score;
+      const isJira=r.source==='jira';
+      if(!isAdmin) return `<tr>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
+        <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
+        <td style="text-align:center">${r.reach||0}</td>
+        ${isRricce?`<td style="text-align:center">${r.risk||0}</td>`:''}
+        <td style="text-align:center">${r.impact||0}</td>
+        ${isRricce?`<td style="text-align:center">${r.criticality||0}</td>`:''}
+        <td style="text-align:center">${r.confidence||0}</td>
+        <td style="text-align:center">${r.effort||0}</td>
+        <td style="text-align:center;vertical-align:middle"><div style="display:flex;justify-content:center;align-items:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:16px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:16px;color:var(--border)">radio_button_unchecked</span>'}</div></td>
+        <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
+      </tr>`;
+      return `<tr>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px">${isJira?`<span style="color:var(--text2);font-size:12px;font-weight:600;padding:0 4px">${r.jira_id}</span>`:`<input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())">`}</td>
+        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
+        <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
+        ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{risk:Number(this.value)})">${selOpts([0,1,2,5,8],r.risk)}</select></td>`:''}
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
+        ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{criticality:Number(this.value)})">${selOpts([0,1,2,5,8],r.criticality)}</select></td>`:''}
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,1,2,3,5,8],r.effort)}</select></td>
+        <td style="text-align:center;vertical-align:middle" id="bl-dev-${r.id}"><div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blUpdate(${r.id},{dev_validated:${r.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px;display:flex;align-items:center;justify-content:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div></td>
+        <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
+        <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
+      </tr>`;
+    }).join('');
+
+  // Bouton d'ajout toujours visible sous le tableau (admin seulement)
+  const addFooter=document.getElementById('bl-add-footer');
+  if(addFooter)addFooter.style.display=isAdmin?'':'none';
+  // Bouton sync Jira (admin et super_admin)
+  const syncBtn=document.getElementById('bl-sync-btn');
+  if(syncBtn)syncBtn.style.display=isAdmin?'inline-flex':'none';
+  // Mettre à jour la vue chronologie si active
+  if(blActiveTab==='chrono')renderGantt();
+}
+
+async function addBacklogItem(){
+  if(!selectedTeamId){toast('Sélectionnez une équipe','error');return;}
+  try{
+    const item=await API.post('/api/backlog',{teamId:Number(selectedTeamId),label:'Nouveau ticket'});
+    S.backlog.push(item);
+    renderBacklog();
+    // Focus sur le libellé du nouvel item
+    setTimeout(()=>{
+      const inputs=document.querySelectorAll('#bl-tbody input.bl-input');
+      if(inputs.length)inputs[inputs.length-1].select();
+    },50);
+  }catch(e){toast(e.error||'Erreur','error');}
+}
+
+function blUpdateJiraIcon(id,val){
+  const el=document.getElementById('bl-jira-link-'+id);if(!el)return;
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+  if(val){
+    el.outerHTML=`<a href="${JIRA_BASE}${encodeURIComponent(val)}" target="_blank" rel="noopener" id="bl-jira-link-${id}" title="Ouvrir ${val} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`;
+  }else{
+    el.outerHTML=`<span id="bl-jira-link-${id}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`;
+  }
+}
+async function blUpdate(id,patch){
+  const item=S.backlog.find(r=>r.id==id);if(!item)return;
+  Object.assign(item,patch);
+  // Recalculer le score à la volée
+  const score=riceScore(item);
+  const scoreEl=document.getElementById('bl-score-'+id);
+  if(scoreEl){scoreEl.textContent=score||'—';scoreEl.className='bl-score'+(score===0?' zero':'');}
+  // Mettre à jour l'icône dev_validated immédiatement
+  if('dev_validated' in patch){
+    const devEl=document.getElementById('bl-dev-'+id);
+    if(devEl)devEl.innerHTML=`<div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blUpdate(${id},{dev_validated:${item.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px;display:flex;align-items:center;justify-content:center">${item.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div>`;
+  }
+  try{
+    await API.put('/api/backlog/'+id,{
+      jiraId:item.jira_id,label:item.label,sprintId:item.sprint_id,
+      reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort,
+      risk:item.risk,criticality:item.criticality,devValidated:item.dev_validated
+    });
+  }catch(e){toast(e.error||'Erreur sauvegarde','error');}
+}
+
+function blDelete(id){
+  showConfirm('Supprimer cet élément du backlog ?',async()=>{
+    try{
+      await API.del('/api/backlog/'+id);
+      S.backlog=S.backlog.filter(r=>r.id!=id);
+      renderBacklog();toast('Élément supprimé','success');
+    }catch(e){toast(e.error||'Erreur','error');}
+  },'Supprimer');
+}
+
+
+
+async function syncJiraVelocities(){
+  if(!selectedTeamId)return;
+  try{await API.post('/api/jira/sync-velocities',{teamId:Number(selectedTeamId)});}
+  catch(e){console.warn('Jira velocity sync:',e);}
+}
+
+async function syncJira(btnId, statusId){
+  if(!selectedTeamId){toast('Sélectionnez une équipe','error');return;}
+  const btn=document.getElementById(btnId);
+  const status=statusId?document.getElementById(statusId):null;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="material-icons-round" style="animation:spin 1s linear infinite">sync</span>Synchronisation…';}
+  if(status)status.textContent='Synchronisation en cours…';
+  try{
+    const r=await API.post('/api/jira/sync',{teamId:Number(selectedTeamId)});
+    const msg=`Synchronisé le ${new Date().toLocaleString('fr-FR')} — ${r.imported} importé(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s)`;
+    if(status)status.textContent=msg;
+    toast(`${r.imported} importé(s), ${r.updated} mis à jour`,'success');
+    await loadBacklog();
+    renderBacklog();
+  }catch(e){
+    toast(e.error||'Erreur de synchronisation','error');
+    if(status)status.textContent='Erreur lors de la synchronisation';
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">sync</span>Sync Jira';}
+  }
+}
+
+// ── UTILS ────────────────────────────────────────────────
+function fd(ds){if(!ds)return '—';return new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toast(msg,type='success'){
+  const c=document.getElementById('toast-container'),t=document.createElement('div');
+  t.className=`toast ${type}`;t.innerHTML=`<span class="material-icons-round ti">${type==='success'?'check_circle':'error'}</span>${msg}`;
+  c.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+// ── CHART.JS ─────────────────────────────────────────────
+function loadChartJS(){return new Promise(res=>{if(window.Chart){res();return;}const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';s.onload=res;document.head.appendChild(s);});}
+
+// ── INIT ─────────────────────────────────────────────────
+async function init(){
+  applyMode();
+  scheduleMode();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{applyMode();scheduleMode();});
+  setTheme(localStorage.getItem('bcp_theme')||'green');
+  await loadChartJS();
+  // Listener bouton back/forward navigateur
+  window.addEventListener('popstate',e=>{if(CU&&e.state?.page)navTo(e.state.page,true);});
+  const token=localStorage.getItem('bcp_token');
+  if(token){
+    try{
+      const data=await API.get('/api/auth/me');
+      localStorage.setItem('bcp_token',data.token);
+      localStorage.setItem('bcp_user',JSON.stringify(data.user));
+      loginOk(data.user);
+    }catch(e){
+      // Token invalide → rediriger vers login en préservant la page demandée
+      const _path=location.pathname.replace(BASE_PATH,'').replace(/\/$/,'');
+      const _slug=SLUG_PAGES[_path]?_path:'';
+      history.replaceState({},'',BASE_PATH+'login'+(_slug?'?page='+_slug:''));
+    }
+  } else {
+    // Pas de token → mettre l'URL sur /login en préservant la page demandée
+    const _path=location.pathname.replace(BASE_PATH,'').replace(/\/$/,'');
+    const _slug=SLUG_PAGES[_path]?_path:'';
+    history.replaceState({},'',BASE_PATH+'login'+(_slug?'?page='+_slug:''));
+  }
+}
+init();
