@@ -2298,7 +2298,7 @@ function renderGanttFor(backlogItems, wrapId){
   // Durée moyenne d'un sprint en jours
   const ds=S.sprints.filter(s=>s.start&&s.end);
   const avgSD=ds.length?Math.round(ds.reduce((sum,s)=>sum+Math.ceil((new Date(s.end)-new Date(s.start))/86400000),0)/ds.length):14;
-  const effortDays=e=>{if(!e)return avgSD;if(e<=20)return 7;if(e<=40)return 14;if(e<=60)return avgSD;if(e<=80)return avgSD*2;return avgSD*3;};
+  const effortDays=e=>{if(!e)return avgSD;if(e<=1)return 7;if(e<=2)return 14;if(e<=3)return avgSD;if(e<=5)return avgSD*2;return avgSD*3;};
   // Sprints visibles triés
   const vSprints=S.sprints.filter(s=>s.start&&s.end&&new Date(s.end)>=gStart&&new Date(s.start)<=gEnd).sort((a,b)=>new Date(a.start)-new Date(b.start));
   // Mois
