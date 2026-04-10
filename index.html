@@ -24,21 +24,21 @@
       <button class="btn-primary" onclick="doLogin()">Se connecter</button>
       <div class="auth-error" id="login-error">Email ou mot de passe incorrect.</div>
     </div>
-    <div id="register-form" style="display:none">
+    <div id="register-form">
       <div class="form-group"><label class="form-label">Prénom</label><input type="text" class="form-input" id="reg-fname" placeholder="Prénom"></div>
       <div class="form-group"><label class="form-label">Nom</label><input type="text" class="form-input" id="reg-lname" placeholder="Nom"></div>
       <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="reg-email" placeholder="vous@isagri.fr"></div>
       <div class="form-group"><label class="form-label">Mot de passe</label><input type="password" class="form-input" id="reg-pwd" placeholder="Min. 6 caractères"></div>
-      <div class="form-group"><label class="form-label">Équipe(s)</label><div id="reg-teams" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div></div>
+      <div class="form-group"><label class="form-label">Équipe(s)</label><div id="reg-teams"></div></div>
       <button class="btn-primary" onclick="doRegister()">Créer mon compte</button>
       <div class="auth-error" id="reg-error"></div>
     </div>
     <div class="theme-picker-auth">
-      <div class="theme-dot active" style="background:#ffac10" data-theme="yellow" onclick="setTheme('yellow')"></div>
-      <div class="theme-dot" style="background:#007d6d" data-theme="green" onclick="setTheme('green')"></div>
-      <div class="theme-dot" style="background:#87af18" data-theme="isagri" onclick="setTheme('isagri')"></div>
-      <div class="theme-dot" style="background:#007bac" data-theme="blue" onclick="setTheme('blue')"></div>
-      <div class="theme-dot" style="background:#7c3aed" data-theme="purple" onclick="setTheme('purple')"></div>
+      <div class="theme-dot active" data-theme="yellow" onclick="setTheme('yellow')"></div>
+      <div class="theme-dot" data-theme="green" onclick="setTheme('green')"></div>
+      <div class="theme-dot" data-theme="isagri" onclick="setTheme('isagri')"></div>
+      <div class="theme-dot" data-theme="blue" onclick="setTheme('blue')"></div>
+      <div class="theme-dot" data-theme="purple" onclick="setTheme('purple')"></div>
     </div>
   </div>
 </div>
@@ -49,36 +49,36 @@
     <nav class="sidebar">
       <div class="sidebar-header"><div class="sidebar-logo"><span class="bee">🐝</span><span>bobbee</span></div></div>
       <div class="theme-switcher">
-        <div class="ts-dot active" style="background:#ffac10" data-theme="yellow" onclick="setTheme('yellow')"></div>
-        <div class="ts-dot" style="background:#007d6d" data-theme="green" onclick="setTheme('green')"></div>
-        <div class="ts-dot" style="background:#87af18" data-theme="isagri" onclick="setTheme('isagri')"></div>
-        <div class="ts-dot" style="background:#007bac" data-theme="blue" onclick="setTheme('blue')"></div>
-        <div class="ts-dot" style="background:#7c3aed" data-theme="purple" onclick="setTheme('purple')"></div>
+        <div class="ts-dot active" data-theme="yellow" onclick="setTheme('yellow')"></div>
+        <div class="ts-dot" data-theme="green" onclick="setTheme('green')"></div>
+        <div class="ts-dot" data-theme="isagri" onclick="setTheme('isagri')"></div>
+        <div class="ts-dot" data-theme="blue" onclick="setTheme('blue')"></div>
+        <div class="ts-dot" data-theme="purple" onclick="setTheme('purple')"></div>
       </div>
-      <div class="sprint-sel-sidebar team-sel-sidebar" id="team-sel-sidebar" style="display:none">
+      <div class="sprint-sel-sidebar team-sel-sidebar" id="team-sel-sidebar">
         <div class="sprint-sel-sidebar-header">Équipe</div>
         <!-- Mode flèches (≤2 équipes et non super_admin) -->
         <div class="sprint-sel-row" id="tm-arrow-row">
-          <button class="icon-btn" id="tm-btn-prev" onclick="navTeam(-1)"><span class="material-icons-round" style="font-size:18px">chevron_left</span></button>
-          <div style="flex:1;display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">
+          <button class="icon-btn" id="tm-btn-prev" onclick="navTeam(-1)"><span class="material-icons-round">chevron_left</span></button>
+          <div class="sidebar-row-inner">
             <div class="sprint-sel-name" id="tm-sel-name">—</div>
           </div>
-          <button class="icon-btn" id="tm-btn-next" onclick="navTeam(1)"><span class="material-icons-round" style="font-size:18px">chevron_right</span></button>
+          <button class="icon-btn" id="tm-btn-next" onclick="navTeam(1)"><span class="material-icons-round">chevron_right</span></button>
         </div>
         <!-- Mode select (>2 équipes ou super_admin) -->
-        <div id="tm-select-row" style="display:none;padding:4px 0">
-          <select id="tm-select" style="width:100%;padding:6px 10px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;cursor:pointer" onchange="selectTeam(this.value)"></select>
+        <div id="tm-select-row">
+          <select id="tm-select" onchange="selectTeam(this.value)"></select>
         </div>
       </div>
-      <div class="sprint-sel-sidebar" id="sprint-sel-sidebar" style="display:none">
+      <div class="sprint-sel-sidebar" id="sprint-sel-sidebar">
         <div class="sprint-sel-sidebar-header">Sprint affiché</div>
         <div class="sprint-sel-row">
-          <button class="icon-btn" id="sp-btn-prev" onclick="navSprint(-1)"><span class="material-icons-round" style="font-size:18px">chevron_left</span></button>
-          <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;overflow:hidden">
+          <button class="icon-btn" id="sp-btn-prev" onclick="navSprint(-1)"><span class="material-icons-round">chevron_left</span></button>
+          <div class="sidebar-row-inner with-gap">
             <div class="sprint-sel-name" id="sp-sel-name">—</div>
-            <div id="sp-sel-status" style="flex-shrink:0"></div>
+            <div id="sp-sel-status"></div>
           </div>
-          <button class="icon-btn" id="sp-btn-next" onclick="navSprint(1)"><span class="material-icons-round" style="font-size:18px">chevron_right</span></button>
+          <button class="icon-btn" id="sp-btn-next" onclick="navSprint(1)"><span class="material-icons-round">chevron_right</span></button>
         </div>
       </div>
       <div class="sidebar-nav">
@@ -94,8 +94,8 @@
         <div class="user-chip">
           <div class="user-avatar" id="sidebar-avatar">?</div>
           <div class="user-info"><div class="user-name" id="sidebar-name">—</div><div class="user-role" id="sidebar-role">—</div></div>
-          <button class="icon-btn" onclick="openPwdModal()" title="Changer mot de passe"><span class="material-icons-round" style="font-size:18px">lock</span></button>
-          <button class="icon-btn" onclick="doLogout()" title="Déconnexion"><span class="material-icons-round" style="font-size:18px">logout</span></button>
+          <button class="icon-btn" onclick="openPwdModal()" title="Changer mot de passe"><span class="material-icons-round">lock</span></button>
+          <button class="icon-btn" onclick="doLogout()" title="Déconnexion"><span class="material-icons-round">logout</span></button>
         </div>
       </div>
     </nav>
@@ -110,35 +110,35 @@
       <!-- DASHBOARD -->
       <div class="page active" id="page-dashboard">
         <div class="page-header"><div><div class="page-title">Dashboard 📊</div><div class="page-sub" id="dash-sprint-label">Sprint en cours</div></div></div>
-        <div class="grid-4" style="margin-bottom:20px" id="dash-stats"></div>
+        <div class="grid-4" id="dash-stats"></div>
         <div class="grid-3" style="margin-bottom:20px">
           <div class="card" style="grid-column:span 2"><div class="card-title"><span class="material-icons-round">speed</span>Capacité de réalisation (développeurs)</div><div id="dash-cap"></div></div>
           <div class="card"><div class="card-title"><span class="material-icons-round">flag</span>État du sprint</div><div id="dash-obj"></div></div>
         </div>
-        <div class="card"><div class="card-title"><span class="material-icons-round">people</span>Équipe</div><div class="grid-3" id="dash-team" style="gap:12px"></div></div>
+        <div class="card"><div class="card-title"><span class="material-icons-round">people</span>Équipe</div><div class="grid-3" id="dash-team"></div></div>
       </div>
 
       <!-- AGENDA -->
       <div class="page" id="page-agenda">
         <div class="page-header">
           <div><div class="page-title">Agenda 📅</div><div class="page-sub">Planning des congés</div></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-outline btn-sm" onclick="calDate=new Date();renderAgenda()"><span class="material-icons-round" style="font-size:14px">today</span>Aujourd'hui</button>
+          <div class="agenda-actions">
+            <button class="btn btn-outline btn-sm" onclick="calDate=new Date();renderAgenda()"><span class="material-icons-round icon-14">today</span>Aujourd'hui</button>
             <button class="btn btn-filled" onclick="openLeaveModal()"><span class="material-icons-round">add</span>Absence</button>
           </div>
         </div>
-        <div class="planning-outer" style="margin-bottom:20px">
+        <div class="planning-outer">
           <div class="planning-toolbar">
-            <div style="display:flex;align-items:center;gap:10px">
+            <div class="plan-nav">
               <button class="icon-btn" onclick="calPrev()"><span class="material-icons-round">chevron_left</span></button>
-              <div style="font-size:15px;font-weight:700;min-width:140px;text-align:center" id="plan-label"></div>
+              <div id="plan-label"></div>
               <button class="icon-btn" onclick="calNext()"><span class="material-icons-round">chevron_right</span></button>
             </div>
             <div class="legend">
-              <div class="legend-item"><div style="width:10px;height:10px;border-radius:2px;border:2px solid var(--primary)"></div>Aujourd'hui</div>
-              <div class="legend-item"><div style="width:10px;height:10px;border-radius:2px;background:rgba(251,140,0,0.3)"></div>Férié</div>
-              <div class="legend-item"><div style="width:10px;height:10px;border-radius:2px;background:rgba(229,57,53,0.7)"></div>Congé</div>
-              <div class="legend-item" style="color:var(--text3);font-style:italic;font-size:11px">Clic gauche = journée · Clic droit = options</div>
+              <div class="legend-item"><div class="legend-dot legend-dot-today"></div>Aujourd'hui</div>
+              <div class="legend-item"><div class="legend-dot legend-dot-holiday"></div>Férié</div>
+              <div class="legend-item"><div class="legend-dot legend-dot-leave"></div>Congé</div>
+              <div class="legend-item legend-item--hint">Clic gauche = journée · Clic droit = options</div>
             </div>
           </div>
           <div class="planning-scroll" id="plan-scroll">
@@ -161,40 +161,40 @@
         <div class="page-header">
           <div><div class="page-title" id="bl-page-title">Backlog 📋</div><div class="page-sub" id="bl-page-sub">Priorisation RICE</div></div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <div class="bl-tabs" style="margin-bottom:0;flex-shrink:0">
+        <div class="bl-toolbar">
+          <div class="bl-tabs in-toolbar" id="bl-tab-wrap">
             <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
             <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <div id="bl-method-wrap" style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg2);border-radius:var(--radius-md);border:1px solid var(--border);flex-shrink:0">
-              <span style="font-size:12px;font-weight:600;color:var(--text3)">Méthode</span>
-              <button id="bl-method-rice" onclick="setBlMethod('rice')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RICE</button>
-              <button id="bl-method-rricce" onclick="setBlMethod('rricce')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RRICCE</button>
+          <div class="bl-toolbar-right">
+            <div id="bl-method-wrap">
+              <span class="bl-method-label">Méthode</span>
+              <button id="bl-method-rice" class="bl-method-btn" onclick="setBlMethod('rice')">RICE</button>
+              <button id="bl-method-rricce" class="bl-method-btn" onclick="setBlMethod('rricce')">RRICCE</button>
             </div>
-            <select class="input" id="bl-filter-sprint" style="width:160px;flex-shrink:0" onchange="renderBacklog()">
+            <select class="input" id="bl-filter-sprint" onchange="renderBacklog()">
               <option value="">Tous les sprints</option>
             </select>
             <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
-            <button class="btn btn-outline" id="bl-sync-btn" style="display:none" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
+            <button class="btn btn-outline" id="bl-sync-btn" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
           </div>
         </div>
-        <div id="bl-view-prio" class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
-          <div style="overflow:auto;flex:1;max-height:calc(100vh - 260px)">
+        <div id="bl-view-prio" class="card">
+          <div class="bl-scroll">
             <table class="bl-table" id="bl-table">
               <thead id="bl-thead"></thead>
               <tbody id="bl-tbody"></tbody>
             </table>
           </div>
-          <div id="bl-add-footer" style="display:none;border-top:1px dashed var(--border)">
-            <button onclick="addBacklogItem()" style="width:100%;background:none;border:none;padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text3);font-size:13px;font-weight:500;font-family:inherit;transition:all var(--transition)" onmouseover="this.style.background='var(--bg2)';this.style.color='var(--primary)'" onmouseout="this.style.background='none';this.style.color='var(--text3)'">
-              <span class="material-icons-round" style="font-size:18px">add</span>Ajouter un élément
+          <div id="bl-add-footer">
+            <button class="bl-add-btn" onclick="addBacklogItem()">
+              <span class="material-icons-round">add</span>Ajouter un élément
             </button>
           </div>
         </div>
-        <div id="bl-view-chrono" style="display:none">
-          <div class="card" style="padding:0">
-            <div id="bl-gantt-wrap" style="overflow:hidden;border-radius:inherit"></div>
+        <div id="bl-view-chrono">
+          <div class="card card-p0">
+            <div id="bl-gantt-wrap"></div>
           </div>
         </div>
       </div>
@@ -217,33 +217,33 @@
       <!-- SETTINGS -->
       <div class="page" id="page-settings">
         <div class="page-header"><div><div class="page-title">Paramètres ⚙️</div><div class="page-sub">Équipe, vélocité, réunions</div></div></div>
-        <div id="settings-grid" style="display:grid;gap:20px;align-items:start">
+        <div id="settings-grid">
           <div class="card">
-            <div class="settings-title"><span class="material-icons-round">people</span>Membres <small style="font-size:12px;color:var(--text3);font-weight:400">(glisser pour réordonner)</small></div>
-            <div id="team-list" style="margin-bottom:16px"></div>
+            <div class="settings-title"><span class="material-icons-round">people</span>Membres <small class="settings-title-note">(glisser pour réordonner)</small></div>
+            <div id="team-list"></div>
             <button class="btn btn-filled" onclick="openMemberModal()"><span class="material-icons-round">person_add</span>Ajouter</button>
           </div>
-          <div class="superadmin-only" style="display:flex;flex-direction:column;gap:20px">
+          <div class="superadmin-only settings-sa-col">
             <div class="card">
               <div class="settings-title"><span class="material-icons-round">corporate_fare</span>Équipes</div>
-              <div id="teams-list" style="margin-bottom:16px"></div>
-              <div style="display:flex;flex-direction:column;gap:8px">
-                <div style="display:flex;gap:8px">
-                  <input type="text" class="input" id="new-team-name" placeholder="Nom de l'équipe" style="flex:1" onkeydown="if(event.key==='Enter')addTeam()">
+              <div id="teams-list"></div>
+              <div class="team-create-form">
+                <div class="team-create-row">
+                  <input type="text" class="input" id="new-team-name" placeholder="Nom de l'équipe" onkeydown="if(event.key==='Enter')addTeam()">
                   <button class="btn btn-filled" onclick="addTeam()"><span class="material-icons-round">add</span>Créer</button>
                 </div>
-                <input type="text" class="input" id="new-team-jira-uid" placeholder="UID Jira (optionnel — ex: dfec288c-42b6-4000-…)" style="font-size:12px;font-family:monospace">
+                <input type="text" class="input" id="new-team-jira-uid" placeholder="UID Jira (optionnel — ex: dfec288c-42b6-4000-…)">
               </div>
             </div>
             <div class="card">
               <div class="settings-title"><span class="material-icons-round">speed</span>Vélocité par niveau (%)</div>
               <div class="velocity-grid" id="vel-grid"></div>
-              <button class="btn btn-filled" style="margin-top:16px" onclick="saveVelGrid()"><span class="material-icons-round">save</span>Sauvegarder</button>
+              <button class="btn btn-filled btn-save-mt" onclick="saveVelGrid()"><span class="material-icons-round">save</span>Sauvegarder</button>
             </div>
             <div class="card">
               <div class="settings-title"><span class="material-icons-round">meeting_room</span>Charge réunions par rôle (%)</div>
               <div class="velocity-grid" id="mtg-grid"></div>
-              <button class="btn btn-filled" style="margin-top:16px" onclick="saveMtgGrid()"><span class="material-icons-round">save</span>Sauvegarder</button>
+              <button class="btn btn-filled btn-save-mt" onclick="saveMtgGrid()"><span class="material-icons-round">save</span>Sauvegarder</button>
             </div>
           </div>
         </div>
@@ -269,7 +269,7 @@
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-confirm">
-  <div class="modal" style="max-width:380px">
+  <div class="modal modal-sm">
     <div class="modal-header"><div class="modal-title" id="confirm-title">Confirmation</div></div>
     <p class="confirm-msg" id="confirm-msg"></p>
     <div class="modal-footer">
@@ -289,15 +289,15 @@
     </div>
     <div class="form-group"><label class="input-label">Vélocité planifiée (pts)</label><input type="number" class="input" id="sm-vel" placeholder="40" step="0.5" min="0"></div>
     <div class="form-group"><label class="input-label">Vote de confiance (/5)</label>
-      <div style="display:flex;gap:4px" id="sm-stars">
+      <div id="sm-stars">
         <span class="star material-icons-round" onclick="setStar(1)">star</span><span class="star material-icons-round" onclick="setStar(2)">star</span>
         <span class="star material-icons-round" onclick="setStar(3)">star</span><span class="star material-icons-round" onclick="setStar(4)">star</span>
         <span class="star material-icons-round" onclick="setStar(5)">star</span>
       </div>
     </div>
     <div class="form-group"><label class="input-label">Objectifs</label>
-      <div id="sm-objs" style="margin-bottom:8px"></div>
-      <div style="display:flex;gap:8px"><input type="text" class="input" id="sm-obj-in" placeholder="Ajouter un objectif..." style="flex:1" onkeydown="if(event.key==='Enter')addObj()"><button class="btn btn-outline btn-sm" onclick="addObj()"><span class="material-icons-round">add</span></button></div>
+      <div id="sm-objs"></div>
+      <div class="sm-obj-row"><input type="text" class="input" id="sm-obj-in" placeholder="Ajouter un objectif..." onkeydown="if(event.key==='Enter')addObj()"><button class="btn btn-outline btn-sm" onclick="addObj()"><span class="material-icons-round">add</span></button></div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-sprint')">Annuler</button><button class="btn btn-filled" onclick="saveSprint()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
   </div>
@@ -366,15 +366,15 @@
     </div>
     <div class="form-group admin-only" id="mm-teams-group">
       <label class="input-label">Affectations équipe</label>
-      <div id="mm-teams-list" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
-      <button class="btn btn-outline btn-sm" style="margin-top:8px" type="button" onclick="addTeamRow()"><span class="material-icons-round" style="font-size:15px">add</span>Ajouter une équipe</button>
+      <div id="mm-teams-list"></div>
+      <button class="btn btn-outline btn-sm mm-add-team-btn" type="button" onclick="addTeamRow()"><span class="material-icons-round icon-15">add</span>Ajouter une équipe</button>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-member')">Annuler</button><button class="btn btn-filled" onclick="saveMember()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
   </div>
 </div>
 
 <div class="modal-overlay" id="modal-leave">
-  <div class="modal" style="max-width:440px">
+  <div class="modal modal-md">
     <div class="modal-header"><div class="modal-title">Poser un congé</div><button class="icon-btn" onclick="closeModal('modal-leave')"><span class="material-icons-round">close</span></button></div>
     <div class="form-group"><label class="input-label">Membre</label><select class="input select" id="lm-user"></select></div>
     <div class="form-group"><label class="input-label">Type</label>
@@ -394,16 +394,16 @@
 </div>
 
 <div class="modal-overlay" id="modal-user-teams">
-  <div class="modal" style="max-width:380px">
+  <div class="modal modal-sm">
     <div class="modal-header"><div class="modal-title">Équipes visibles</div><button class="icon-btn" onclick="closeModal('modal-user-teams')"><span class="material-icons-round">close</span></button></div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:12px" id="ut-user-label"></p>
-    <div id="ut-teams-check" style="display:flex;flex-direction:column;gap:8px"></div>
+    <p id="ut-user-label"></p>
+    <div id="ut-teams-check"></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-user-teams')">Annuler</button><button class="btn btn-filled" onclick="saveUserTeams()"><span class="material-icons-round">save</span>Sauvegarder</button></div>
   </div>
 </div>
 
 <div class="modal-overlay" id="modal-pwd">
-  <div class="modal" style="max-width:400px">
+  <div class="modal modal-400">
     <div class="modal-header"><div class="modal-title">Changer le mot de passe</div><button class="icon-btn" onclick="closeModal('modal-pwd')"><span class="material-icons-round">close</span></button></div>
     <div class="form-group"><label class="input-label">Mot de passe actuel</label><input type="password" class="input" id="pwd-cur"></div>
     <div class="form-group"><label class="input-label">Nouveau</label><input type="password" class="input" id="pwd-new"></div>

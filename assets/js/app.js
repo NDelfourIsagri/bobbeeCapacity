@@ -73,8 +73,8 @@ let charts={};
 // ── AUTH ─────────────────────────────────────────────────
 async function switchAuthTab(t){
   document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',i===(t==='login'?0:1)));
-  document.getElementById('login-form').style.display=t==='login'?'':'none';
-  document.getElementById('register-form').style.display=t==='register'?'':'none';
+  document.getElementById('login-form').style.display=t==='login'?'block':'none';
+  document.getElementById('register-form').style.display=t==='register'?'block':'none';
   if(t==='register'){
     try{
       const teams=await fetch('/api/teams/public').then(r=>r.json());
@@ -171,15 +171,15 @@ function initTeamSel(){
   } else if(!selectedTeamId||!S.teams.find(t=>String(t.id)===String(selectedTeamId))){
     selectedTeamId=String(S.teams[0].id);
   }
-  if(el)el.style.display=S.teams.length>1?'':'none';
+  if(el)el.style.display=S.teams.length>1?'block':'none';
   renderTeamSelector();
 }
 function renderTeamSelector(){
   const useSelect=CU?.role==='super_admin'||S.teams.length>2;
   const arrowRow=document.getElementById('tm-arrow-row');
   const selectRow=document.getElementById('tm-select-row');
-  if(arrowRow)arrowRow.style.display=useSelect?'none':'';
-  if(selectRow)selectRow.style.display=useSelect?'':'none';
+  if(arrowRow)arrowRow.style.display=useSelect?'none':'flex';
+  if(selectRow)selectRow.style.display=useSelect?'flex':'none';
   if(useSelect){
     const sel=document.getElementById('tm-select');
     if(sel){
@@ -253,7 +253,7 @@ function initSprintSel(){
     selectedSprintId=String(cur.id);
   }
   localStorage.setItem('bcp_sprint',selectedSprintId);
-  if(sidebarEl)sidebarEl.style.display='';
+  if(sidebarEl)sidebarEl.style.display='block';
   renderSprintSelector();
 }
 // Calcule le statut d'un sprint : closed | overdue | current | planned
@@ -1413,7 +1413,7 @@ async function openNotePanel(itemId){
     _noteQuill.keyboard.addBinding({key:27},()=>closeNotePanel());
   }
   _noteQuill.enable(!_noteReadOnly);
-  document.getElementById('note-quill-toolbar').style.display=_noteReadOnly?'none':'';
+  document.getElementById('note-quill-toolbar').style.display=_noteReadOnly?'none':'block';
   _noteQuill.root.innerHTML=item.note||'';
   _noteDirty=false;
   if(!_noteReadOnly)setTimeout(()=>_noteQuill.focus(),300);
@@ -1460,15 +1460,15 @@ function switchBlTab(tab){
   blActiveTab=tab;
   document.getElementById('bl-tab-prio').classList.toggle('active',tab==='prio');
   document.getElementById('bl-tab-chrono').classList.toggle('active',tab==='chrono');
-  document.getElementById('bl-view-prio').style.display=tab==='prio'?'':'none';
-  document.getElementById('bl-view-chrono').style.display=tab==='chrono'?'':'none';
+  document.getElementById('bl-view-prio').style.display=tab==='prio'?'flex':'none';
+  document.getElementById('bl-view-chrono').style.display=tab==='chrono'?'block':'none';
   const isAdmin=['admin','super_admin'].includes(CU?.role);
   const addBtn=document.getElementById('bl-add-btn');
   if(addBtn)addBtn.style.display=tab==='chrono'||!isAdmin?'none':'';
   const syncBtn=document.getElementById('bl-sync-btn');
   if(syncBtn)syncBtn.style.display=tab==='chrono'||!isAdmin?'none':'inline-flex';
   const filterSel=document.getElementById('bl-filter-sprint');
-  if(filterSel)filterSel.style.display=tab==='chrono'?'none':'';
+  if(filterSel)filterSel.style.display=tab==='chrono'?'none':'block';
   const methodWrap=document.getElementById('bl-method-wrap');
   if(methodWrap)methodWrap.style.display=tab==='chrono'?'none':'flex';
   if(tab==='chrono')renderGantt();
@@ -1805,7 +1805,7 @@ function renderBacklog(){
 
   // Bouton d'ajout toujours visible sous le tableau (admin seulement)
   const addFooter=document.getElementById('bl-add-footer');
-  if(addFooter)addFooter.style.display=isAdmin?'':'none';
+  if(addFooter)addFooter.style.display=isAdmin?'block':'none';
   // Bouton sync Jira (admin et super_admin)
   const syncBtn=document.getElementById('bl-sync-btn');
   if(syncBtn)syncBtn.style.display=isAdmin?'inline-flex':'none';
