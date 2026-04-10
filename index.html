@@ -2201,7 +2201,7 @@ function switchBlTab(tab){
 const BL_REACH_TIPS='20 pts : 0-40% des utilisateurs\n40 pts : 40-60% des utilisateurs\n80 pts : 60-80% des utilisateurs\n100 pts : 100% des utilisateurs';
 const BL_IMPACT_TIPS='20 pts : Irritant faible\n40 pts : Irritant fort / Bug bloquant\n80 pts : Besoin réglementaire / conformité\n100 pts : Impact business direct';
 const BL_CONF_TIPS='20 pts : Hypothèse, intuition\n40 pts : Quelques retours utilisateurs\n80 pts : Retours support et terrain\n100 pts : Metrics, tests utilisateurs et réglementation';
-const BL_EFFORT_TIPS='20 : jusqu\'à 1 semaine\n40 : jusqu\'à 2 semaines\n60 : 1 sprint\n80 : 2 sprints\n100 : 3 sprints ou plus';
+const BL_EFFORT_TIPS='1 : jusqu\'à 1 semaine\n2 : jusqu\'à 2 semaines\n3 : 1 sprint\n5 : 2 sprints\n8 : 3 sprints ou plus';
 const BL_RISK_TIPS='20 pts : Risque faible, solution connue et maîtrisée\n40 pts : Quelques incertitudes techniques ou dépendances internes\n80 pts : Dépendances externes ou techniques non maîtrisées\n100 pts : Risque élevé, impact fort en cas d\'échec (sécurité, données, prod)';
 const BL_CRIT_TIPS='20 pts : Nice to have, aucune urgence\n40 pts : Demande récurrente mais non bloquante\n80 pts : Engagement client ou deadline connue\n100 pts : Bloquant, obligation légale ou incident en production';
 
@@ -2518,7 +2518,7 @@ function renderBacklog(){
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
         ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{criticality:Number(this.value)})">${selOpts([0,20,40,80,100],r.criticality)}</select></td>`:''}
         <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
-        <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,20,40,60,80,100],r.effort)}</select></td>
+        <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,1,2,3,5,8],r.effort)}</select></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
         <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
       </tr>`;
