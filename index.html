@@ -2468,6 +2468,7 @@ function renderBacklog(){
     ${isRricce?sortable('criticality','Criticité',BL_CRIT_TIPS):''}
     ${sortable('confidence','Confiance',BL_CONF_TIPS)}
     ${sortable('effort','Effort',BL_EFFORT_TIPS)}
+    <th style="text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px" title="Estimation validée par le tech lead"><span class="material-icons-round" style="font-size:15px;vertical-align:middle;color:var(--text3)">engineering</span> Dev</th>
     ${sortable('score',scoreLabel)}
     ${isAdmin?'<th></th>':''}
   </tr>`;
@@ -2505,6 +2506,7 @@ function renderBacklog(){
         ${isRricce?`<td style="text-align:center">${r.criticality||0}</td>`:''}
         <td style="text-align:center">${r.confidence||0}</td>
         <td style="text-align:center">${r.effort||0}</td>
+        <td style="text-align:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:16px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:16px;color:var(--border)">radio_button_unchecked</span>'}</td>
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
       </tr>`;
       return `<tr>
@@ -2519,6 +2521,7 @@ function renderBacklog(){
         ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{criticality:Number(this.value)})">${selOpts([0,1,2,5,8],r.criticality)}</select></td>`:''}
         <td><select class="bl-select" onchange="blUpdate(${r.id},{confidence:Number(this.value)})">${selOpts([0,20,40,80,100],r.confidence)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,1,2,3,5,8],r.effort)}</select></td>
+        <td style="text-align:center"><button class="icon-btn" onclick="blUpdate(${r.id},{dev_validated:${r.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px">${r.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
         <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
       </tr>`;
@@ -2568,7 +2571,7 @@ async function blUpdate(id,patch){
     await API.put('/api/backlog/'+id,{
       jiraId:item.jira_id,label:item.label,sprintId:item.sprint_id,
       reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort,
-      risk:item.risk,criticality:item.criticality
+      risk:item.risk,criticality:item.criticality,devValidated:item.dev_validated
     });
   }catch(e){toast(e.error||'Erreur sauvegarde','error');}
 }
