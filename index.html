@@ -2191,10 +2191,15 @@ function switchBlTab(tab){
   document.getElementById('bl-tab-chrono').classList.toggle('active',tab==='chrono');
   document.getElementById('bl-view-prio').style.display=tab==='prio'?'':'none';
   document.getElementById('bl-view-chrono').style.display=tab==='chrono'?'':'none';
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
   const addBtn=document.getElementById('bl-add-btn');
-  if(addBtn)addBtn.style.display=tab==='chrono'?'none':'';
+  if(addBtn)addBtn.style.display=tab==='chrono'||!isAdmin?'none':'';
+  const syncBtn=document.getElementById('bl-sync-btn');
+  if(syncBtn)syncBtn.style.display=tab==='chrono'||!isAdmin?'none':'inline-flex';
   const filterSel=document.getElementById('bl-filter-sprint');
   if(filterSel)filterSel.style.display=tab==='chrono'?'none':'';
+  const methodWrap=document.getElementById('bl-method-wrap');
+  if(methodWrap)methodWrap.style.display=tab==='chrono'?'none':'flex';
   if(tab==='chrono')renderGantt();
 }
 
