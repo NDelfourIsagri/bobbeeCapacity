@@ -1,0 +1,15 @@
+// ── Badges statuts ───────────────────────────────────────────────
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+
+  &-primary { background: var(--chip); color: var(--primary); }
+  &-success { background: rgba(67, 160, 71, 0.12); color: var(--success); }
+  &-danger  { background: rgba(229, 57, 53, 0.12); color: var(--danger); }
+  &-warning { background: rgba(251, 140, 0, 0.12); color: var(--warning); }
+}

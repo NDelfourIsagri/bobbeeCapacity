@@ -1,0 +1,120 @@
+// ── Paramètres ───────────────────────────────────────────────────
+.settings-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .material-icons-round {
+    color: var(--primary);
+    font-size: 20px;
+  }
+
+  &-note {
+    font-size: 12px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+}
+
+.velocity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.velocity-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+
+  label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+  }
+}
+
+// ── IDs settings ─────────────────────────────────────────────────
+#settings-grid {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+#team-list  { margin-bottom: 16px; }
+#teams-list { margin-bottom: 16px; }
+
+.settings-sa-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.team-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team-create-row {
+  display: flex;
+  gap: 8px;
+}
+
+#new-team-name     { flex: 1; }
+#new-team-jira-uid { font-size: 12px; font-family: monospace; }
+
+// ── Member card ───────────────────────────────────────────────────
+.member-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all var(--transition);
+
+  &:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  &.dragging  { opacity: 0.4; border: 2px dashed var(--primary); }
+  &.drag-over { border: 2px solid var(--primary); background: rgba(var(--primary-rgb), 0.05); }
+}
+
+.member-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-size: 14px; font-weight: 600; }
+.member-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+
+  &:active { cursor: grabbing; }
+}

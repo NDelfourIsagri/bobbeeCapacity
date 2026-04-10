@@ -1,0 +1,41 @@
+// ── Bobbee Capacity Planner — point d'entrée SCSS ────────────────
+//
+// Architecture :
+//   base/       → reset, tokens CSS, thèmes
+//   layout/     → app shell, nav, grilles, sprint selector, responsive
+//   components/ → éléments UI réutilisables
+//   pages/      → styles spécifiques à chaque vue
+//   utilities/  → helpers ponctuels
+
+// Base
+@use 'base/themes';
+@use 'base/reset';
+
+// Layout
+@use 'layout/app';
+@use 'layout/nav';
+@use 'layout/grid';
+@use 'layout/sprint-selector';
+@use 'layout/responsive';
+
+// Components
+@use 'components/buttons';
+@use 'components/cards';
+@use 'components/modals';
+@use 'components/forms';
+@use 'components/badges';
+@use 'components/feedback';
+@use 'components/table';
+@use 'components/context-menu';
+
+// Pages
+@use 'pages/auth';
+@use 'pages/dashboard';
+@use 'pages/backlog';
+@use 'pages/agenda';
+@use 'pages/settings';
+@use 'pages/note-panel';
+
+// Utilities (dernier pour surcharge possible)
+@use 'utilities/theme-dots';
+@use 'utilities/icons';

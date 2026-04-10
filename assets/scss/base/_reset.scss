@@ -1,0 +1,43 @@
+// ── Reset & base ─────────────────────────────────────────────────
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background var(--transition), color var(--transition);
+}
+
+// Scrollbar webkit
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+
+  &-track {
+    background: var(--bg2);
+    border-radius: 4px;
+  }
+
+  &-thumb {
+    background: rgba(var(--primary-rgb), 0.35);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(var(--primary-rgb), 0.65);
+    }
+  }
+}
+
+// Scrollbar Firefox
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--primary-rgb), 0.35) var(--bg2);
+}

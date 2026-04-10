@@ -1,0 +1,93 @@
+// ── Modales ──────────────────────────────────────────────────────
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+
+  &.open { display: flex; }
+}
+
+.modal {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: var(--shadow-float);
+  max-height: 90vh;
+  overflow-y: auto;
+
+  // Modificateurs de largeur
+  &-sm  { max-width: 380px; }
+  &-md  { max-width: 440px; }
+  &-400 { max-width: 400px; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.confirm-msg {
+  font-size: 14px;
+  color: var(--text2);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+// ── Sprint modal ─────────────────────────────────────────────────
+#sm-stars {
+  display: flex;
+  gap: 4px;
+}
+
+#sm-objs { margin-bottom: 8px; }
+
+.sm-obj-row {
+  display: flex;
+  gap: 8px;
+}
+
+#sm-obj-in { flex: 1; }
+
+// ── Member modal ─────────────────────────────────────────────────
+#mm-teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+// ── User teams modal ─────────────────────────────────────────────
+#ut-user-label {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 12px;
+}
+
+#ut-teams-check {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

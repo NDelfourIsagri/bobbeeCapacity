@@ -1,0 +1,126 @@
+// ── Volet note (drawer latéral) ──────────────────────────────────
+.note-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+
+  &.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+}
+
+.note-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 500px;
+  max-width: 100vw;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18);
+  z-index: 501;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.open { transform: translateX(0); }
+
+  &-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  &-meta { flex: 1; min-width: 0; }
+
+  &-jira {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+  }
+
+  &-lbl {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &-hint {
+    font-size: 11px;
+    color: var(--text3);
+    padding: 6px 20px 0;
+    flex-shrink: 0;
+  }
+
+  &-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+// ── Quill — surcharges thème ─────────────────────────────────────
+.ql-toolbar.ql-snow {
+  background: var(--bg2);
+  border-color: var(--border) !important;
+  border-radius: 0;
+  padding: 8px 16px;
+  flex-shrink: 0;
+}
+
+.ql-container.ql-snow {
+  border-color: var(--border) !important;
+  flex: 1;
+  overflow-y: auto;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.ql-editor {
+  color: var(--text);
+  padding: 16px 20px;
+  line-height: 1.75;
+  min-height: 160px;
+
+  &.ql-blank::before {
+    color: var(--text3);
+    font-style: normal;
+    font-size: 14px;
+  }
+}
+
+.ql-snow {
+  .ql-stroke { stroke: var(--text2) !important; }
+  .ql-fill   { fill: var(--text2) !important; }
+  .ql-picker  { color: var(--text2) !important; }
+
+  &.ql-toolbar {
+    button {
+      &:hover,
+      &.ql-active {
+        .ql-stroke { stroke: var(--primary) !important; }
+        .ql-fill   { fill: var(--primary) !important; }
+
+        background: rgba(var(--primary-rgb), 0.08);
+        border-radius: 4px;
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+// ── Points de rupture ────────────────────────────────────────────
+
+// Tablette portrait (max 900px)
+@media (max-width: 900px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+// Mobile (max 640px)
+@media (max-width: 640px) {
+  .sidebar    { display: none; }
+  .bottom-nav { display: block; }
+
+  .main-content { padding-bottom: 80px; }
+
+  .page { padding: 16px; }
+
+  .grid-2,
+  .grid-3,
+  .grid-4 { grid-template-columns: 1fr; }
+
+  .card,
+  .modal { padding: 16px; }
+
+  // Gantt
+  .gantt-left         { flex: 0 0 140px; }
+  .gantt-wi-id        { font-size: 10px; }
+  .gantt-month-cell,
+  .gantt-sprint-cell  { font-size: 10px; padding: 0 6px; }
+
+  // Note panel
+  .note-panel { width: 100vw; }
+}
+
+// Sidebar compacte (tablette paysage, 641-1024px)
+@media (min-width: 641px) and (max-width: 1024px) {
+  :root { --sidebar-width: 60px; }
+
+  .sidebar-logo span,
+  .nav-item > span:last-child,
+  .user-info { display: none; }
+
+  .sidebar-header { padding: 16px 14px; }
+
+  .nav-item {
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .user-chip {
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .theme-switcher { justify-content: center; }
+
+  // Cacher le sélecteur sidebar, afficher la barre sticky
+  .sprint-sel-sidebar,
+  .team-sel-sidebar { display: none; }
+
+  .sprint-bar-sticky.active { display: flex; }
+}

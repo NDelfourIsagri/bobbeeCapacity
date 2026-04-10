@@ -1,0 +1,90 @@
+// ── Boutons ──────────────────────────────────────────────────────
+
+// Bouton auth (pleine largeur)
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary), rgba(var(--primary-rgb), 0.8));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-md);
+  font-family: inherit;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+// Boutons génériques
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+
+  &-sm { padding: 6px 12px; font-size: 12px; }
+
+  &-outline {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--text2);
+
+    &:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--chip);
+    }
+  }
+
+  &-filled {
+    background: linear-gradient(135deg, var(--primary), rgba(var(--primary-rgb), 0.85));
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+  }
+
+  &-danger {
+    background: rgba(229, 57, 53, 0.1);
+    color: var(--danger);
+    border: 1.5px solid rgba(229, 57, 53, 0.2);
+
+    &:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+  }
+}
+
+// Bouton méthode RICE/RRICCE
+.bl-method-btn {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+// Bouton save dans settings
+.btn-save-mt { margin-top: 16px; }
+
+// Bouton ajout dans membre modal
+.mm-add-team-btn { margin-top: 8px; }

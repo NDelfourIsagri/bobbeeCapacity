@@ -1,0 +1,47 @@
+// ── Menu contextuel (clic droit agenda) ─────────────────────────
+#ctx {
+  position: fixed;
+  z-index: 2000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  min-width: 190px;
+  backdrop-filter: blur(16px);
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  transition: all var(--transition);
+
+  &:hover {
+    background: var(--chip);
+    color: var(--primary);
+  }
+
+  .material-icons-round {
+    font-size: 17px;
+    color: var(--primary);
+  }
+
+  &.ctx-danger {
+    color: var(--danger);
+
+    .material-icons-round { color: var(--danger); }
+  }
+}
+
+.ctx-sep {
+  height: 1px;
+  background: var(--divider);
+  margin: 4px 0;
+}

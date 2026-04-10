@@ -1,0 +1,104 @@
+// ── Sélecteur de sprint/équipe (sidebar) ─────────────────────────
+.sprint-sel-sidebar {
+  padding: 8px 12px 12px;
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: 4px;
+}
+
+.sprint-sel-sidebar-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 6px;
+  margin-bottom: 6px;
+}
+
+.sprint-sel-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg2);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+
+.sprint-sel-name {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+  line-height: 1.3;
+}
+
+// Contenu centré dans une ligne de sélecteur
+.sidebar-row-inner {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+
+  &.with-gap { gap: 5px; }
+}
+
+// ── IDs : états cachés par défaut (togglés par JS) ───────────────
+#team-sel-sidebar   { display: none; }
+#sprint-sel-sidebar { display: none; }
+#sp-sel-status      { flex-shrink: 0; }
+
+#tm-select-row {
+  display: none;
+  padding: 4px 0;
+}
+
+#tm-select {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+// ── Barre sticky (tablette + mobile) ────────────────────────────
+.sprint-bar-sticky {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(12px);
+
+  .sprint-sel-name { font-size: 13px; font-weight: 600; }
+
+  select {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+  }
+}

@@ -1,0 +1,10 @@
+// ── Couleurs des points de thème ─────────────────────────────────
+// Partagé entre .theme-dot (auth) et .ts-dot (sidebar)
+.theme-dot,
+.ts-dot {
+  &[data-theme="yellow"]  { background: #ffac10; }
+  &[data-theme="green"]   { background: #007d6d; }
+  &[data-theme="isagri"]  { background: #87af18; }
+  &[data-theme="blue"]    { background: #007bac; }
+  &[data-theme="purple"]  { background: #7c3aed; }
+}

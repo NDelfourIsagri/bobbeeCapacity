@@ -1,0 +1,57 @@
+// ── Cartes ───────────────────────────────────────────────────────
+.card {
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+
+  &:hover { box-shadow: var(--shadow-md); }
+
+  &-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .material-icons-round {
+      font-size: 18px;
+      color: var(--primary);
+    }
+  }
+
+  // Modificateur : pas de padding (Gantt, tableau)
+  &-p0 { padding: 0; }
+}
+
+// ── Stat cards (dashboard) ───────────────────────────────────────
+.stat-card { text-align: center; }
+
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.stat-sub {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+// ── Dashboard IDs ────────────────────────────────────────────────
+#dash-stats { margin-bottom: 20px; }
+#dash-team  { gap: 12px; }

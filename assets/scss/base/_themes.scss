@@ -1,0 +1,205 @@
+// ── Design tokens & thèmes ───────────────────────────────────────
+:root {
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --radius-xl: 40px;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.18);
+  --shadow-float: 0 16px 60px rgba(0, 0, 0, 0.22);
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --sidebar-width: 240px;
+}
+
+// Mixin pour éviter la répétition des couleurs communes
+@mixin theme-semantic-colors($danger: #e53935, $success: #43a047, $warning: #fb8c00) {
+  --danger: #{$danger};
+  --success: #{$success};
+  --warning: #{$warning};
+}
+
+// ── Yellow ───────────────────────────────────────────────────────
+[data-theme="yellow"] {
+  &[data-mode="light"] {
+    --primary: #ffac10;
+    --primary-rgb: 255, 172, 16;
+    --secondary: #ffd17a;
+    --bg: #fdf8f0;
+    --bg2: #fff8e7;
+    --bg3: #ffffff;
+    --surface: rgba(255, 255, 255, 0.85);
+    --text: #1a1a2e;
+    --text2: #4a4a6a;
+    --text3: #8888aa;
+    --border: rgba(255, 172, 16, 0.2);
+    --divider: rgba(0, 0, 0, 0.06);
+    --chip: rgba(255, 172, 16, 0.15);
+    @include theme-semantic-colors();
+  }
+
+  &[data-mode="dark"] {
+    --primary: #ffac10;
+    --primary-rgb: 255, 172, 16;
+    --secondary: #ffd17a;
+    --bg: #0f0c05;
+    --bg2: #1a1508;
+    --bg3: #231e0d;
+    --surface: rgba(35, 30, 13, 0.9);
+    --text: #fff8e7;
+    --text2: #c8b87a;
+    --text3: #7a6a3a;
+    --border: rgba(255, 172, 16, 0.25);
+    --divider: rgba(255, 255, 255, 0.06);
+    --chip: rgba(255, 172, 16, 0.2);
+    @include theme-semantic-colors(#ef5350, #66bb6a, #ffa726);
+  }
+}
+
+// ── Green ────────────────────────────────────────────────────────
+[data-theme="green"] {
+  &[data-mode="light"] {
+    --primary: #007d6d;
+    --primary-rgb: 0, 125, 109;
+    --secondary: #0b342f;
+    --bg: #f0f7f6;
+    --bg2: #e8f5f3;
+    --bg3: #ffffff;
+    --surface: rgba(255, 255, 255, 0.85);
+    --text: #00202c;
+    --text2: #2a5a52;
+    --text3: #6a9a94;
+    --border: rgba(0, 125, 109, 0.2);
+    --divider: rgba(0, 0, 0, 0.06);
+    --chip: rgba(0, 125, 109, 0.12);
+    @include theme-semantic-colors();
+  }
+
+  &[data-mode="dark"] {
+    --primary: #00b89f;
+    --primary-rgb: 0, 184, 159;
+    --secondary: #0b342f;
+    --bg: #020f0d;
+    --bg2: #071814;
+    --bg3: #0d2420;
+    --surface: rgba(13, 36, 32, 0.9);
+    --text: #e0f5f2;
+    --text2: #7acfc4;
+    --text3: #3a7a72;
+    --border: rgba(0, 184, 159, 0.25);
+    --divider: rgba(255, 255, 255, 0.06);
+    --chip: rgba(0, 184, 159, 0.15);
+    @include theme-semantic-colors(#ef5350, #66bb6a, #ffa726);
+  }
+}
+
+// ── Isagri ───────────────────────────────────────────────────────
+[data-theme="isagri"] {
+  &[data-mode="light"] {
+    --primary: #007d6d;
+    --primary-rgb: 0, 125, 109;
+    --secondary: #87af18;
+    --bg: #f2f5ec;
+    --bg2: #eaf0e0;
+    --bg3: #ffffff;
+    --surface: rgba(255, 255, 255, 0.85);
+    --text: #00202c;
+    --text2: #3a5a20;
+    --text3: #6a8a44;
+    --border: rgba(135, 175, 24, 0.25);
+    --divider: rgba(0, 0, 0, 0.06);
+    --chip: rgba(135, 175, 24, 0.15);
+    @include theme-semantic-colors();
+  }
+
+  &[data-mode="dark"] {
+    --primary: #87af18;
+    --primary-rgb: 135, 175, 24;
+    --secondary: #007d6d;
+    --bg: #070a03;
+    --bg2: #0f1505;
+    --bg3: #161f07;
+    --surface: rgba(22, 31, 7, 0.9);
+    --text: #e8f0d0;
+    --text2: #a0c040;
+    --text3: #607020;
+    --border: rgba(135, 175, 24, 0.3);
+    --divider: rgba(255, 255, 255, 0.06);
+    --chip: rgba(135, 175, 24, 0.2);
+    @include theme-semantic-colors(#ef5350, #66bb6a, #ffa726);
+  }
+}
+
+// ── Blue ─────────────────────────────────────────────────────────
+[data-theme="blue"] {
+  &[data-mode="light"] {
+    --primary: #007bac;
+    --primary-rgb: 0, 123, 172;
+    --secondary: #00b2bb;
+    --bg: #f0f6fa;
+    --bg2: #e5f2f8;
+    --bg3: #ffffff;
+    --surface: rgba(255, 255, 255, 0.85);
+    --text: #012a3a;
+    --text2: #1a5a7a;
+    --text3: #5a9ab5;
+    --border: rgba(0, 123, 172, 0.2);
+    --divider: rgba(0, 0, 0, 0.06);
+    --chip: rgba(0, 123, 172, 0.12);
+    @include theme-semantic-colors();
+  }
+
+  &[data-mode="dark"] {
+    --primary: #159ed5;
+    --primary-rgb: 21, 158, 213;
+    --secondary: #00b2bb;
+    --bg: #020810;
+    --bg2: #060f1a;
+    --bg3: #0b1825;
+    --surface: rgba(11, 24, 37, 0.9);
+    --text: #e0f2fa;
+    --text2: #60b8e0;
+    --text3: #2a6888;
+    --border: rgba(21, 158, 213, 0.25);
+    --divider: rgba(255, 255, 255, 0.06);
+    --chip: rgba(21, 158, 213, 0.15);
+    @include theme-semantic-colors(#ef5350, #66bb6a, #ffa726);
+  }
+}
+
+// ── Purple ───────────────────────────────────────────────────────
+[data-theme="purple"] {
+  &[data-mode="light"] {
+    --primary: #7c3aed;
+    --primary-rgb: 124, 58, 237;
+    --secondary: #a78bfa;
+    --bg: #f5f3ff;
+    --bg2: #ede9fe;
+    --bg3: #ffffff;
+    --surface: rgba(255, 255, 255, 0.85);
+    --text: #1e0a3c;
+    --text2: #4a2080;
+    --text3: #8a6ab8;
+    --border: rgba(124, 58, 237, 0.2);
+    --divider: rgba(0, 0, 0, 0.06);
+    --chip: rgba(124, 58, 237, 0.12);
+    @include theme-semantic-colors();
+  }
+
+  &[data-mode="dark"] {
+    --primary: #a78bfa;
+    --primary-rgb: 167, 139, 250;
+    --secondary: #7c3aed;
+    --bg: #08040f;
+    --bg2: #100820;
+    --bg3: #18102e;
+    --surface: rgba(24, 16, 46, 0.9);
+    --text: #f0ebff;
+    --text2: #c4b0f0;
+    --text3: #7060a8;
+    --border: rgba(167, 139, 250, 0.25);
+    --divider: rgba(255, 255, 255, 0.06);
+    --chip: rgba(167, 139, 250, 0.18);
+    @include theme-semantic-colors(#ef5350, #66bb6a, #ffa726);
+  }
+}

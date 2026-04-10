@@ -1,0 +1,220 @@
+// ── Planning / Agenda ────────────────────────────────────────────
+.planning-outer {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.planning-toolbar {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--divider);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.plan-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#plan-label {
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 140px;
+  text-align: center;
+}
+
+.planning-scroll {
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.agenda-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+// ── Légende ──────────────────────────────────────────────────────
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text2);
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  &--hint {
+    color: var(--text3);
+    font-style: italic;
+    font-size: 11px;
+  }
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+
+  &-today   { border: 2px solid var(--primary); }
+  &-holiday { background: rgba(251, 140, 0, 0.3); }
+  &-leave   { background: rgba(229, 57, 53, 0.7); }
+}
+
+// ── Tableau planning ─────────────────────────────────────────────
+.ptable {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+
+  th,
+  td {
+    border-right: 1px solid var(--divider);
+    border-bottom: 1px solid var(--divider);
+  }
+
+  th {
+    background: var(--bg2);
+    padding: 5px 0;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    white-space: nowrap;
+    width: 38px;
+    min-width: 38px;
+    box-sizing: border-box;
+
+    &.th-member {
+      text-align: left;
+      padding-left: 12px;
+      padding-right: 12px;
+      width: 140px;
+      min-width: 140px;
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      border-right: 2px solid var(--border);
+    }
+
+    &.th-today {
+      background: rgba(var(--primary-rgb), 0.15);
+      color: var(--primary);
+    }
+  }
+
+  td {
+    width: 38px;
+    min-width: 38px;
+    padding: 6px 3px;
+    text-align: center;
+    vertical-align: middle;
+    box-sizing: border-box;
+
+    &.td-member {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      padding: 0 12px;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--surface);
+      border-right: 2px solid var(--border);
+      height: 50px;
+      width: 140px;
+      min-width: 140px;
+    }
+
+    &.td-today  { background: rgba(var(--primary-rgb), 0.07); }
+    &.td-we     { background: var(--bg2); opacity: 0.45; }
+    &.td-hol    { background: rgba(251, 140, 0, 0.07); }
+  }
+
+  tr:hover {
+    td             { background: var(--chip); }
+    td.td-member   { background: var(--chip); }
+  }
+}
+
+// ── Cellule jour ─────────────────────────────────────────────────
+.dcell {
+  width: 30px;
+  height: 34px;
+  margin: auto;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: outline var(--transition);
+  box-sizing: border-box;
+
+  &:hover:not(.disabled) { outline: 2px solid rgba(var(--primary-rgb), 0.5); }
+  &.disabled             { cursor: default; pointer-events: none; }
+  &.dcell-today          { outline: 2px solid var(--primary) !important; }
+
+  .h {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+
+    &.free  { background: transparent; }
+    &.leave { background: rgba(229, 57, 53, 0.75); }
+  }
+}
+
+// ── Membres anciens (partis de l'équipe) ─────────────────────────
+tr.agenda-former {
+  opacity: 0.42;
+
+  td {
+    background: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 6px,
+      rgba(0, 0, 0, 0.025) 6px,
+      rgba(0, 0, 0, 0.025) 12px
+    ) !important;
+  }
+
+  .dcell {
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+
+  .td-member {
+    position: relative;
+
+    &::after {
+      content: 'parti';
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 9px;
+      color: var(--text3);
+      font-style: italic;
+    }
+  }
+}

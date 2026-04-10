@@ -1,0 +1,544 @@
+// ── Backlog — toolbar ────────────────────────────────────────────
+.bl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.bl-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#bl-method-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bl-method-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+}
+
+#bl-filter-sprint {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+#bl-sync-btn { display: none; }
+
+// ── Backlog — onglets ────────────────────────────────────────────
+.bl-tabs {
+  display: flex;
+  background: var(--bg2);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  width: fit-content;
+  gap: 4px;
+  margin-bottom: 16px;
+
+  &.in-toolbar {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+}
+
+.bl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: none;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+
+  &.active {
+    background: var(--surface);
+    color: var(--primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .material-icons-round { font-size: 16px; }
+}
+
+// ── Backlog — vues ───────────────────────────────────────────────
+#bl-view-prio {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.bl-scroll {
+  overflow: auto;
+  flex: 1;
+  max-height: calc(100vh - 260px);
+}
+
+#bl-add-footer {
+  display: none;
+  border-top: 1px dashed var(--border);
+}
+
+.bl-add-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text3);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all var(--transition);
+
+  &:hover {
+    background: var(--bg2);
+    color: var(--primary);
+  }
+
+  .material-icons-round { font-size: 18px; }
+}
+
+#bl-view-chrono { display: none; }
+
+#bl-gantt-wrap {
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+// ── Backlog — tableau ────────────────────────────────────────────
+.bl-table {
+  min-width: 100%;
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg2);
+  }
+
+  th {
+    padding: 10px 8px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg2);
+
+    &:hover { color: var(--primary); }
+
+    .sort-icon {
+      font-size: 14px;
+      vertical-align: middle;
+      opacity: 0.4;
+    }
+
+    &.sorted .sort-icon {
+      opacity: 1;
+      color: var(--primary);
+    }
+  }
+
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--divider);
+    vertical-align: middle;
+    background: var(--surface);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td      { background: var(--bg2); }
+
+  // Colonnes sticky
+  .bl-sk {
+    position: sticky;
+    z-index: 2;
+    background: var(--surface);
+  }
+
+  thead .bl-sk { z-index: 4; background: var(--bg2); }
+  tr:hover .bl-sk { background: var(--bg2); }
+
+  .bl-sk-sep { border-right: 2px solid var(--border) !important; }
+
+  // Inputs inline dans le tableau
+  .bl-input {
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &:hover { border-color: var(--border); }
+    &:focus  { border-color: var(--primary); background: var(--bg); }
+  }
+
+  .bl-select {
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1.5px solid transparent;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+
+    &:hover { border-color: var(--border); background: var(--bg); }
+    &:focus  { border-color: var(--primary); background: var(--bg); }
+  }
+}
+
+// Score RICE/RRICCE
+.bl-score {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--primary);
+  text-align: center;
+
+  &.zero { color: var(--text3); font-weight: 400; }
+}
+
+// Bouton note
+.bl-note-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition);
+  padding: 0;
+
+  &:hover { background: var(--bg2); }
+
+  .material-icons-round {
+    font-size: 18px;
+    color: var(--text3);
+    transition: color var(--transition);
+  }
+
+  &.has-note .material-icons-round { color: var(--primary); }
+}
+
+// Tooltip note survol
+#note-tip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  display: none;
+  max-width: 340px;
+  min-width: 180px;
+  max-height: 260px;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 36px;
+    background: linear-gradient(transparent, var(--surface));
+    pointer-events: none;
+  }
+
+  p  { margin: 0 0 5px; &:last-child { margin-bottom: 0; } }
+
+  ul, ol { margin: 3px 0; padding-left: 16px; }
+  li     { margin: 1px 0; }
+
+  h1, h2    { font-size: 13px; font-weight: 700; margin: 0 0 5px; color: var(--text); }
+  strong    { color: var(--text); }
+  em        { color: var(--text2); }
+  blockquote { border-left: 2px solid var(--border); margin: 4px 0; padding-left: 8px; color: var(--text2); }
+}
+
+// Tooltip RICE (en-tête colonnes)
+.rice-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rice-info {
+  display: inline-flex;
+  cursor: help;
+  vertical-align: middle;
+
+  .material-icons-round { font-size: 14px; color: var(--text3); }
+}
+
+#bl-tip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.7;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  pointer-events: none;
+  display: none;
+}
+
+// ── Gantt / Chronologie ──────────────────────────────────────────
+.gantt-wrap {
+  display: flex;
+  width: 100%;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.gantt-left {
+  flex: 0 0 260px;
+  min-width: 260px;
+  background: var(--surface);
+  border-right: 2px solid var(--border);
+  overflow: hidden;
+}
+
+.gantt-left-head-row {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg2);
+
+  &:first-child { border-bottom: 1px solid var(--divider); }
+  &:last-child  { border-bottom: 2px solid var(--border); }
+}
+
+.gantt-left-wi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--divider);
+  overflow: hidden;
+
+  &:last-child { border-bottom: none; }
+  &:hover      { background: var(--bg2); }
+}
+
+.gantt-wi-id {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.gantt-wi-label {
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.gantt-right {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  max-width: calc(100% - 260px);
+}
+
+.gantt-timeline {
+  position: relative;
+  display: inline-block;
+  min-width: 100%;
+}
+
+.gantt-months-row {
+  display: flex;
+  overflow: hidden;
+  height: 36px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--divider);
+}
+
+.gantt-sprints-row {
+  display: flex;
+  overflow: hidden;
+  height: 36px;
+  background: var(--bg2);
+  border-bottom: 2px solid var(--border);
+}
+
+.gantt-month-cell {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: capitalize;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  white-space: nowrap;
+
+  &.is-today-month { color: var(--primary); }
+}
+
+.gantt-sprint-cell {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  border-right: 1px solid var(--divider);
+  overflow: hidden;
+  white-space: nowrap;
+  gap: 4px;
+
+  &.is-current {
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.07);
+    border: 1px solid rgba(var(--primary-rgb), 0.25);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+  }
+
+  &.is-gap { background: var(--bg); }
+}
+
+.gantt-body-rows { position: relative; }
+
+.gantt-wi-row {
+  position: relative;
+  border-bottom: 1px solid var(--divider);
+
+  &:last-child { border-bottom: none; }
+  &:hover      { background: rgba(var(--primary-rgb), 0.03); }
+}
+
+.gantt-bar {
+  position: absolute;
+  top: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  min-width: 12px;
+  overflow: hidden;
+  cursor: default;
+  transition: filter var(--transition);
+
+  &:hover { filter: brightness(1.12); }
+
+  &-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  &-link {
+    color: rgba(255, 255, 255, 0.85);
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 4px;
+
+    &:hover { color: #fff; }
+
+    .material-icons-round { font-size: 12px; }
+  }
+}
+
+.gantt-today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.gantt-today-dot {
+  position: absolute;
+  top: -1px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.gantt-empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  line-height: 1.8;
+}
