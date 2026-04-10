@@ -395,12 +395,17 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
       </div>
       <div class="sprint-sel-sidebar team-sel-sidebar" id="team-sel-sidebar" style="display:none">
         <div class="sprint-sel-sidebar-header">Équipe</div>
-        <div class="sprint-sel-row">
+        <!-- Mode flèches (≤2 équipes et non super_admin) -->
+        <div class="sprint-sel-row" id="tm-arrow-row">
           <button class="icon-btn" id="tm-btn-prev" onclick="navTeam(-1)"><span class="material-icons-round" style="font-size:18px">chevron_left</span></button>
           <div style="flex:1;display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">
             <div class="sprint-sel-name" id="tm-sel-name">—</div>
           </div>
           <button class="icon-btn" id="tm-btn-next" onclick="navTeam(1)"><span class="material-icons-round" style="font-size:18px">chevron_right</span></button>
+        </div>
+        <!-- Mode select (>2 équipes ou super_admin) -->
+        <div id="tm-select-row" style="display:none;padding:4px 0">
+          <select id="tm-select" style="width:100%;padding:6px 10px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;font-family:inherit;outline:none;cursor:pointer" onchange="selectTeam(this.value)"></select>
         </div>
       </div>
       <div class="sprint-sel-sidebar" id="sprint-sel-sidebar" style="display:none">
@@ -928,14 +933,38 @@ function initTeamSel(){
   renderTeamSelector();
 }
 function renderTeamSelector(){
-  const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
-  const t=S.teams[idx];
-  const nameEl=document.getElementById('tm-sel-name');
-  const prevBtn=document.getElementById('tm-btn-prev');
-  const nextBtn=document.getElementById('tm-btn-next');
-  if(nameEl)nameEl.textContent=t?t.name:'—';
-  if(prevBtn)prevBtn.style.visibility=idx>0?'visible':'hidden';
-  if(nextBtn)nextBtn.style.visibility=idx<S.teams.length-1?'visible':'hidden';
+  const useSelect=CU?.role==='super_admin'||S.teams.length>2;
+  const arrowRow=document.getElementById('tm-arrow-row');
+  const selectRow=document.getElementById('tm-select-row');
+  if(arrowRow)arrowRow.style.display=useSelect?'none':'';
+  if(selectRow)selectRow.style.display=useSelect?'':'none';
+  if(useSelect){
+    const sel=document.getElementById('tm-select');
+    if(sel){
+      sel.innerHTML=S.teams.map(t=>`<option value="${t.id}" ${String(t.id)===String(selectedTeamId)?'selected':''}>${t.name}</option>`).join('');
+      sel.value=String(selectedTeamId);
+    }
+  }else{
+    const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
+    const t=S.teams[idx];
+    const nameEl=document.getElementById('tm-sel-name');
+    const prevBtn=document.getElementById('tm-btn-prev');
+    const nextBtn=document.getElementById('tm-btn-next');
+    if(nameEl)nameEl.textContent=t?t.name:'—';
+    if(prevBtn)prevBtn.style.visibility=idx>0?'visible':'hidden';
+    if(nextBtn)nextBtn.style.visibility=idx<S.teams.length-1?'visible':'hidden';
+  }
+}
+async function selectTeam(id){
+  if(String(id)===String(selectedTeamId))return;
+  selectedTeamId=String(id);
+  localStorage.setItem('bcp_team',selectedTeamId);
+  renderTeamSelector();
+  selectedSprintId=null;
+  localStorage.removeItem('bcp_sprint');
+  await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);
+  const activePage=document.querySelector('.page.active')?.id?.replace('page-','');
+  if(activePage)navTo(activePage);
 }
 async function navTeam(dir){
   const idx=S.teams.findIndex(t=>String(t.id)===String(selectedTeamId));
