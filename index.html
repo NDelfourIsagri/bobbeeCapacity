@@ -494,20 +494,20 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
         <div class="page-header">
           <div><div class="page-title" id="bl-page-title">Backlog 📋</div><div class="page-sub" id="bl-page-sub">Priorisation RICE</div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <div class="bl-tabs" style="margin-bottom:0;flex-shrink:0">
             <button class="bl-tab active" id="bl-tab-prio" onclick="switchBlTab('prio')"><span class="material-icons-round">view_list</span>Priorisation</button>
             <button class="bl-tab" id="bl-tab-chrono" onclick="switchBlTab('chrono')"><span class="material-icons-round">timeline</span>Chronologie</button>
           </div>
-          <div id="bl-method-wrap" style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg2);border-radius:var(--radius-md);border:1px solid var(--border);flex-shrink:0">
-            <span style="font-size:12px;font-weight:600;color:var(--text3)">Méthode</span>
-            <button id="bl-method-rice" onclick="setBlMethod('rice')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RICE</button>
-            <button id="bl-method-rricce" onclick="setBlMethod('rricce')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RRICCE</button>
-          </div>
-          <select class="input" id="bl-filter-sprint" style="min-width:150px;flex-shrink:0" onchange="renderBacklog()">
-            <option value="">Tous les sprints</option>
-          </select>
-          <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div id="bl-method-wrap" style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg2);border-radius:var(--radius-md);border:1px solid var(--border);flex-shrink:0">
+              <span style="font-size:12px;font-weight:600;color:var(--text3)">Méthode</span>
+              <button id="bl-method-rice" onclick="setBlMethod('rice')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RICE</button>
+              <button id="bl-method-rricce" onclick="setBlMethod('rricce')" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition)">RRICCE</button>
+            </div>
+            <select class="input" id="bl-filter-sprint" style="width:160px;flex-shrink:0" onchange="renderBacklog()">
+              <option value="">Tous les sprints</option>
+            </select>
             <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
             <button class="btn btn-outline" id="bl-sync-btn" style="display:none" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
           </div>
