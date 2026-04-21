@@ -1957,17 +1957,29 @@ function renderObjectivesContent(){
     return features.filter(f=>String(f.team_id)===filterVal);
   };
 
+  const isAdmin=['admin','super_admin'].includes(CU?.role);
+  // Stocker le mapping ari→features pour la modal (renommage)
+  const _ariMap={};
   let html='';
   for(const[objKey,rawFeatures]of sorted){
     const features=applyFilter(rawFeatures);
     if(!features.length)continue;
     const isOrphan=objKey==='__orphan__';
-    const title=isOrphan?'Orphelines (sans objectif)':objKey;
+    const isUnresolved=!isOrphan&&objKey.startsWith('__unresolved__');
+    const ari=isUnresolved?objKey.replace('__unresolved__',''):null;
+    const title=isOrphan?'Orphelines (sans objectif)':isUnresolved?'Objectif non nommé':objKey;
+    // Stocker l'ARI et le nom courant pour la modal
+    if(ari) _ariMap[ari]={name:'',isUnresolved:true};
+    // Bouton crayon : admins uniquement, sur tous les objectifs non-orphelins
+    const editBtn=isAdmin&&!isOrphan
+      ? `<button class="obj-edit-btn" onclick="event.stopPropagation();openGoalNameModal('${(ari||objKey).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" title="${isUnresolved?'Nommer cet objectif':'Renommer'}"><span class="material-icons-round">${isUnresolved?'edit':'edit'}</span></button>`
+      : '';
     html+=`
     <div class="obj-accordion">
       <div class="obj-accordion-header" onclick="toggleObjAccordion(this)">
         <span class="material-icons-round obj-chevron" style="transform:rotate(-90deg)">expand_more</span>
-        <span class="obj-accordion-title${isOrphan?' obj-orphan-title':''}">${title}</span>
+        <span class="obj-accordion-title${isOrphan?' obj-orphan-title':''}${isUnresolved?' obj-unresolved-title':''}">${title}</span>
+        ${editBtn}
         <span class="obj-count">${features.length}&nbsp;feature${features.length>1?'s':''}</span>
       </div>
       <div class="obj-accordion-body">
@@ -1986,6 +1998,58 @@ function renderObjectivesContent(){
   }
 
   container.innerHTML=html||`<div class="obj-empty"><span class="material-icons-round">filter_list_off</span><p>Aucune feature pour ce filtre.</p></div>`;
+}
+
+function openGoalNameModal(ariOrCurrentName){
+  // Détecter si c'est un vrai ARI (non résolu) ou un nom courant (déjà nommé)
+  const parsed=parseGoalAriClient(ariOrCurrentName);
+  const isAri=!!parsed;
+  document.getElementById('gnm-ari').value=ariOrCurrentName;
+  // Pré-remplir avec le nom courant si c'est un renommage
+  document.getElementById('gnm-name').value=isAri?'':ariOrCurrentName;
+  // Afficher le lien Atlas si on a un vrai ARI
+  const hintEl=document.getElementById('gnm-hint');
+  if(hintEl){
+    if(isAri&&parsed){
+      const atlasUrl=`https://home.atlassian.com/s/${parsed.cloudId}/goal/${parsed.goalId}/about`;
+      hintEl.innerHTML=`Ouvrez l'objectif dans Atlas pour copier son nom : <a href="${atlasUrl}" target="_blank" rel="noopener" style="color:var(--primary)">voir l'objectif <span class="material-icons-round" style="font-size:12px;vertical-align:middle">open_in_new</span></a>`;
+      hintEl.style.display='block';
+    }else{
+      hintEl.style.display='none';
+    }
+  }
+  document.getElementById('modal-goal-name').classList.add('open');
+  setTimeout(()=>document.getElementById('gnm-name').focus(),80);
+}
+// Parser ARI côté client (miroir de la fonction serveur)
+function parseGoalAriClient(ari){
+  const m=String(ari||'').match(/^ari:cloud:townsquare:([^:]+):goal\/(.+)$/);
+  return m?{cloudId:m[1],goalId:m[2]}:null;
+}
+async function saveGoalName(){
+  const ariOrName=document.getElementById('gnm-ari').value;
+  const name=(document.getElementById('gnm-name').value||'').trim();
+  if(!name){toast('Saisissez un nom','error');return;}
+  // Si c'est un renommage d'un objectif déjà nommé, on passe le nom courant comme ARI
+  // Le serveur fait un upsert sur l'ARI → si ce n'est pas un vrai ARI, ça crée un override par nom
+  try{
+    await API.put('/api/goal-names',{ari:ariOrName,name});
+    closeModal('modal-goal-name');
+    if(S.objectivesData?.objectives){
+      const oldKey='__unresolved__'+ariOrName;
+      if(S.objectivesData.objectives[oldKey]){
+        // Objectif non résolu → on le renomme dans le cache local
+        S.objectivesData.objectives[name]=S.objectivesData.objectives[oldKey];
+        delete S.objectivesData.objectives[oldKey];
+      } else if(S.objectivesData.objectives[ariOrName]!==undefined){
+        // Objectif déjà nommé → renommage
+        S.objectivesData.objectives[name]=S.objectivesData.objectives[ariOrName];
+        delete S.objectivesData.objectives[ariOrName];
+      }
+    }
+    renderObjectivesContent();
+    toast('Nom enregistré ✓','success');
+  }catch(e){toast(e.error||'Erreur','error');}
 }
 
 function toggleObjAccordion(header){

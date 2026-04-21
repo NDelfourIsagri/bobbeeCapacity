@@ -440,6 +440,10 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .obj-chevron{color:var(--text3);font-size:20px;transition:transform var(--transition);flex-shrink:0;}
 .obj-accordion-title{font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .obj-accordion-title.obj-orphan-title{color:var(--text3);font-style:italic;}
+.obj-accordion-title.obj-unresolved-title{color:var(--text3);font-style:italic;}
+.obj-edit-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);border-radius:var(--radius-sm);transition:color var(--transition),background var(--transition);flex-shrink:0;}
+.obj-edit-btn:hover{color:var(--primary);background:rgba(var(--primary-rgb),0.1);}
+.obj-edit-btn .material-icons-round{font-size:15px;}
 .obj-count{font-size:11px;font-weight:600;color:var(--primary);background:rgba(var(--primary-rgb),0.12);padding:3px 10px;border-radius:999px;flex-shrink:0;white-space:nowrap;}
 .obj-accordion-body{max-height:0;overflow:hidden;transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1);}
 .obj-accordion-body.open{max-height:4000px;}
