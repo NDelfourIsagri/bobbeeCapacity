@@ -2147,23 +2147,10 @@ function renderObjectivesContent(){
 }
 
 function openGoalNameModal(ariOrCurrentName){
-  // Détecter si c'est un vrai ARI (non résolu) ou un nom courant (déjà nommé)
   const parsed=parseGoalAriClient(ariOrCurrentName);
   const isAri=!!parsed;
   document.getElementById('gnm-ari').value=ariOrCurrentName;
-  // Pré-remplir avec le nom courant si c'est un renommage
   document.getElementById('gnm-name').value=isAri?'':ariOrCurrentName;
-  // Afficher le lien Atlas si on a un vrai ARI
-  const hintEl=document.getElementById('gnm-hint');
-  if(hintEl){
-    if(isAri&&parsed){
-      const atlasUrl=`https://home.atlassian.com/s/${parsed.cloudId}/goal/${parsed.goalId}/about`;
-      hintEl.innerHTML=`Ouvrez l'objectif dans Atlas pour copier son nom : <a href="${atlasUrl}" target="_blank" rel="noopener" style="color:var(--primary)">voir l'objectif <span class="material-icons-round" style="font-size:12px;vertical-align:middle">open_in_new</span></a>`;
-      hintEl.style.display='block';
-    }else{
-      hintEl.style.display='none';
-    }
-  }
   document.getElementById('modal-goal-name').classList.add('open');
   setTimeout(()=>document.getElementById('gnm-name').focus(),80);
 }
