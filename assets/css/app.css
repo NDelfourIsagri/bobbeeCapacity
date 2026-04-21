@@ -354,7 +354,19 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .modal-400{max-width:400px;}
 
 /* ── AUTH ─────────────────────────────────────── */
-#register-form{display:none;}
+#register-form,#forgot-form,#reset-form{display:none;}
+.auth-forgot-link{text-align:center;margin-top:14px;}
+.auth-forgot-link span{font-size:13px;color:var(--text3);cursor:pointer;transition:color var(--transition);}
+.auth-forgot-link span:hover{color:var(--primary);}
+.auth-back{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text3);cursor:pointer;margin-bottom:20px;transition:color var(--transition);width:fit-content;}
+.auth-back:hover{color:var(--primary);}
+.auth-back .material-icons-round{font-size:16px;}
+.auth-hint{font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:20px;}
+.auth-success{color:var(--success);font-size:13px;text-align:center;margin-top:12px;display:none;}
+.auth-logo-sm{font-size:18px;font-weight:700;color:var(--text);text-align:center;margin-bottom:24px;}
+.pwd-strength-bar{height:4px;background:var(--border);border-radius:999px;margin-top:8px;overflow:hidden;}
+.pwd-strength-bar div{height:100%;width:0;border-radius:999px;transition:width 0.3s ease,background 0.3s ease;}
+.pwd-strength-label{font-size:11px;font-weight:600;margin-top:4px;min-height:16px;transition:color 0.3s ease;}
 #reg-teams{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
 
 /* ── SIDEBAR SELECTORS ────────────────────────── */

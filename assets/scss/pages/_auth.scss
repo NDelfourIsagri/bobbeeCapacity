@@ -85,12 +85,93 @@
   }
 }
 
-// État caché du formulaire register (togglé par JS)
-#register-form { display: none; }
+// États cachés (togglés par JS)
+#register-form, #forgot-form, #reset-form { display: none; }
 
 #reg-teams {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
+}
+
+// ── Lien "mot de passe oublié" ───────────────────────────────────
+.auth-forgot-link {
+  text-align: center;
+  margin-top: 14px;
+
+  span {
+    font-size: 13px;
+    color: var(--text3);
+    cursor: pointer;
+    transition: color var(--transition);
+
+    &:hover { color: var(--primary); }
+  }
+}
+
+// ── Bouton retour ────────────────────────────────────────────────
+.auth-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text3);
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: color var(--transition);
+  width: fit-content;
+
+  &:hover { color: var(--primary); }
+
+  .material-icons-round { font-size: 16px; }
+}
+
+// ── Texte d'aide ─────────────────────────────────────────────────
+.auth-hint {
+  font-size: 13px;
+  color: var(--text3);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.auth-success {
+  color: var(--success);
+  font-size: 13px;
+  text-align: center;
+  margin-top: 12px;
+  display: none;
+}
+
+// ── Titre secondaire ─────────────────────────────────────────────
+.auth-logo-sm {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+// ── Barre de force du mot de passe ───────────────────────────────
+.pwd-strength-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 999px;
+  margin-top: 8px;
+  overflow: hidden;
+
+  div {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+}
+
+.pwd-strength-label {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+  min-height: 16px;
+  transition: color 0.3s ease;
 }

@@ -71,6 +71,97 @@ let editMemberId=null;
 let charts={};
 
 // ── AUTH ─────────────────────────────────────────────────
+// ── FORGOT / RESET PASSWORD ──────────────────────────────
+function showLoginForm(){
+  document.getElementById('login-form').style.display='block';
+  document.getElementById('forgot-form').style.display='none';
+  document.getElementById('reset-form').style.display='none';
+  document.querySelector('.auth-tabs').style.display='flex';
+  document.getElementById('forgot-email').value='';
+  document.getElementById('forgot-error').style.display='none';
+  document.getElementById('forgot-success').style.display='none';
+}
+function showForgotForm(){
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('forgot-form').style.display='block';
+  document.getElementById('reset-form').style.display='none';
+  document.querySelector('.auth-tabs').style.display='none';
+  setTimeout(()=>document.getElementById('forgot-email').focus(),80);
+}
+function showResetForm(){
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('forgot-form').style.display='none';
+  document.getElementById('reset-form').style.display='block';
+  document.querySelector('.auth-tabs').style.display='none';
+}
+async function doForgot(){
+  const email=document.getElementById('forgot-email').value.trim();
+  const err=document.getElementById('forgot-error');
+  const ok=document.getElementById('forgot-success');
+  const btn=document.getElementById('forgot-btn');
+  err.style.display='none'; ok.style.display='none';
+  if(!email){err.textContent='Saisissez votre email.';err.style.display='block';return;}
+  btn.disabled=true; btn.textContent='Envoi…';
+  try{
+    await API.post('/api/auth/forgot',{email});
+    ok.style.display='block';
+    btn.textContent='Email envoyé';
+  }catch(e){
+    err.textContent=e.error||'Erreur lors de l\'envoi. Vérifiez la configuration SMTP.';
+    err.style.display='block';
+    btn.disabled=false; btn.textContent='Envoyer le lien';
+  }
+}
+function checkResetStrength(){
+  const val=document.getElementById('reset-pwd').value;
+  const fill=document.getElementById('pwd-strength-fill');
+  const label=document.getElementById('pwd-strength-label');
+  if(!fill||!label)return;
+  let score=0;
+  if(val.length>=6)score++;
+  if(val.length>=10)score++;
+  if(/[A-Z]/.test(val))score++;
+  if(/[0-9]/.test(val))score++;
+  if(/[^A-Za-z0-9]/.test(val))score++;
+  const levels=[
+    {pct:0,color:'transparent',txt:''},
+    {pct:20,color:'var(--danger)',txt:'Très faible'},
+    {pct:40,color:'#fb8c00',txt:'Faible'},
+    {pct:60,color:'#fbc02d',txt:'Moyen'},
+    {pct:80,color:'#7cb342',txt:'Fort'},
+    {pct:100,color:'var(--success)',txt:'Très fort'},
+  ];
+  const l=levels[score]||levels[0];
+  fill.style.width=l.pct+'%';
+  fill.style.background=l.color;
+  label.textContent=l.txt;
+  label.style.color=l.color;
+}
+async function doReset(){
+  const token=document.getElementById('reset-token-val')?.value||'';
+  const pwd=document.getElementById('reset-pwd').value;
+  const pwd2=document.getElementById('reset-pwd2').value;
+  const err=document.getElementById('reset-error');
+  const btn=document.getElementById('reset-btn');
+  err.style.display='none';
+  if(pwd.length<6){err.textContent='Le mot de passe doit faire au moins 6 caractères.';err.style.display='block';return;}
+  if(pwd!==pwd2){err.textContent='Les mots de passe ne correspondent pas.';err.style.display='block';return;}
+  btn.disabled=true; btn.textContent='Mise à jour…';
+  try{
+    const data=await API.post('/api/auth/reset',{token,pwd});
+    localStorage.setItem('bcp_token',data.token);
+    localStorage.setItem('bcp_user',JSON.stringify(data.user));
+    // Nettoyer le token de l'URL
+    history.replaceState({},'',BASE_PATH);
+    loginOk(data.user);
+    toast('Mot de passe mis à jour — bienvenue 🐝','success');
+  }catch(e){
+    err.textContent=e.error||'Lien invalide ou expiré.';
+    err.style.display='block';
+    btn.disabled=false; btn.textContent='Changer le mot de passe';
+  }
+}
+
 async function switchAuthTab(t){
   document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',i===(t==='login'?0:1)));
   document.getElementById('login-form').style.display=t==='login'?'block':'none';
@@ -2094,6 +2185,33 @@ async function init(){
   await loadChartJS();
   // Listener bouton back/forward navigateur
   window.addEventListener('popstate',e=>{if(CU&&e.state?.page)navTo(e.state.page,true);});
+
+  // Détecter un token de réinitialisation dans l'URL
+  const _resetToken=new URLSearchParams(location.search).get('token');
+  if(_resetToken){
+    // Vérifier la validité du token avant d'afficher le formulaire
+    try{
+      const r=await fetch('/api/auth/check-reset-token?token='+encodeURIComponent(_resetToken)).then(x=>x.json());
+      if(r.valid){
+        // Injecter le token dans un champ caché et afficher le formulaire reset
+        const container=document.getElementById('reset-form');
+        if(!document.getElementById('reset-token-val')){
+          const inp=document.createElement('input');
+          inp.type='hidden'; inp.id='reset-token-val'; inp.value=_resetToken;
+          container.appendChild(inp);
+        }
+        document.getElementById('auth-screen').style.display='flex';
+        showResetForm();
+        return;
+      }
+    }catch{}
+    // Token invalide → afficher login avec message
+    document.getElementById('auth-screen').style.display='flex';
+    document.getElementById('login-error').textContent='Ce lien est invalide ou a expiré.';
+    document.getElementById('login-error').style.display='block';
+    return;
+  }
+
   const token=localStorage.getItem('bcp_token');
   if(token){
     try{
