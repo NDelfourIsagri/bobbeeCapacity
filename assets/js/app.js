@@ -2038,6 +2038,13 @@ function filterObjectives(){renderObjectivesContent();}
 function renderObjectivesContent(){
   const container=document.getElementById('obj-content');
   if(!container||!S.objectivesData)return;
+
+  // Mémoriser les accordéons ouverts avant de reconstruire
+  const openKeys=new Set(
+    [...container.querySelectorAll('.obj-accordion[data-obj-key]')]
+      .filter(a=>a.querySelector('.obj-accordion-body')?.classList.contains('open'))
+      .map(a=>a.dataset.objKey)
+  );
   const filterVal=document.getElementById('obj-team-filter')?.value||'';
   const JIRA_BASE='https://isagri.atlassian.net/browse/';
   const{objectives}=S.objectivesData;
@@ -2108,7 +2115,7 @@ function renderObjectivesContent(){
       : '';
 
     html+=`
-    <div class="obj-accordion">
+    <div class="obj-accordion" data-obj-key="${objKey.replace(/"/g,'&quot;')}">
       <div class="obj-accordion-header" onclick="toggleObjAccordion(this)">
         <span class="material-icons-round obj-chevron" style="transform:rotate(-90deg)">expand_more</span>
         <span class="obj-accordion-title${isOrphan?' obj-orphan-title':''}${isUnresolved?' obj-unresolved-title':''}">${title}</span>
@@ -2125,6 +2132,18 @@ function renderObjectivesContent(){
   }
 
   container.innerHTML=html||`<div class="obj-empty"><span class="material-icons-round">filter_list_off</span><p>Aucune feature pour ce filtre.</p></div>`;
+
+  // Restaurer les accordéons qui étaient ouverts
+  if(openKeys.size){
+    container.querySelectorAll('.obj-accordion[data-obj-key]').forEach(a=>{
+      if(openKeys.has(a.dataset.objKey)){
+        const body=a.querySelector('.obj-accordion-body');
+        const chevron=a.querySelector('.obj-chevron');
+        if(body)body.classList.add('open');
+        if(chevron)chevron.style.transform='rotate(0deg)';
+      }
+    });
+  }
 }
 
 function openGoalNameModal(ariOrCurrentName){
