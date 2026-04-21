@@ -20,7 +20,7 @@
     </div>
     <div id="login-form">
       <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="login-email" placeholder="vous@isagri.fr"></div>
-      <div class="form-group"><label class="form-label">Mot de passe</label><input type="password" class="form-input" id="login-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><div class="pwd-wrap"><input type="password" class="form-input" id="login-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" class="pwd-eye" onclick="togglePwd('login-pwd',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div></div>
       <button class="btn-primary" onclick="doLogin()">Se connecter</button>
       <div class="auth-error" id="login-error">Email ou mot de passe incorrect.</div>
       <div class="auth-forgot-link"><span onclick="showForgotForm()">Mot de passe oublié ?</span></div>
@@ -41,11 +41,11 @@
       <div class="auth-logo-sm">Nouveau mot de passe</div>
       <div class="form-group">
         <label class="form-label">Nouveau mot de passe</label>
-        <input type="password" class="form-input" id="reset-pwd" placeholder="Min. 6 caractères" oninput="checkResetStrength()">
+        <div class="pwd-wrap"><input type="password" class="form-input" id="reset-pwd" placeholder="Min. 6 caractères" oninput="checkResetStrength()"><button type="button" class="pwd-eye" onclick="togglePwd('reset-pwd',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div>
         <div class="pwd-strength-bar"><div id="pwd-strength-fill"></div></div>
         <div class="pwd-strength-label" id="pwd-strength-label"></div>
       </div>
-      <div class="form-group"><label class="form-label">Confirmer le mot de passe</label><input type="password" class="form-input" id="reset-pwd2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doReset()"></div>
+      <div class="form-group"><label class="form-label">Confirmer le mot de passe</label><div class="pwd-wrap"><input type="password" class="form-input" id="reset-pwd2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doReset()"><button type="button" class="pwd-eye" onclick="togglePwd('reset-pwd2',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div></div>
       <button class="btn-primary" id="reset-btn" onclick="doReset()">Changer le mot de passe</button>
       <div class="auth-error" id="reset-error"></div>
     </div>
@@ -53,7 +53,7 @@
       <div class="form-group"><label class="form-label">Prénom</label><input type="text" class="form-input" id="reg-fname" placeholder="Prénom"></div>
       <div class="form-group"><label class="form-label">Nom</label><input type="text" class="form-input" id="reg-lname" placeholder="Nom"></div>
       <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="reg-email" placeholder="vous@isagri.fr"></div>
-      <div class="form-group"><label class="form-label">Mot de passe</label><input type="password" class="form-input" id="reg-pwd" placeholder="Min. 6 caractères"></div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><div class="pwd-wrap"><input type="password" class="form-input" id="reg-pwd" placeholder="Min. 6 caractères"><button type="button" class="pwd-eye" onclick="togglePwd('reg-pwd',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div></div>
       <div class="form-group"><label class="form-label">Équipe(s)</label><div id="reg-teams"></div></div>
       <button class="btn-primary" onclick="doRegister()">Créer mon compte</button>
       <div class="auth-error" id="reg-error"></div>
@@ -450,9 +450,9 @@
 <div class="modal-overlay" id="modal-pwd">
   <div class="modal modal-400">
     <div class="modal-header"><div class="modal-title">Changer le mot de passe</div><button class="icon-btn" onclick="closeModal('modal-pwd')"><span class="material-icons-round">close</span></button></div>
-    <div class="form-group"><label class="input-label">Mot de passe actuel</label><input type="password" class="input" id="pwd-cur"></div>
-    <div class="form-group"><label class="input-label">Nouveau</label><input type="password" class="input" id="pwd-new"></div>
-    <div class="form-group"><label class="input-label">Confirmer</label><input type="password" class="input" id="pwd-cf"></div>
+    <div class="form-group"><label class="input-label">Mot de passe actuel</label><div class="pwd-wrap"><input type="password" class="input" id="pwd-cur"><button type="button" class="pwd-eye" onclick="togglePwd('pwd-cur',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div></div>
+    <div class="form-group"><label class="input-label">Nouveau</label><div class="pwd-wrap"><input type="password" class="input" id="pwd-new"><button type="button" class="pwd-eye" onclick="togglePwd('pwd-new',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div></div>
+    <div class="form-group"><label class="input-label">Confirmer</label><div class="pwd-wrap"><input type="password" class="input" id="pwd-cf"><button type="button" class="pwd-eye" onclick="togglePwd('pwd-cf',this)" tabindex="-1"><span class="material-icons-round">visibility</span></button></div></div>
     <div class="auth-error" id="pwd-err"></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-pwd')">Annuler</button><button class="btn btn-filled" onclick="savePwd()"><span class="material-icons-round">lock_reset</span>Mettre à jour</button></div>
   </div>

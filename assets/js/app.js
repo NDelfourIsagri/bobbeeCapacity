@@ -71,6 +71,16 @@ let editMemberId=null;
 let charts={};
 
 // ── AUTH ─────────────────────────────────────────────────
+// ── TOGGLE PASSWORD VISIBILITY ───────────────────────────
+function togglePwd(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  const icon = btn.querySelector('.material-icons-round');
+  if (icon) icon.textContent = show ? 'visibility_off' : 'visibility';
+}
+
 // ── FORGOT / RESET PASSWORD ──────────────────────────────
 function showLoginForm(){
   document.getElementById('login-form').style.display='block';

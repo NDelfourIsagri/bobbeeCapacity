@@ -355,6 +355,11 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 
 /* ── AUTH ─────────────────────────────────────── */
 #register-form,#forgot-form,#reset-form{display:none;}
+.pwd-wrap{position:relative;display:flex;align-items:center;}
+.pwd-wrap input{flex:1;padding-right:42px;}
+.pwd-wrap .pwd-eye{position:absolute;right:10px;background:none;border:none;cursor:pointer;padding:4px;color:var(--text3);display:flex;align-items:center;transition:color var(--transition);}
+.pwd-wrap .pwd-eye:hover{color:var(--primary);}
+.pwd-wrap .pwd-eye .material-icons-round{font-size:18px;}
 .auth-forgot-link{text-align:center;margin-top:14px;}
 .auth-forgot-link span{font-size:13px;color:var(--text3);cursor:pointer;transition:color var(--transition);}
 .auth-forgot-link span:hover{color:var(--primary);}
