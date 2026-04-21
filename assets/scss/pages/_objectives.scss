@@ -62,7 +62,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 
-  &.obj-orphan-title {
+  &.obj-orphan-title,
+  &.obj-unresolved-title {
     color: var(--text3);
     font-style: italic;
   }
@@ -77,6 +78,28 @@
   border-radius: 999px;
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+// ── Bouton édition nom d'objectif ─────────────────────────────────
+.obj-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: var(--text3);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
+  }
+
+  .material-icons-round { font-size: 15px; }
 }
 
 // ── Corps de l'accordéon ─────────────────────────────────────────
@@ -135,7 +158,6 @@
   background: var(--chip);
   padding: 3px 10px;
   border-radius: 999px;
-  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -176,9 +198,7 @@
     padding: 12px 16px;
   }
 
-  .obj-feature-team {
-    justify-self: start;
-  }
+  .obj-feature-team { justify-self: start; }
 
   .obj-filter-wrap select { min-width: 140px; }
 }
