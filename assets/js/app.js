@@ -1966,11 +1966,11 @@ function renderObjectivesContent(){
     html+=`
     <div class="obj-accordion">
       <div class="obj-accordion-header" onclick="toggleObjAccordion(this)">
-        <span class="material-icons-round obj-chevron">expand_more</span>
+        <span class="material-icons-round obj-chevron" style="transform:rotate(-90deg)">expand_more</span>
         <span class="obj-accordion-title${isOrphan?' obj-orphan-title':''}">${title}</span>
         <span class="obj-count">${features.length}&nbsp;feature${features.length>1?'s':''}</span>
       </div>
-      <div class="obj-accordion-body open">
+      <div class="obj-accordion-body">
         <div class="obj-feature-grid">
           ${features.map(f=>`
           <div class="obj-feature-row">
@@ -1994,6 +1994,7 @@ function toggleObjAccordion(header){
   const isOpen=body.classList.contains('open');
   body.classList.toggle('open',!isOpen);
   chevron.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+
 }
 
 async function refreshObjectives(){
