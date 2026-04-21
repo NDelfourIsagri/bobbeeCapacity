@@ -237,6 +237,11 @@
               <span class="material-icons-round">filter_list</span>
               <select class="input" id="obj-team-filter" onchange="filterObjectives()"></select>
             </div>
+            <label class="obj-toggle-wrap">
+              <input type="checkbox" id="obj-show-done" onchange="filterObjectives()">
+              <span class="obj-toggle-slider"></span>
+              <span class="obj-toggle-label">Terminées</span>
+            </label>
             <button class="btn btn-outline btn-sm" id="obj-refresh-btn" onclick="refreshObjectives()">
               <span class="material-icons-round">refresh</span>Actualiser
             </button>

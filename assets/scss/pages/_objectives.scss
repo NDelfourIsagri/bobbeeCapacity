@@ -171,6 +171,110 @@
   }
 }
 
+// ── Toggle "Terminées" ───────────────────────────────────────────
+.obj-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.obj-toggle-slider {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  background: var(--border);
+  border-radius: 999px;
+  transition: background var(--transition);
+  flex-shrink: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform var(--transition);
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+
+  input:checked ~ & {
+    background: var(--primary);
+    &::after { transform: translateX(16px); }
+  }
+}
+
+// Le checkbox est caché, on cible le slider via le label
+.obj-toggle-wrap input { display: none; }
+
+// Quand la checkbox est checked, le slider change de couleur
+.obj-toggle-wrap input:checked + .obj-toggle-slider {
+  background: var(--primary);
+  &::after { transform: translateX(16px); }
+}
+
+.obj-toggle-label {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+// ── Barre de progression ─────────────────────────────────────────
+.obj-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.obj-progress-bar {
+  width: 80px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.obj-progress-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 999px;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+
+.obj-progress-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// ── Feature terminée ─────────────────────────────────────────────
+.obj-feature-row.done {
+  opacity: 0.55;
+
+  .obj-feature-label { text-decoration: line-through; }
+  .obj-feature-id    { color: var(--text3); }
+}
+
+// ── Message "toutes terminées" ───────────────────────────────────
+.obj-feature-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 500;
+}
+
 // ── État vide / erreur ───────────────────────────────────────────
 .obj-empty {
   display: flex;

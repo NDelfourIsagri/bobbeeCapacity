@@ -2052,47 +2052,73 @@ function renderObjectivesContent(){
     return;
   }
 
-  const applyFilter=features=>{
+  const showDone=document.getElementById('obj-show-done')?.checked||false;
+
+  const applyTeamFilter=features=>{
     if(!filterVal)return features;
     if(filterVal==='__empty__')return features.filter(f=>!f.team_id);
     return features.filter(f=>String(f.team_id)===filterVal);
   };
 
   const isAdmin=['admin','super_admin'].includes(CU?.role);
-  // Stocker le mapping ari→features pour la modal (renommage)
-  const _ariMap={};
   let html='';
   for(const[objKey,rawFeatures]of sorted){
-    const features=applyFilter(rawFeatures);
-    if(!features.length)continue;
+    const teamFiltered=applyTeamFilter(rawFeatures);
+    if(!teamFiltered.length)continue;
+
+    // Calcul de la progression (toujours sur les features filtrées par équipe)
+    const doneCount=teamFiltered.filter(f=>f.done).length;
+    const totalCount=teamFiltered.length;
+    const pct=totalCount?Math.round(doneCount/totalCount*100):0;
+
+    // Features à afficher (selon le toggle "terminées")
+    const visibleFeatures=showDone?teamFiltered:teamFiltered.filter(f=>!f.done);
+    if(!visibleFeatures.length&&!showDone&&doneCount===totalCount){
+      // Toutes terminées et switch off : afficher l'accordéon quand même (pour la progression)
+    }
+
     const isOrphan=objKey==='__orphan__';
     const isUnresolved=!isOrphan&&objKey.startsWith('__unresolved__');
     const ari=isUnresolved?objKey.replace('__unresolved__',''):null;
     const title=isOrphan?'Orphelines (sans objectif)':isUnresolved?'Objectif non nommé':objKey;
-    // Stocker l'ARI et le nom courant pour la modal
-    if(ari) _ariMap[ari]={name:'',isUnresolved:true};
-    // Bouton crayon : admins uniquement, sur tous les objectifs non-orphelins
+
     const editBtn=isAdmin&&!isOrphan
-      ? `<button class="obj-edit-btn" onclick="event.stopPropagation();openGoalNameModal('${(ari||objKey).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" title="${isUnresolved?'Nommer cet objectif':'Renommer'}"><span class="material-icons-round">${isUnresolved?'edit':'edit'}</span></button>`
+      ? `<button class="obj-edit-btn" onclick="event.stopPropagation();openGoalNameModal('${(ari||objKey).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" title="${isUnresolved?'Nommer cet objectif':'Renommer'}"><span class="material-icons-round">edit</span></button>`
       : '';
+
+    // Barre de progression
+    const progressHtml=`
+      <div class="obj-progress-wrap">
+        <div class="obj-progress-bar"><div class="obj-progress-fill" style="width:${pct}%"></div></div>
+        <span class="obj-progress-label">${doneCount}/${totalCount}</span>
+      </div>`;
+
+    // Lignes features
+    const rowsHtml=visibleFeatures.map(f=>`
+      <div class="obj-feature-row${f.done?' done':''}">
+        <a href="${JIRA_BASE}${encodeURIComponent(f.jira_id)}" target="_blank" rel="noopener" class="obj-feature-id" title="Ouvrir ${f.jira_id} dans Jira">
+          <span class="material-icons-round" style="font-size:12px;vertical-align:middle">open_in_new</span>&nbsp;${f.jira_id}
+        </a>
+        <span class="obj-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||'—'}</span>
+        <span class="obj-feature-team${f.team_name?'':' empty'}">${f.team_name||'Sans équipe'}</span>
+      </div>`).join('');
+
+    const emptyMsg=!visibleFeatures.length
+      ? `<div class="obj-feature-empty">Toutes les features sont terminées ✓</div>`
+      : '';
+
     html+=`
     <div class="obj-accordion">
       <div class="obj-accordion-header" onclick="toggleObjAccordion(this)">
         <span class="material-icons-round obj-chevron" style="transform:rotate(-90deg)">expand_more</span>
         <span class="obj-accordion-title${isOrphan?' obj-orphan-title':''}${isUnresolved?' obj-unresolved-title':''}">${title}</span>
         ${editBtn}
-        <span class="obj-count">${features.length}&nbsp;feature${features.length>1?'s':''}</span>
+        ${progressHtml}
+        <span class="obj-count">${totalCount}&nbsp;feature${totalCount>1?'s':''}</span>
       </div>
       <div class="obj-accordion-body">
         <div class="obj-feature-grid">
-          ${features.map(f=>`
-          <div class="obj-feature-row">
-            <a href="${JIRA_BASE}${encodeURIComponent(f.jira_id)}" target="_blank" rel="noopener" class="obj-feature-id" title="Ouvrir ${f.jira_id} dans Jira">
-              <span class="material-icons-round" style="font-size:12px;vertical-align:middle">open_in_new</span>&nbsp;${f.jira_id}
-            </a>
-            <span class="obj-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||'—'}</span>
-            <span class="obj-feature-team${f.team_name?'':' empty'}">${f.team_name||'Sans équipe'}</span>
-          </div>`).join('')}
+          ${rowsHtml||emptyMsg}
         </div>
       </div>
     </div>`;
