@@ -86,6 +86,7 @@
         <div class="nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
         <div class="nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
         <div class="nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
+        <div class="nav-item" onclick="navTo('objectives')"><span class="material-icons-round">track_changes</span><span>Objectifs</span></div>
         <div class="nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
         <div class="nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Paramètres</span></div>
         <div class="nav-item admin-only" onclick="navTo('users')"><span class="material-icons-round">group</span><span>Utilisateurs</span></div>
@@ -199,7 +200,25 @@
         </div>
       </div>
 
-      <!-- BACKLOG JIRA -->
+      <!-- OBJECTIFS -->
+      <div class="page" id="page-objectives">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Objectifs 🎯</div>
+            <div class="page-sub">Features par objectif stratégique</div>
+          </div>
+          <div class="obj-toolbar">
+            <div class="obj-filter-wrap">
+              <span class="material-icons-round">filter_list</span>
+              <select class="input" id="obj-team-filter" onchange="filterObjectives()"></select>
+            </div>
+            <button class="btn btn-outline btn-sm" id="obj-refresh-btn" onclick="refreshObjectives()">
+              <span class="material-icons-round">refresh</span>Actualiser
+            </button>
+          </div>
+        </div>
+        <div id="obj-content"></div>
+      </div>
 
       <!-- CHARTS -->
       <div class="page" id="page-charts">
@@ -262,6 +281,7 @@
     <div class="bottom-nav-item" onclick="navTo('charts')"><span class="material-icons-round">bar_chart</span><span>Graphiques</span></div>
     <div class="bottom-nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
     <div class="bottom-nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
+    <div class="bottom-nav-item" onclick="navTo('objectives')"><span class="material-icons-round">track_changes</span><span>Objectifs</span></div>
     <div class="bottom-nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
     <div class="bottom-nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Params</span></div>
   </div></nav>

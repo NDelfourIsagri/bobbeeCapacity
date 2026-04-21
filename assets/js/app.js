@@ -25,7 +25,7 @@ const API={
 const S={
   team:[],sprints:[],leaves:[],
   config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
-  users:[],teams:[],backlog:[]
+  users:[],teams:[],backlog:[],objectivesData:null
 };
 let selectedTeamId=null;
 
@@ -59,7 +59,7 @@ async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/bac
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
-const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',agenda:'planning',settings:'admin',users:'users'};
+const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',objectives:'objectives',agenda:'planning',settings:'admin',users:'users'};
 const SLUG_PAGES=Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v])=>[v,k]));
 
 // ── APP STATE ────────────────────────────────────────────
@@ -226,6 +226,12 @@ async function navTeam(dir){
   else if(activePage==='page-agenda')renderAgenda();
   else if(activePage==='page-backlog')renderBacklog();
   else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams()]);renderSettings();}
+  else if(activePage==='page-objectives'){
+    // Mettre à jour le filtre par défaut vers la nouvelle équipe et re-filtrer
+    const sel=document.getElementById('obj-team-filter');
+    if(sel&&S.teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=selectedTeamId;
+    renderObjectivesContent();
+  }
 }
 
 // ── SPRINT SELECTOR ──────────────────────────────────────
@@ -332,6 +338,12 @@ async function navTo(p,noPush=false){
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='objectives'){
+    document.getElementById('sprint-bar-sticky')?.classList.remove('active');
+    document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement des objectifs…</p></div>`;
+    try{await loadObjectives();}catch(e){document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||'Erreur lors du chargement'}</p></div>`;return;}
+    renderObjectives();
+  }
 }
 
 // ── THEME ────────────────────────────────────────────────
@@ -1894,6 +1906,106 @@ async function syncJira(btnId, statusId){
   }finally{
     if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">sync</span>Sync Jira';}
   }
+}
+
+// ── OBJECTIFS ────────────────────────────────────────────
+async function loadObjectives(){
+  S.objectivesData=await API.get('/api/objectives');
+}
+
+function initObjectivesFilter(){
+  const sel=document.getElementById('obj-team-filter');
+  if(!sel||!S.objectivesData)return;
+  const{teams}=S.objectivesData;
+  sel.innerHTML=
+    `<option value="">Toutes les équipes</option>`+
+    teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')+
+    `<option value="__empty__">Sans équipe</option>`;
+  // Défaut : équipe sélectionnée dans la sidebar
+  if(selectedTeamId&&teams.find(t=>String(t.id)===String(selectedTeamId)))
+    sel.value=String(selectedTeamId);
+}
+
+function renderObjectives(){
+  if(!S.objectivesData)return;
+  initObjectivesFilter();
+  renderObjectivesContent();
+}
+
+function filterObjectives(){renderObjectivesContent();}
+
+function renderObjectivesContent(){
+  const container=document.getElementById('obj-content');
+  if(!container||!S.objectivesData)return;
+  const filterVal=document.getElementById('obj-team-filter')?.value||'';
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+  const{objectives}=S.objectivesData;
+
+  // Trier : objectifs nommés en alpha, orphelines en dernier
+  const named=Object.entries(objectives).filter(([k])=>k!=='__orphan__').sort(([a],[b])=>a.localeCompare(b,'fr'));
+  const orphan=objectives['__orphan__']?[['__orphan__',objectives['__orphan__']]]:[];
+  const sorted=[...named,...orphan];
+
+  if(!sorted.length){
+    container.innerHTML=`<div class="obj-empty"><span class="material-icons-round">check_circle_outline</span><p>Aucune feature active trouvée.</p></div>`;
+    return;
+  }
+
+  const applyFilter=features=>{
+    if(!filterVal)return features;
+    if(filterVal==='__empty__')return features.filter(f=>!f.team_id);
+    return features.filter(f=>String(f.team_id)===filterVal);
+  };
+
+  let html='';
+  for(const[objKey,rawFeatures]of sorted){
+    const features=applyFilter(rawFeatures);
+    if(!features.length)continue;
+    const isOrphan=objKey==='__orphan__';
+    const title=isOrphan?'Orphelines (sans objectif)':objKey;
+    html+=`
+    <div class="obj-accordion">
+      <div class="obj-accordion-header" onclick="toggleObjAccordion(this)">
+        <span class="material-icons-round obj-chevron">expand_more</span>
+        <span class="obj-accordion-title${isOrphan?' obj-orphan-title':''}">${title}</span>
+        <span class="obj-count">${features.length}&nbsp;feature${features.length>1?'s':''}</span>
+      </div>
+      <div class="obj-accordion-body open">
+        <div class="obj-feature-grid">
+          ${features.map(f=>`
+          <div class="obj-feature-row">
+            <a href="${JIRA_BASE}${encodeURIComponent(f.jira_id)}" target="_blank" rel="noopener" class="obj-feature-id" title="Ouvrir ${f.jira_id} dans Jira">
+              <span class="material-icons-round" style="font-size:12px;vertical-align:middle">open_in_new</span>&nbsp;${f.jira_id}
+            </a>
+            <span class="obj-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||'—'}</span>
+            <span class="obj-feature-team${f.team_name?'':' empty'}">${f.team_name||'Sans équipe'}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML=html||`<div class="obj-empty"><span class="material-icons-round">filter_list_off</span><p>Aucune feature pour ce filtre.</p></div>`;
+}
+
+function toggleObjAccordion(header){
+  const body=header.nextElementSibling;
+  const chevron=header.querySelector('.obj-chevron');
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  chevron.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+}
+
+async function refreshObjectives(){
+  const btn=document.getElementById('obj-refresh-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="material-icons-round" style="animation:spin 1s linear infinite">sync</span>Chargement…';}
+  try{
+    await loadObjectives();
+    initObjectivesFilter();
+    renderObjectivesContent();
+    toast('Objectifs mis à jour','success');
+  }catch(e){toast(e.error||'Erreur lors du chargement','error');}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">refresh</span>Actualiser';}}
 }
 
 // ── UTILS ────────────────────────────────────────────────
