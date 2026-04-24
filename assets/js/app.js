@@ -1750,10 +1750,9 @@ function renderGanttFor(backlogItems, wrapId){
   _ganttMeta.totalW = totalW;
   const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
   _ganttMeta.toX = toX;
-  // Durée moyenne d'un sprint en jours
-  const ds=S.sprints.filter(s=>s.start&&s.end);
-  const avgSD=ds.length?Math.round(ds.reduce((sum,s)=>sum+Math.ceil((new Date(s.end)-new Date(s.start))/86400000),0)/ds.length):14;
-  const effortDays=e=>{if(!e)return avgSD;if(e<=1)return 7;if(e<=2)return 14;if(e<=3)return avgSD;if(e<=5)return avgSD*2;return avgSD*3;};
+  // Calcul durée effort : effort 1/2 = durée fixe, effort 3/5/>5 = N×durée réelle du sprint
+  const sprintDays=s=>s?.start&&s?.end?Math.ceil((new Date(s.end)-new Date(s.start))/86400000):14;
+  const effortDays=(e,sp)=>{const sd=sprintDays(sp);if(!e)return sd;if(e<=1)return 7;if(e<=2)return 14;if(e<=3)return sd;if(e<=5)return sd*2;return sd*3;};
   // Sprints visibles triés
   const vSprints=S.sprints.filter(s=>s.start&&s.end&&new Date(s.end)>=gStart&&new Date(s.start)<=gEnd).sort((a,b)=>new Date(a.start)-new Date(b.start));
   // Mois
@@ -1815,7 +1814,7 @@ function renderGanttFor(backlogItems, wrapId){
   const bHtml=items.map(r=>{
     const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
     if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}"></div>`;
-    const bwFull=Math.max(16,effortDays(r.effort)*PX); // largeur souhaitée = durée de l'effort
+    const bwFull=Math.max(16,effortDays(r.effort,sp)*PX); // largeur souhaitée = durée de l'effort
     const endX=toX(sp.end)+PX;                        // x de fin = bord droit du dernier jour du sprint (inclusif)
     const bx=Math.max(0,endX-bwFull);                 // x de début = fin - effort (clampé à 0)
     const bw=endX-bx;                                  // largeur réelle (réduite si clampée à gauche)
