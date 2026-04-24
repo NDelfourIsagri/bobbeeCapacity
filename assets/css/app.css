@@ -349,8 +349,11 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .gantt-expand-btn.loading .material-icons-round{animation:spin .8s linear infinite;}
 .gantt-expand-placeholder{width:20px;flex-shrink:0;}
 .gantt-child-wi{background:rgba(var(--primary-rgb),.02);border-left:2px solid var(--border);padding-left:8px;}
+.gantt-child-wi.done{opacity:.45;}
+.gantt-child-wi.done .gantt-wi-label{text-decoration:line-through;}
 .gantt-child-type-badge{font-size:9px;font-weight:600;color:var(--text3);background:var(--bg2);padding:1px 5px;border-radius:3px;flex-shrink:0;white-space:nowrap;margin-left:auto;}
 .gantt-child-bar{height:14px!important;top:13px;border-radius:3px;}
+.gantt-child-bar.done{opacity:.45;}
 @media(max-width:640px){.gantt-left{width:140px;}.gantt-wi-id{font-size:10px;}.gantt-month-cell,.gantt-sprint-cell{font-size:10px;padding:0 6px;}}
 
 /* ── THEME DOTS ───────────────────────────────── */

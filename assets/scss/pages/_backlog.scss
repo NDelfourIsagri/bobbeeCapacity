@@ -471,6 +471,10 @@
   background: rgba(var(--primary-rgb), 0.02);
   border-left: 2px solid var(--border);
   padding-left: 8px;
+  &.done {
+    opacity: 0.45;
+    .gantt-wi-label { text-decoration: line-through; }
+  }
 }
 
 .gantt-child-type-badge {

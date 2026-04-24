@@ -1889,6 +1889,8 @@ function _renderGanttChildren(jiraId, children) {
   const { totalW, ROW_H, PX, toX } = _ganttMeta;
   const JIRA = 'https://isagri.atlassian.net/browse/';
   const TYPE_COLS = { Story:'#0891b2', Bug:'#e05c3a', Hotfix:'#ef4444', Enabler:'#7c3aed', 'User Story':'#0891b2' };
+  // Barème SP → jours ouvrés
+  const PT_DAYS = { 0.5:0.5, 1:1, 2:2, 3:3, 5:5, 8:10, 13:15 };
 
   // Sprint du parent pour fallback
   const parentItem = S.backlog.find(b => b.jira_id === jiraId);
@@ -1912,9 +1914,11 @@ function _renderGanttChildren(jiraId, children) {
     const lbl = (child.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const href = child.jira_id ? `${JIRA}${encodeURIComponent(child.jira_id)}` : null;
 
+    const done = child.status.trim().toLowerCase() === '10 - termine';
+
     // Ligne gauche
     const lEl = document.createElement('div');
-    lEl.className = 'gantt-left-wi gantt-child-wi'; lEl.dataset.ganttParent = jiraId;
+    lEl.className = 'gantt-left-wi gantt-child-wi' + (done ? ' done' : ''); lEl.dataset.ganttParent = jiraId;
     lEl.style.height = ROW_H + 'px'; lEl.title = lbl;
     lEl.innerHTML = `
       <span class="gantt-expand-placeholder"></span>
@@ -1928,11 +1932,12 @@ function _renderGanttChildren(jiraId, children) {
     const sp = S.sprints.find(s => s.name === child.sprint_name) || parentSprint;
     let barHtml = '';
     if (sp?.start && sp?.end && toX) {
+      const startX = toX(sp.start);
+      const days = PT_DAYS[child.points] ?? Math.min(child.points || 1, 10);
+      const bw = Math.max(16, days * PX);
       const endX = toX(sp.end) + PX;
-      const bw = Math.max(16, (child.points || 1) * PX * 2);
-      const bx = Math.max(0, endX - bw);
-      const col = TYPE_COLS[child.type] || '#6b7280';
-      barHtml = `<div class="gantt-bar gantt-child-bar" style="left:${bx}px;width:${endX-bx}px;background:${col}" title="${lbl} · ${child.status}${child.points?' · '+child.points+' pts':''}">
+      const col = done ? '#9ca3af' : (TYPE_COLS[child.type] || '#6b7280');
+      barHtml = `<div class="gantt-bar gantt-child-bar${done?' done':''}" style="left:${startX}px;width:${Math.min(bw, endX - startX)}px;background:${col}" title="${lbl} · ${child.status}${child.points?' · '+child.points+' pts':''}">
         <span class="gantt-bar-label" style="font-size:10px">${child.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
       </div>`;
