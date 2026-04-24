@@ -366,7 +366,9 @@ function initSprintSel(){
 // Calcule le statut d'un sprint : closed | overdue | current | planned
 function sprintSt(s){
   if(s.closed) return {text:'Terminé', badge:'badge-success', tl:'done'};
-  const now=new Date(),started=new Date(s.start)<=now,ended=new Date(s.end)<now;
+  const now=new Date();
+  const endOfDay=new Date(s.end);endOfDay.setDate(endOfDay.getDate()+1); // dépassé seulement à partir du lendemain
+  const started=new Date(s.start)<=now,ended=endOfDay<=now;
   if(ended)   return {text:'Dépassé', badge:'badge-danger',  tl:'overdue'};
   if(started) return {text:'En cours',badge:'badge-warning', tl:'current'};
   return              {text:'Planifié',badge:'badge-primary', tl:''};
