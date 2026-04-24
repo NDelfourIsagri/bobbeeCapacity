@@ -691,7 +691,7 @@ function parseDate(ds){ const [y,m,d]=ds.split('-').map(Number); return new Date
 function toDS(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function showConfirm(msg, onOk, title='Confirmation'){
   document.getElementById('confirm-title').textContent=title;
-  document.getElementById('confirm-msg').textContent=msg;
+  document.getElementById('confirm-msg').innerHTML=msg;
   const btn=document.getElementById('confirm-ok-btn');
   const fresh=btn.cloneNode(true);
   btn.parentNode.replaceChild(fresh,btn);
