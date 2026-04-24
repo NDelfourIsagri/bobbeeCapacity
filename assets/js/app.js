@@ -1928,8 +1928,8 @@ function _renderGanttChildren(jiraId, children) {
     `;
     lastLeft.after(lEl); lastLeft = lEl;
 
-    // Barre droite
-    const sp = S.sprints.find(s => s.name === child.sprint_name) || parentSprint;
+    // Barre droite — si pas de sprint Jira sur l'enfant, on utilise le sprint de la feature parente
+    const sp = (child.sprint_name && S.sprints.find(s => s.name === child.sprint_name)) || parentSprint;
     let barHtml = '';
     if (sp?.start && sp?.end && toX) {
       const startX = toX(sp.start);
