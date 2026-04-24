@@ -1750,22 +1750,22 @@ function renderGanttFor(backlogItems, wrapId){
   _ganttMeta.totalW = totalW;
   const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
   _ganttMeta.toX = toX;
-  // Sprints triés par date de début (pour lookup N sprints en arrière)
+  // Sprints triés par date de début
   const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
-  const sprintDays=s=>s?.start&&s?.end?Math.ceil((new Date(s.end)-new Date(s.start))/86400000):14;
-  // Somme des N sprints se terminant sur sp (inclus) + weekends/jours inter-sprints
-  const nSprintDaysBack=(sp,n)=>{
+  // Durée d'un sprint en jours (+1 car end est inclusif dans l'affichage)
+  const sprintDays=s=>s?.start&&s?.end?Math.ceil((new Date(s.end)-new Date(s.start))/86400000)+1:14;
+  // Retourne { days, firstStartX } pour les N sprints se terminant sur sp (inclus) + gaps inter-sprints
+  const nSprintsBack=(sp,n)=>{
     const idx=sortedSprints.findIndex(s=>String(s.id)===String(sp?.id));
-    if(idx===-1)return sprintDays(sp)*n;
+    if(idx===-1)return{days:sprintDays(sp)*n,firstStartX:toX(sp?.start)};
     const slice=sortedSprints.slice(Math.max(0,idx-n+1),idx+1);
-    let total=slice.reduce((sum,s)=>sum+sprintDays(s),0);
+    let days=slice.reduce((sum,s)=>sum+sprintDays(s),0);
     for(let i=0;i<slice.length-1;i++){
       const gap=Math.ceil((new Date(slice[i+1].start)-new Date(slice[i].end))/86400000)-1;
-      if(gap>0)total+=gap;
+      if(gap>0)days+=gap;
     }
-    return total;
+    return{days,firstStartX:toX(slice[0].start)};
   };
-  const effortDays=(e,sp)=>{if(!e)return nSprintDaysBack(sp,1);if(e<=1)return 7;if(e<=2)return 14;if(e<=3)return nSprintDaysBack(sp,1);if(e<=5)return nSprintDaysBack(sp,2);return nSprintDaysBack(sp,3);};
   // Sprints visibles triés
   const vSprints=S.sprints.filter(s=>s.start&&s.end&&new Date(s.end)>=gStart&&new Date(s.start)<=gEnd).sort((a,b)=>new Date(a.start)-new Date(b.start));
   // Mois
@@ -1827,17 +1827,27 @@ function renderGanttFor(backlogItems, wrapId){
   const bHtml=items.map(r=>{
     const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
     if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}"></div>`;
-    const endX=toX(sp.end)+PX;                         // x de fin du sprint
     const spStartX=toX(sp.start);
-    const spW=endX-spStartX;                           // largeur totale du sprint
-    const bwFull=Math.max(16,effortDays(r.effort,sp)*PX); // largeur effort
-    const bx=spStartX;                                 // la barre part du début du sprint
-    const bw=Math.min(bwFull,spW);                     // cappée à la largeur du sprint
+    const spW=toX(sp.end)+PX-spStartX;               // largeur totale du sprint assigné
+    const e=r.effort;
+    let bx,bw,showOutline=false;
+    if(!e||e<=3){
+      // effort 0/3 = 1 sprint entier ; effort 1 = 7j ; effort 2 = 14j (+ contour fantôme)
+      const {days,firstStartX}=nSprintsBack(sp,1);
+      if(!e||e===3){bx=firstStartX;bw=days*PX;}
+      else{bx=spStartX;bw=Math.min((e<=1?7:14)*PX,spW);showOutline=true;}
+    } else if(e<=5){
+      const {days,firstStartX}=nSprintsBack(sp,2);
+      bx=firstStartX;bw=days*PX;
+    } else {
+      const {days,firstStartX}=nSprintsBack(sp,3);
+      bx=firstStartX;bw=days*PX;
+    }
+    bw=Math.max(16,bw);
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
-    // Contour fantôme sur toute la largeur du sprint si la barre n'occupe pas tout le sprint
-    const outlineHtml=bw<spW?`<div class="gantt-bar-sprint-outline" style="left:${spStartX}px;width:${spW}px;border-color:${bc(r.id)}"></div>`:'';
+    const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" style="left:${spStartX}px;width:${spW}px;border-color:${bc(r.id)}"></div>`:'';
     return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}">
       ${outlineHtml}
       <div class="gantt-bar" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px" title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
