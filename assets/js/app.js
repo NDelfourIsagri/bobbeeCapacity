@@ -1827,14 +1827,19 @@ function renderGanttFor(backlogItems, wrapId){
   const bHtml=items.map(r=>{
     const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
     if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}"></div>`;
-    const bwFull=Math.max(16,effortDays(r.effort,sp)*PX); // largeur souhaitée = durée de l'effort
-    const endX=toX(sp.end)+PX;                        // x de fin = bord droit du dernier jour du sprint (inclusif)
-    const bx=Math.max(0,endX-bwFull);                 // x de début = fin - effort (clampé à 0)
-    const bw=endX-bx;                                  // largeur réelle (réduite si clampée à gauche)
+    const endX=toX(sp.end)+PX;                         // x de fin du sprint
+    const spStartX=toX(sp.start);
+    const spW=endX-spStartX;                           // largeur totale du sprint
+    const bwFull=Math.max(16,effortDays(r.effort,sp)*PX); // largeur effort
+    const bx=spStartX;                                 // la barre part du début du sprint
+    const bw=Math.min(bwFull,spW);                     // cappée à la largeur du sprint
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
+    // Contour fantôme sur toute la largeur du sprint si la barre n'occupe pas tout le sprint
+    const outlineHtml=bw<spW?`<div class="gantt-bar-sprint-outline" style="left:${spStartX}px;width:${spW}px;border-color:${bc(r.id)}"></div>`:'';
     return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}">
+      ${outlineHtml}
       <div class="gantt-bar" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px" title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
         <span class="gantt-bar-label">${r.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}

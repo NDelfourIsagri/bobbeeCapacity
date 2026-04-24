@@ -597,6 +597,17 @@
   &:hover      { background: rgba(var(--primary-rgb), 0.03); }
 }
 
+.gantt-bar-sprint-outline {
+  position: absolute;
+  top: 8px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid;
+  opacity: 0.3;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
 .gantt-bar {
   position: absolute;
   top: 8px;
