@@ -1914,7 +1914,7 @@ function _renderGanttChildren(jiraId, children) {
     const lbl = (child.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const href = child.jira_id ? `${JIRA}${encodeURIComponent(child.jira_id)}` : null;
 
-    const done = child.status.trim().toLowerCase() === '10 - termine';
+    const done = ['10 - termine', '9 - a livrer en prod'].includes(child.status.trim().toLowerCase());
 
     // Ligne gauche
     const lEl = document.createElement('div');
