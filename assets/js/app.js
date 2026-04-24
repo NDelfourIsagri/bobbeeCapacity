@@ -993,6 +993,7 @@ async function toggleObj(sprintId,objId){
       velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
       velocityActual:s.velocityActual,confidence:s.confidence,
       objectives:s.objectives,closed:s.closed,
+      teamId:Number(selectedTeamId),
     });
     const activePage=document.querySelector('.page.active')?.id;
     if(activePage==='page-dashboard')renderDash();
@@ -1033,6 +1034,7 @@ async function saveSprint(){
         velocityCurrent:s?.velocityCurrent||null,
         velocityActual:s?.velocityActual||null,
         confidence:sprintStars,objectives:tmpObjs,closed:s?.closed||false,
+        teamId:Number(selectedTeamId),
       });
     }else{
       await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs,teamId:selectedTeamId?Number(selectedTeamId):null});
@@ -1068,6 +1070,7 @@ async function doCloseSprint(){
     velocityPlanned:s.velocityPlanned,velocityCurrent:s.velocityCurrent,
     velocityActual:va,confidence:s.confidence,
     objectives:s.objectives,closed:true,
+    teamId:Number(selectedTeamId),
   });
   await loadSprints();
   closeModal('modal-close-sprint');toast('Sprint clôturé ✓','success');renderSprints();
