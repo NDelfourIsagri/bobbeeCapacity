@@ -1586,6 +1586,9 @@ let blSort={col:'score',dir:'desc'};
 let blActiveTab='prio';
 let blLabelW=Number(localStorage.getItem('bl_label_w'))||220;
 let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
+let blGanttExpanded = new Set(); // jiraIds actuellement développés
+let blGanttChildren = {};        // cache : jiraId → tableau d'enfants
+let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null };
 let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
 
 function blStartLabelResize(e){
@@ -1722,6 +1725,8 @@ function renderGanttFor(backlogItems, wrapId){
   const mob=window.innerWidth<640;
   const PX=mob?5:10; // px par jour
   const ROW_H=40,MH=36,SH=36;
+  _ganttMeta.ROW_H = ROW_H;
+  _ganttMeta.PX = PX;
   // WI avec sprint planifié, triés par sprint puis score RICE décroissant
   const items=(backlogItems||[]).filter(r=>r.sprint_id).sort((a,b)=>{
     const sa=S.sprints.find(s=>String(s.id)===String(a.sprint_id));
@@ -1742,7 +1747,9 @@ function renderGanttFor(backlogItems, wrapId){
   gEnd=new Date(gEnd.getFullYear(),gEnd.getMonth()+2,0);
   const totalDays=Math.ceil((gEnd-gStart)/86400000)+1;
   const totalW=totalDays*PX;
+  _ganttMeta.totalW = totalW;
   const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
+  _ganttMeta.toX = toX;
   // Durée moyenne d'un sprint en jours
   const ds=S.sprints.filter(s=>s.start&&s.end);
   const avgSD=ds.length?Math.round(ds.reduce((sum,s)=>sum+Math.ceil((new Date(s.end)-new Date(s.start))/86400000),0)/ds.length):14;
@@ -1784,7 +1791,11 @@ function renderGanttFor(backlogItems, wrapId){
   const leftRows=items.map(r=>{
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<div class="gantt-left-wi" style="height:${ROW_H}px" title="${lbl}">
+    const expandBtn=r.jira_id
+      ?`<button class="gantt-expand-btn${blGanttExpanded.has(r.jira_id)?' open':''}" onclick="toggleGanttFeature('${r.jira_id}')" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`
+      :`<span class="gantt-expand-placeholder"></span>`;
+    return `<div class="gantt-left-wi" style="height:${ROW_H}px" data-gantt-id="${r.jira_id||r.id}" title="${lbl}">
+      ${expandBtn}
       ${href?`<a class="gantt-wi-id" href="${href}" target="_blank" rel="noopener">${r.jira_id}</a>`:`<span class="gantt-wi-id" style="color:var(--text3)">—</span>`}
       <span class="gantt-wi-label">${lbl||'—'}</span>
     </div>`;
@@ -1802,7 +1813,7 @@ function renderGanttFor(backlogItems, wrapId){
   // et L'EFFORT détermine la durée (donc le début de la barre)
   const bHtml=items.map(r=>{
     const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
-    if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px"></div>`;
+    if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}"></div>`;
     const bwFull=Math.max(16,effortDays(r.effort)*PX); // largeur souhaitée = durée de l'effort
     const endX=toX(sp.end)+PX;                        // x de fin = bord droit du dernier jour du sprint (inclusif)
     const bx=Math.max(0,endX-bwFull);                 // x de début = fin - effort (clampé à 0)
@@ -1810,7 +1821,7 @@ function renderGanttFor(backlogItems, wrapId){
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
-    return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px">
+    return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}">
       <div class="gantt-bar" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px" title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
         <span class="gantt-bar-label">${r.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
@@ -1836,6 +1847,102 @@ function renderGanttFor(backlogItems, wrapId){
       </div>
     </div>
   </div>`;
+  // Ré-afficher les enfants déjà chargés (re-render après changement d'équipe/sprint)
+  blGanttExpanded.forEach(jiraId => {
+    if (blGanttChildren[jiraId]) _renderGanttChildren(jiraId, blGanttChildren[jiraId]);
+  });
+}
+
+async function toggleGanttFeature(jiraId) {
+  const leftRow = document.querySelector(`.gantt-left-wi[data-gantt-id="${jiraId}"]`);
+  if (!leftRow) return;
+  const btn = leftRow.querySelector('.gantt-expand-btn');
+  const isOpen = blGanttExpanded.has(jiraId);
+
+  if (isOpen) {
+    blGanttExpanded.delete(jiraId);
+    document.querySelectorAll(`.gantt-left-wi[data-gantt-parent="${jiraId}"]`).forEach(el => el.remove());
+    document.querySelectorAll(`.gantt-wi-row[data-gantt-parent="${jiraId}"]`).forEach(el => el.remove());
+    btn?.classList.remove('open');
+  } else {
+    blGanttExpanded.add(jiraId);
+    btn?.classList.add('loading');
+    if (!blGanttChildren[jiraId]) {
+      try {
+        blGanttChildren[jiraId] = await API.get(`/api/jira/children?key=${encodeURIComponent(jiraId)}`);
+      } catch (e) {
+        blGanttChildren[jiraId] = [];
+        toast('Impossible de charger les tickets enfants', 'error');
+      }
+    }
+    btn?.classList.remove('loading');
+    btn?.classList.add('open');
+    _renderGanttChildren(jiraId, blGanttChildren[jiraId]);
+  }
+}
+
+function _renderGanttChildren(jiraId, children) {
+  const leftRow = document.querySelector(`.gantt-left-wi[data-gantt-id="${jiraId}"]`);
+  const barRow  = document.querySelector(`.gantt-wi-row[data-gantt-bar-id="${jiraId}"]`);
+  if (!leftRow || !barRow) return;
+
+  const { totalW, ROW_H, PX, toX } = _ganttMeta;
+  const JIRA = 'https://isagri.atlassian.net/browse/';
+  const TYPE_COLS = { Story:'#0891b2', Bug:'#e05c3a', Hotfix:'#ef4444', Enabler:'#7c3aed', 'User Story':'#0891b2' };
+
+  // Sprint du parent pour fallback
+  const parentItem = S.backlog.find(b => b.jira_id === jiraId);
+  const parentSprint = parentItem ? S.sprints.find(s => String(s.id) === String(parentItem.sprint_id)) : null;
+
+  if (!children.length) {
+    const lEl = document.createElement('div');
+    lEl.className = 'gantt-left-wi gantt-child-wi'; lEl.dataset.ganttParent = jiraId;
+    lEl.style.height = ROW_H + 'px';
+    lEl.innerHTML = `<span class="gantt-expand-placeholder"></span><span style="font-size:11px;color:var(--text3)">Aucun ticket enfant</span>`;
+    leftRow.after(lEl);
+    const bEl = document.createElement('div');
+    bEl.className = 'gantt-wi-row'; bEl.dataset.ganttParent = jiraId;
+    bEl.style.cssText = `width:${totalW}px;height:${ROW_H}px`;
+    barRow.after(bEl);
+    return;
+  }
+
+  let lastLeft = leftRow, lastBar = barRow;
+  children.forEach(child => {
+    const lbl = (child.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const href = child.jira_id ? `${JIRA}${encodeURIComponent(child.jira_id)}` : null;
+
+    // Ligne gauche
+    const lEl = document.createElement('div');
+    lEl.className = 'gantt-left-wi gantt-child-wi'; lEl.dataset.ganttParent = jiraId;
+    lEl.style.height = ROW_H + 'px'; lEl.title = lbl;
+    lEl.innerHTML = `
+      <span class="gantt-expand-placeholder"></span>
+      ${href ? `<a class="gantt-wi-id" href="${href}" target="_blank" rel="noopener" style="font-size:10px">${child.jira_id}</a>` : '<span class="gantt-wi-id" style="color:var(--text3)">—</span>'}
+      <span class="gantt-wi-label" style="font-size:11px;color:var(--text2)">${lbl||'—'}</span>
+      <span class="gantt-child-type-badge">${child.type||''}</span>
+    `;
+    lastLeft.after(lEl); lastLeft = lEl;
+
+    // Barre droite
+    const sp = S.sprints.find(s => s.name === child.sprint_name) || parentSprint;
+    let barHtml = '';
+    if (sp?.start && sp?.end && toX) {
+      const endX = toX(sp.end) + PX;
+      const bw = Math.max(16, (child.points || 1) * PX * 2);
+      const bx = Math.max(0, endX - bw);
+      const col = TYPE_COLS[child.type] || '#6b7280';
+      barHtml = `<div class="gantt-bar gantt-child-bar" style="left:${bx}px;width:${endX-bx}px;background:${col}" title="${lbl} · ${child.status}${child.points?' · '+child.points+' pts':''}">
+        <span class="gantt-bar-label" style="font-size:10px">${child.jira_id||lbl}</span>
+        ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
+      </div>`;
+    }
+    const bEl = document.createElement('div');
+    bEl.className = 'gantt-wi-row'; bEl.dataset.ganttParent = jiraId;
+    bEl.style.cssText = `width:${totalW}px;height:${ROW_H}px`;
+    bEl.innerHTML = barHtml;
+    lastBar.after(bEl); lastBar = bEl;
+  });
 }
 
 function renderBacklog(){
