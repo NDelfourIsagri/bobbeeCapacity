@@ -1753,11 +1753,17 @@ function renderGanttFor(backlogItems, wrapId){
   // Sprints triés par date de début (pour lookup N sprints en arrière)
   const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
   const sprintDays=s=>s?.start&&s?.end?Math.ceil((new Date(s.end)-new Date(s.start))/86400000):14;
-  // Somme des N sprints se terminant sur sp (inclus) — couvre les sprints précédents réels
+  // Somme des N sprints se terminant sur sp (inclus) + weekends/jours inter-sprints
   const nSprintDaysBack=(sp,n)=>{
     const idx=sortedSprints.findIndex(s=>String(s.id)===String(sp?.id));
     if(idx===-1)return sprintDays(sp)*n;
-    return sortedSprints.slice(Math.max(0,idx-n+1),idx+1).reduce((sum,s)=>sum+sprintDays(s),0);
+    const slice=sortedSprints.slice(Math.max(0,idx-n+1),idx+1);
+    let total=slice.reduce((sum,s)=>sum+sprintDays(s),0);
+    for(let i=0;i<slice.length-1;i++){
+      const gap=Math.ceil((new Date(slice[i+1].start)-new Date(slice[i].end))/86400000)-1;
+      if(gap>0)total+=gap;
+    }
+    return total;
   };
   const effortDays=(e,sp)=>{if(!e)return nSprintDaysBack(sp,1);if(e<=1)return 7;if(e<=2)return 14;if(e<=3)return nSprintDaysBack(sp,1);if(e<=5)return nSprintDaysBack(sp,2);return nSprintDaysBack(sp,3);};
   // Sprints visibles triés
