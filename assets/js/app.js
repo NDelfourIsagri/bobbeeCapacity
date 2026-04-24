@@ -1588,7 +1588,7 @@ let blLabelW=Number(localStorage.getItem('bl_label_w'))||220;
 let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
 let blGanttExpanded = new Set(); // jiraIds actuellement développés
 let blGanttChildren = {};        // cache : jiraId → tableau d'enfants
-let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null };
+let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null, bc: null };
 let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
 
 function blStartLabelResize(e){
@@ -1786,6 +1786,7 @@ function renderGanttFor(backlogItems, wrapId){
   // Palette de couleurs pour les barres
   const COLS=['#7c3aed','#e05c3a','#0891b2','#d97706','#059669','#db2777','#0f766e','#c2410c'];
   const bc=id=>COLS[Math.abs(id)%COLS.length];
+  _ganttMeta.bc = bc;
   // === HTML ===
   // Colonne gauche
   const leftRows=items.map(r=>{
@@ -1886,15 +1887,15 @@ function _renderGanttChildren(jiraId, children) {
   const barRow  = document.querySelector(`.gantt-wi-row[data-gantt-bar-id="${jiraId}"]`);
   if (!leftRow || !barRow) return;
 
-  const { totalW, ROW_H, PX, toX } = _ganttMeta;
+  const { totalW, ROW_H, PX, toX, bc } = _ganttMeta;
   const JIRA = 'https://isagri.atlassian.net/browse/';
-  const TYPE_COLS = { Story:'#0891b2', Bug:'#e05c3a', Hotfix:'#ef4444', Enabler:'#7c3aed', 'User Story':'#0891b2' };
   // Barème SP → jours ouvrés
   const PT_DAYS = { 0.5:0.5, 1:1, 2:2, 3:3, 5:7, 8:14, 13:21 };
 
-  // Sprint du parent pour fallback
+  // Sprint et couleur du parent
   const parentItem = S.backlog.find(b => b.jira_id === jiraId);
   const parentSprint = parentItem ? S.sprints.find(s => String(s.id) === String(parentItem.sprint_id)) : null;
+  const parentColor = bc ? bc(parentItem?.id ?? 0) : '#6b7280';
 
   if (!children.length) {
     const lEl = document.createElement('div');
@@ -1936,7 +1937,7 @@ function _renderGanttChildren(jiraId, children) {
       const days = PT_DAYS[child.points] ?? Math.min(child.points || 1, 10);
       const bw = Math.max(16, days * PX);
       const endX = toX(sp.end) + PX;
-      const col = done ? '#9ca3af' : (TYPE_COLS[child.type] || '#6b7280');
+      const col = done ? '#9ca3af' : parentColor;
       barHtml = `<div class="gantt-bar gantt-child-bar${done?' done':''}" style="left:${startX}px;width:${Math.min(bw, endX - startX)}px;background:${col}" title="${lbl} · ${child.status}${child.points?' · '+child.points+' pts':''}">
         <span class="gantt-bar-label" style="font-size:10px">${child.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
