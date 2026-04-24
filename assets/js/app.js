@@ -1046,7 +1046,7 @@ async function saveSprint(){
 function delSprint(id){
   const s=S.sprints.find(x=>x.id==id);
   showConfirm(
-    `Supprimer le sprint "${s?.name||id}" ? Cette action le supprimera pour toutes les équipes et ne peut pas être annulée.`,
+    `Supprimer  "${s?.name||id}" ?<br />Cette action le supprimera pour toutes les équipes.`,
     async()=>{
       await API.del('/api/sprints/'+id);
       await loadSprints();renderSprints();toast('Sprint supprimé','success');
