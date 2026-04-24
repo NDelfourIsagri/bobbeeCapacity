@@ -1044,10 +1044,15 @@ async function saveSprint(){
   }catch(e){toast(e.error||'Erreur','error');}
 }
 function delSprint(id){
-  showConfirm('Supprimer ce sprint ?',async()=>{
-    await API.del('/api/sprints/'+id);
-    await loadSprints();renderSprints();toast('Sprint supprimé','success');
-  },'Supprimer le sprint');
+  const s=S.sprints.find(x=>x.id==id);
+  showConfirm(
+    `Supprimer le sprint "${s?.name||id}" ? Cette action le supprimera pour toutes les équipes et ne peut pas être annulée.`,
+    async()=>{
+      await API.del('/api/sprints/'+id);
+      await loadSprints();renderSprints();toast('Sprint supprimé','success');
+    },
+    'Supprimer le sprint'
+  );
 }
 function openCloseModal(id){
   closeSprintId=id;
