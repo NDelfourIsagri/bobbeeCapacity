@@ -1584,6 +1584,50 @@ window.addEventListener('keydown',e=>{
 // ── BACKLOG ───────────────────────────────────────────────
 let blSort={col:'score',dir:'desc'};
 let blActiveTab='prio';
+let blLabelW=Number(localStorage.getItem('bl_label_w'))||220;
+let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
+let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
+
+function blStartLabelResize(e){
+  e.preventDefault();e.stopPropagation();
+  const startX=e.clientX,startW=blLabelW;
+  document.body.style.cursor='col-resize';
+  document.body.style.userSelect='none';
+  const onMove=e=>{
+    blLabelW=Math.max(80,Math.min(600,startW+e.clientX-startX));
+    document.documentElement.style.setProperty('--bl-label-w',blLabelW+'px');
+    document.documentElement.style.setProperty('--bl-L4',(_blL3+blLabelW)+'px');
+  };
+  const onUp=()=>{
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+    localStorage.setItem('bl_label_w',blLabelW);
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+  };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+function blStartGanttResize(e){
+  e.preventDefault();e.stopPropagation();
+  const startX=e.clientX,startW=blGanttLeftW;
+  document.body.style.cursor='col-resize';
+  document.body.style.userSelect='none';
+  const onMove=e=>{
+    blGanttLeftW=Math.max(120,Math.min(600,startW+e.clientX-startX));
+    document.documentElement.style.setProperty('--gantt-left-w',blGanttLeftW+'px');
+  };
+  const onUp=()=>{
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+    localStorage.setItem('bl_gantt_left_w',blGanttLeftW);
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+  };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
 function switchBlTab(tab){
   blActiveTab=tab;
   document.getElementById('bl-tab-prio').classList.toggle('active',tab==='prio');
@@ -1775,11 +1819,13 @@ function renderGanttFor(backlogItems, wrapId){
   }).join('');
   // Ligne today
   const todHtml=showTod?`<div class="gantt-today-line" style="left:${todX}px;background:var(--primary)"><div class="gantt-today-dot" style="background:var(--primary)"></div></div>`:'';
+  document.documentElement.style.setProperty('--gantt-left-w',blGanttLeftW+'px');
   wrap.innerHTML=`<div class="gantt-wrap">
     <div class="gantt-left">
       <div class="gantt-left-head-row" style="height:${MH}px">Tickets</div>
       <div class="gantt-left-head-row" style="height:${SH}px">Sprints</div>
       ${leftRows}
+      <div class="gantt-left-resize" onmousedown="blStartGanttResize(event)"></div>
     </div>
     <div class="gantt-right">
       <div class="gantt-timeline" style="width:${totalW}px;position:relative">
@@ -1850,7 +1896,10 @@ function renderBacklog(){
     }
   }
   // En-tête — colonnes sticky : icône | jira_id | libellé | note
-  const L2=36,jiraW=isAdmin?100:90,L3=L2+jiraW,labelW=isAdmin?220:200,L4=L3+labelW;
+  const L2=36,jiraW=isAdmin?100:90,L3=L2+jiraW,L4=L3+blLabelW;
+  _blL3=L3;
+  document.documentElement.style.setProperty('--bl-label-w',blLabelW+'px');
+  document.documentElement.style.setProperty('--bl-L4',L4+'px');
   const sortable=(col,label,tip='',cls='',sty='')=>`<th class="${blSort.col===col?'sorted':''} ${cls}" style="${sty}" onclick="toggleBlSort('${col}')"><div class="rice-th">${label}${tip?infoIcon(tip):''}${blSortIcon(col)}</div></th>`;
   const noteIconHtml=r=>{
     const hasNote=!!(r.note&&r.note.trim());
@@ -1863,8 +1912,8 @@ function renderBacklog(){
   document.getElementById('bl-thead').innerHTML=`<tr>
     <th class="bl-sk" style="width:36px;left:0"></th>
     ${sortable('jira_id','ID Jira','','bl-sk',`left:${L2}px`)}
-    ${sortable('label','Libellé','','bl-sk',`left:${L3}px;min-width:${labelW}px`)}
-    <th class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
+    <th class="${blSort.col==='label'?'sorted':''} bl-sk bl-label-col" style="left:${L3}px" onclick="toggleBlSort('label')"><div class="rice-th">Libellé${blSortIcon('label')}</div><div class="bl-col-resize" onmousedown="blStartLabelResize(event)"></div></th>
+    <th class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
     ${sortable('sprint','Sprint prévu')}
     ${sortable('reach','Portée',BL_REACH_TIPS)}
     ${isRricce?sortable('risk','Risque',BL_RISK_TIPS):''}
@@ -1888,8 +1937,8 @@ function renderBacklog(){
     ?`<tr>
       <td class="bl-sk" style="width:36px;left:0;padding:32px 4px"></td>
       <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;padding:32px 4px"></td>
-      <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
-      <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;padding:32px 4px"></td>
+      <td class="bl-sk bl-label-col" style="left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
+      <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);padding:32px 4px"></td>
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
       ${isRricce?'<td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>':''}
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
@@ -1901,8 +1950,8 @@ function renderBacklog(){
       if(!isAdmin) return `<tr>
         <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
         <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
-        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
-        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
+        <td class="bl-sk bl-label-col" style="left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
         <td style="text-align:center">${r.reach||0}</td>
         ${isRricce?`<td style="text-align:center">${r.risk||0}</td>`:''}
@@ -1916,8 +1965,8 @@ function renderBacklog(){
       return `<tr>
         <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
         <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px">${isJira?`<span style="color:var(--text2);font-size:12px;font-weight:600;padding:0 4px">${r.jira_id}</span>`:`<input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())">`}</td>
-        <td class="bl-sk" style="min-width:${labelW}px;left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
-        <td class="bl-sk bl-sk-sep" style="width:40px;left:${L4}px;text-align:center;padding:4px">${noteIconHtml(r)}</td>
+        <td class="bl-sk bl-label-col" style="left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
+        <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{risk:Number(this.value)})">${selOpts([0,1,2,5,8],r.risk)}</select></td>`:''}
