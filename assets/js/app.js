@@ -1741,7 +1741,10 @@ function renderGanttFor(backlogItems, wrapId){
   }
   // Plage de dates
   const today=new Date();today.setHours(0,0,0,0);
-  const gStart=new Date(today.getFullYear(),today.getMonth(),1);
+  // Début = premier jour du premier sprint non clôturé (sinon début du mois courant)
+  const firstOpenSprint=S.sprints.filter(s=>!s.closed&&s.start).sort((a,b)=>new Date(a.start)-new Date(b.start))[0];
+  const gStart=firstOpenSprint?new Date(firstOpenSprint.start):new Date(today.getFullYear(),today.getMonth(),1);
+  gStart.setHours(0,0,0,0);
   let gEnd=new Date(today.getTime()+90*86400000);
   S.sprints.forEach(s=>{if(s.end){const e=new Date(s.end);if(e>gEnd)gEnd=e;}});
   gEnd=new Date(gEnd.getFullYear(),gEnd.getMonth()+2,0);
