@@ -238,11 +238,12 @@ async function loginOk(u){
 function doLogout(){
   const _activePage=document.querySelector('.page.active')?.id?.replace('page-','');
   const _slug=_activePage&&_activePage!=='dashboard'?'?page='+(PAGE_SLUGS[_activePage]||_activePage):'';
+  // bcp_team_<id> intentionnellement conservé : la préférence d'équipe survit au logout
+  localStorage.removeItem('bcp_team'); // nettoyage ancienne clé
+  localStorage.removeItem('bcp_sprint');
   CU=null;
   localStorage.removeItem('bcp_token');
   localStorage.removeItem('bcp_user');
-  localStorage.removeItem('bcp_team');
-  localStorage.removeItem('bcp_sprint');
   history.pushState({},'',BASE_PATH+'login'+_slug);
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
@@ -262,15 +263,19 @@ async function savePwd(){
 }
 
 // ── TEAM SELECTOR ───────────────────────────────────────
+function teamStorageKey(){return `bcp_team_${CU?.id||'x'}`;}
 function initTeamSel(){
   const el=document.getElementById('team-sel-sidebar');
   if(!S.teams.length){if(el)el.style.display='none';return;}
-  // Restaurer depuis localStorage si valide, sinon première équipe
-  const saved=localStorage.getItem('bcp_team');
+  const saved=localStorage.getItem(teamStorageKey());
   if(saved&&S.teams.find(t=>String(t.id)===saved)){
+    // Restaurer la dernière sélection de cet utilisateur
     selectedTeamId=saved;
-  } else if(!selectedTeamId||!S.teams.find(t=>String(t.id)===String(selectedTeamId))){
-    selectedTeamId=String(S.teams[0].id);
+  } else {
+    // Défaut : première équipe assignée à l'utilisateur, sinon première équipe de la liste
+    const ownId=CU?.teamIds?.find(id=>S.teams.find(t=>String(t.id)===String(id)));
+    selectedTeamId=ownId?String(ownId):String(S.teams[0].id);
+    localStorage.setItem(teamStorageKey(),selectedTeamId);
   }
   if(el)el.style.display=S.teams.length>1?'block':'none';
   renderTeamSelector();
@@ -301,7 +306,7 @@ function renderTeamSelector(){
 async function selectTeam(id){
   if(String(id)===String(selectedTeamId))return;
   selectedTeamId=String(id);
-  localStorage.setItem('bcp_team',selectedTeamId);
+  localStorage.setItem(teamStorageKey(),selectedTeamId);
   renderTeamSelector();
   selectedSprintId=null;
   localStorage.removeItem('bcp_sprint');
@@ -314,7 +319,7 @@ async function navTeam(dir){
   const newIdx=idx+dir;
   if(newIdx<0||newIdx>=S.teams.length)return;
   selectedTeamId=String(S.teams[newIdx].id);
-  localStorage.setItem('bcp_team',selectedTeamId);
+  localStorage.setItem(teamStorageKey(),selectedTeamId);
   renderTeamSelector();
   selectedSprintId=null;
   localStorage.removeItem('bcp_sprint');
