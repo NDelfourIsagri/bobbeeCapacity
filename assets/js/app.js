@@ -1890,7 +1890,7 @@ function _renderGanttChildren(jiraId, children) {
   const JIRA = 'https://isagri.atlassian.net/browse/';
   const TYPE_COLS = { Story:'#0891b2', Bug:'#e05c3a', Hotfix:'#ef4444', Enabler:'#7c3aed', 'User Story':'#0891b2' };
   // Barème SP → jours ouvrés
-  const PT_DAYS = { 0.5:0.5, 1:1, 2:2, 3:3, 5:5, 8:10, 13:15 };
+  const PT_DAYS = { 0.5:0.5, 1:1, 2:2, 3:3, 5:7, 8:14, 13:21 };
 
   // Sprint du parent pour fallback
   const parentItem = S.backlog.find(b => b.jira_id === jiraId);
