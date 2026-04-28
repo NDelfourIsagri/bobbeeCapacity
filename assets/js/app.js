@@ -1989,7 +1989,10 @@ function renderBacklog(){
   const filterVal=filterEl?filterEl.value:'';
   if(filterEl){
     const cur=filterEl.value;
-    filterEl.innerHTML='<option value="">Tous les sprints</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===cur?'selected':''}>${s.name}</option>`).join('');
+    const closedWithItems=S.sprints.filter(s=>s.closed&&S.backlog.some(b=>String(b.sprint_id)===String(s.id)));
+    filterEl.innerHTML='<option value="">Tous les sprints</option>'
+      +openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===cur?'selected':''}>${s.name}</option>`).join('')
+      +(closedWithItems.length?'<optgroup label="Clôturés">'+closedWithItems.map(s=>`<option value="${s.id}" ${String(s.id)===cur?'selected':''}>${s.name}</option>`).join('')+'</optgroup>':'');
     filterEl.value=cur;
   }
   // Filtrer
@@ -2070,7 +2073,12 @@ function renderBacklog(){
   </tr>`;
   // Corps
   const selOpts=(vals,cur)=>vals.map(v=>`<option value="${v}" ${Number(cur)===v?'selected':''}>${v||'—'}</option>`).join('');
-  const sprintOpts=(cur)=>'<option value="">—</option>'+openSprints.map(s=>`<option value="${s.id}" ${String(s.id)===String(cur)?'selected':''}>${s.name}</option>`).join('');
+  const sprintOpts=(cur)=>{
+    const closedCur=cur?S.sprints.find(s=>String(s.id)===String(cur)&&s.closed):null;
+    return '<option value="">—</option>'
+      +(closedCur?`<option value="${closedCur.id}" selected disabled>${closedCur.name} (clôturé)</option>`:'')
+      +openSprints.map(s=>`<option value="${s.id}" ${!closedCur&&String(s.id)===String(cur)?'selected':''}>${s.name}</option>`).join('');
+  };
   const JIRA_BASE='https://isagri.atlassian.net/browse/';
   const jiraIcon=(id,rowId)=>id
     ?`<a href="${JIRA_BASE}${encodeURIComponent(id)}" target="_blank" rel="noopener" id="bl-jira-link-${rowId}" title="Ouvrir ${id} dans Jira" style="color:var(--primary);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">open_in_new</span></a>`
@@ -2095,7 +2103,7 @@ function renderBacklog(){
         <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
         <td class="bl-sk bl-label-col" style="left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
-        <td>${openSprints.find(s=>String(s.id)===String(r.sprint_id))?.name||'<span style="color:var(--text3)">—</span>'}</td>
+        <td>${(sp=>!sp?'<span style="color:var(--text3)">—</span>':sp.closed?`<span style="color:var(--text3)" title="Sprint clôturé">${sp.name}</span>`:sp.name)(S.sprints.find(s=>String(s.id)===String(r.sprint_id)))}</td>
         <td style="text-align:center">${r.reach||0}</td>
         ${isRricce?`<td style="text-align:center">${r.risk||0}</td>`:''}
         <td style="text-align:center">${r.impact||0}</td>
