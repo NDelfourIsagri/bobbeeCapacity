@@ -527,9 +527,9 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-slide-hd-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--text1);letter-spacing:-.3px;}
 .rdm-slide-hd-title .material-icons-round{color:var(--primary);font-size:26px;}
 .rdm-slide-hd-team{font-size:14px;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent);padding:5px 16px;border-radius:99px;letter-spacing:.3px;}
-.rdm-top-row{display:flex;justify-content:center;align-items:flex-start;gap:24px;width:100%;margin-bottom:0;}
+.rdm-top-row{display:flex;justify-content:center;align-items:flex-start;gap:24px;width:100%;margin-bottom:0;opacity:.82;}
 .rdm-slide-divider{display:flex;justify-content:center;margin:8px 0;}
-.rdm-bottom-row{display:flex;gap:16px;justify-content:center;align-items:flex-start;flex-wrap:wrap;width:100%;}
+.rdm-bottom-row{display:flex;gap:16px;justify-content:center;align-items:flex-start;flex-wrap:wrap;width:100%;opacity:.75;}
 .rdm-sprint-card{width:280px;flex:0 0 280px;border-radius:16px;background:var(--bg);border:1.5px solid var(--border);display:flex;flex-direction:column;transition:box-shadow .3s,transform .2s;animation:rdmCardIn .45s ease both;position:relative;overflow:hidden;}
 .rdm-top-row .rdm-sprint-card{width:320px;flex:0 0 320px;}
 .rdm-sprint-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.1);transform:translateY(-2px);}
@@ -591,5 +591,5 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-road-ring{fill:none;stroke:var(--primary);stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center;animation:rdmRingOut 2.6s ease-out infinite;}
 @keyframes rdmRoadDraw{0%{stroke-dashoffset:1000;opacity:0}5%{opacity:.05}100%{stroke-dashoffset:0;opacity:.05}}
 @keyframes rdmRoadFadeIn{to{opacity:.14}}
-@keyframes rdmDotIn{from{opacity:0;transform:scale(0)}to{opacity:.38;transform:scale(1)}}
+@keyframes rdmDotIn{from{opacity:0;transform:scale(0)}to{opacity:.55;transform:scale(1)}}
 @keyframes rdmRingOut{0%{opacity:.65;transform:scale(1)}70%{opacity:0;transform:scale(2.8)}100%{opacity:0;transform:scale(2.8)}}

@@ -2755,15 +2755,15 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
     ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId)).join('')}</div>`
     :'';
   const RD='M -20,190 C 80,55 270,335 380,190 C 490,45 665,335 720,190 C 820,190 95,510 256,510 C 85,615 455,375 550,510 C 685,645 965,365 844,510 C 1065,645 1185,455 1310,510';
-  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 740" preserveAspectRatio="none" aria-hidden="true">
+  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 740" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
-    <circle class="rdm-road-dot" cx="380" cy="190" r="5" style="animation-delay:1.3s"/>
-    <circle class="rdm-road-ring" cx="720" cy="190" r="7" style="animation-delay:2.7s"/>
-    <circle class="rdm-road-dot rdm-road-dot--cur" cx="720" cy="190" r="7" style="animation-delay:2.3s"/>
-    <circle class="rdm-road-dot" cx="256" cy="510" r="5" style="animation-delay:3.2s"/>
-    <circle class="rdm-road-dot" cx="550" cy="510" r="5" style="animation-delay:4.1s"/>
-    <circle class="rdm-road-dot" cx="844" cy="510" r="5" style="animation-delay:5.0s"/>
+    <circle class="rdm-road-dot" cx="380" cy="190" r="7" style="animation-delay:1.3s"/>
+    <circle class="rdm-road-ring" cx="720" cy="190" r="10" style="animation-delay:2.7s"/>
+    <circle class="rdm-road-dot rdm-road-dot--cur" cx="720" cy="190" r="10" style="animation-delay:2.3s"/>
+    <circle class="rdm-road-dot" cx="256" cy="510" r="7" style="animation-delay:3.2s"/>
+    <circle class="rdm-road-dot" cx="550" cy="510" r="7" style="animation-delay:4.1s"/>
+    <circle class="rdm-road-dot" cx="844" cy="510" r="7" style="animation-delay:5.0s"/>
   </svg>`;
   const headerHtml=`<div class="rdm-slide-header">
     <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>

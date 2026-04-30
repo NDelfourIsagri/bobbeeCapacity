@@ -59,7 +59,7 @@
   letter-spacing: .3px;
 }
 
-.rdm-top-row { display: flex; justify-content: center; align-items: flex-start; gap: 24px; width: 100%; }
+.rdm-top-row { display: flex; justify-content: center; align-items: flex-start; gap: 24px; width: 100%; opacity: .82; }
 
 .rdm-slide-divider { display: flex; justify-content: center; margin: 8px 0; }
 
@@ -70,6 +70,7 @@
   align-items: flex-start;
   flex-wrap: wrap;
   width: 100%;
+  opacity: .75;
 }
 
 // ── Carte sprint ─────────────────────────────────────────────
@@ -409,7 +410,7 @@
 @keyframes rdmRoadFadeIn { to { opacity: .14; } }
 @keyframes rdmDotIn {
   from { opacity: 0; transform: scale(0); }
-  to   { opacity: .38; transform: scale(1); }
+  to   { opacity: .55; transform: scale(1); }
 }
 @keyframes rdmRingOut {
   0%   { opacity: .65; transform: scale(1); }
