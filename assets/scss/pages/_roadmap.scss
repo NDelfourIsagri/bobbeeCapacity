@@ -28,7 +28,7 @@
   > *:not(.rdm-road-bg) { position: relative; z-index: 1; }
 }
 
-.rdm-top-row { display: flex; justify-content: center; gap: 20px; width: 100%; }
+.rdm-top-row { display: flex; justify-content: center; gap: 20px; width: 100%; opacity: 0.80; }
 
 .rdm-slide-divider { display: flex; justify-content: center; margin: 10px 0; }
 
@@ -38,6 +38,7 @@
   justify-content: center;
   flex-wrap: wrap;
   width: 100%;
+  opacity:0.75;
 }
 
 // ── Carte sprint ─────────────────────────────────────────────
