@@ -427,6 +427,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .bl-method-label{font-size:12px;font-weight:600;color:var(--text3);}
 .bl-method-btn{font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px;border:none;cursor:pointer;transition:all var(--transition);}
 #bl-filter-sprint{width:160px;flex-shrink:0;}
+#bl-filter-obj{width:180px;flex-shrink:0;}
 #bl-sync-btn{display:none;}
 
 /* ── BACKLOG VIEWS ────────────────────────────── */
