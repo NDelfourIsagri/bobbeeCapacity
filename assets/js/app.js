@@ -330,7 +330,7 @@ async function navTeam(dir){
   else if(activePage==='page-charts')renderCharts();
   else if(activePage==='page-sprints')renderSprints();
   else if(activePage==='page-agenda')renderAgenda();
-  else if(activePage==='page-backlog')renderBacklog();
+  else if(activePage==='page-backlog'){renderBacklog();if(blActiveTab==='chrono'){const os=document.getElementById('bl-filter-obj');if(os){os.dataset.teamKey='';os.value='';}renderGantt();}}
   else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams()]);renderSettings();}
   else if(activePage==='page-objectives'){
     // Mettre à jour le filtre par défaut vers la nouvelle équipe et re-filtrer
@@ -445,7 +445,7 @@ async function navTo(p,noPush=false){
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
-  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='objectives'){
     document.getElementById('sprint-bar-sticky')?.classList.remove('active');
     document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement des objectifs…</p></div>`;
@@ -1703,6 +1703,8 @@ function switchBlTab(tab){
   if(syncBtn)syncBtn.style.display=tab==='chrono'||!isAdmin?'none':'inline-flex';
   const filterSel=document.getElementById('bl-filter-sprint');
   if(filterSel)filterSel.style.display=tab==='chrono'?'none':'block';
+  const objSel=document.getElementById('bl-filter-obj');
+  if(objSel)objSel.style.display=tab==='chrono'?'block':'none';
   const methodWrap=document.getElementById('bl-method-wrap');
   if(methodWrap)methodWrap.style.display=tab==='chrono'?'none':'flex';
   if(tab==='chrono')renderGantt();
@@ -1775,7 +1777,44 @@ function toggleBlSort(col){
   renderBacklog();
 }
 
-function renderGantt(){ renderGanttFor(S.backlog,'bl-gantt-wrap'); }
+function _initGanttObjFilter(){
+  const sel=document.getElementById('bl-filter-obj');
+  if(!sel||!S.objectivesData)return;
+  const teamKey=String(selectedTeamId||'');
+  if(sel.dataset.teamKey===teamKey&&sel.options.length>1)return;
+  sel.dataset.teamKey=teamKey;
+  const{objectives}=S.objectivesData;
+  const prev=sel.value;
+  const opts=['<option value="">Tous</option>'];
+  Object.entries(objectives||{}).forEach(([k,feats])=>{
+    if(k==='__orphan__'||k.startsWith('__unresolved__'))return;
+    const visible=selectedTeamId?feats.filter(f=>String(f.team_id)===teamKey):feats;
+    if(visible.length>0)opts.push(`<option value="${encodeURIComponent(k)}">${k}</option>`);
+  });
+  opts.push('<option value="__orphan__">Sans objectif</option>');
+  sel.innerHTML=opts.join('');
+  if(prev)sel.value=prev;
+}
+
+function renderGantt(){
+  _initGanttObjFilter();
+  const sel=document.getElementById('bl-filter-obj');
+  const objVal=sel?sel.value:'';
+  let items=S.backlog||[];
+  if(objVal==='__orphan__'){
+    const allIds=new Set();
+    Object.entries(S.objectivesData?.objectives||{}).forEach(([k,feats])=>{
+      if(k!=='__orphan__')feats.forEach(f=>allIds.add(f.jira_id));
+    });
+    items=items.filter(r=>!allIds.has(r.jira_id));
+  } else if(objVal&&S.objectivesData){
+    const key=decodeURIComponent(objVal);
+    const feats=S.objectivesData.objectives[key]||[];
+    const ids=new Set(feats.map(f=>f.jira_id));
+    items=items.filter(r=>ids.has(r.jira_id));
+  }
+  renderGanttFor(items,'bl-gantt-wrap');
+}
 
 function renderGanttFor(backlogItems, wrapId){
   const wrap=document.getElementById(wrapId);
