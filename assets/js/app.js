@@ -2634,28 +2634,45 @@ function _rdmBuildData(teamId){
     return{sprint,groups,projProgress,isPast};
   });
 
-  // Bandes par objectif : vert (déjà livré) + une couleur par sprint de la fenêtre
-  const SPRINT_BAND_COLORS=['#94a3b8','var(--primary)','#0891b2','#059669','#d97706'];
-  const objBands={};
-  if(S.objectivesData){
+  // Bandes cumulatives par carte avec couleurs dégradées selon position relative
+  // Solid: [primary, cyan, green, orange] pour offset 0..3
+  // Own card future sprint: primary@20% (offset+1), primary@40% (offset+2+)
+  // Done: primary (carte passée), vert (cartes courante/futures)
+  const SOLID_COLORS=['var(--primary)','#0891b2','var(--success,#22c55e)','#d97706'];
+  const curBlockIdx=sprintsToShow.findIndex(s=>String(s.id)===String(currentSprintId));
+  sprintBlocks.forEach((block,blockIdx)=>{
+    block.objBands={};
+    if(!S.objectivesData)return;
+    const isPastCard=curBlockIdx>=0&&blockIdx<curBlockIdx;
+    const cardOffset=curBlockIdx>=0?blockIdx-curBlockIdx:-1;
     Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
       const tf=teamId?feats.filter(f=>String(f.team_id)===String(teamId)):feats;
       if(!tf.length)return;
       const total=tf.length;
       const doneCount=tf.filter(f=>f.done).length;
-      const bands=sprintsToShow.map((sprint,idx)=>{
-        const count=tf.filter(f=>{
-          if(f.done)return false;
-          const bl=(S.backlog||[]).find(b=>b.jira_id===f.jira_id);
-          return bl&&String(bl.sprint_id)===String(sprint.id);
-        }).length;
-        return{color:SPRINT_BAND_COLORS[idx]||'#94a3b8',pct:Math.round(count/total*100)};
-      }).filter(b=>b.pct>0);
-      objBands[k]={donePct:Math.round(doneCount/total*100),bands};
+      const bands=[];
+      if(curBlockIdx>=0&&blockIdx>=curBlockIdx){
+        for(let i=curBlockIdx;i<=blockIdx;i++){
+          const sp=sprintsToShow[i];
+          const o=i-curBlockIdx;
+          const isOwn=(o===cardOffset);
+          const color=isOwn&&o>0
+            ?(o===1?'color-mix(in srgb,var(--primary) 20%,transparent)':'color-mix(in srgb,var(--primary) 40%,transparent)')
+            :(SOLID_COLORS[o]||'#94a3b8');
+          const count=tf.filter(f=>{
+            if(f.done)return false;
+            const bl=(S.backlog||[]).find(b=>b.jira_id===f.jira_id);
+            return bl&&String(bl.sprint_id)===String(sp.id);
+          }).length;
+          if(count>0)bands.push({color,pct:Math.round(count/total*100)});
+        }
+      }
+      const doneColor=isPastCard?'var(--primary)':'var(--success,#22c55e)';
+      block.objBands[k]={donePct:Math.round(doneCount/total*100),doneColor,bands};
     });
-  }
+  });
 
-  return{sprintBlocks,currentSprintId,objBands};
+  return{sprintBlocks,currentSprintId};
 }
 
 function _rdmAssignColors(sprintBlocks){
@@ -2672,7 +2689,7 @@ function _rdmSprintLabel(sprint){
   return`${sprint.name} · ${RDM_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=false,currentSprintId=null,objBands={}){
+function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,animIdx,solo=false,currentSprintId=null){
   const isCurrent=String(sprint.id)===String(currentSprintId||(_rdmLastData||{}).currentSprintId);
   const orderedKeys=[
     ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
@@ -2688,10 +2705,10 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=
         ?`<span class="rdm-group-pct rdm-group-pct--proj" style="color:${color}" title="Projection à la clôture du sprint">→ ${prog.pct}%</span>`
         :`<span class="rdm-group-pct" style="color:${color}" title="Avancement actuel">${prog.pct}%</span>`)
       :'';
-    const bdata=k!=='__orphan__'?objBands[k]:null;
+    const bdata=k!=='__orphan__'?(objBands||{})[k]:null;
     const barHtml=bdata
       ?`<div class="rdm-group-progress-seg">
-          ${bdata.donePct>0?`<div class="rdm-seg rdm-seg--done" style="width:${bdata.donePct}%" title="${bdata.donePct}% déjà livré"></div>`:''}
+          ${bdata.donePct>0?`<div class="rdm-seg" style="width:${bdata.donePct}%;background:${bdata.doneColor||'var(--success,#22c55e)'}" title="${bdata.donePct}% déjà livré"></div>`:''}
           ${bdata.bands.map(b=>`<div class="rdm-seg" style="width:${b.pct}%;background:${b.color}"></div>`).join('')}
         </div>`
       :'';
@@ -2725,16 +2742,15 @@ function _rdmBuildTrackHtml(data,colorMap){
   const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
   const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
 
-  const{objBands={}}=data;
   const topCards=[pastBlock,curBlock].filter(Boolean);
   const topHtml=topCards.length
-    ?`<div class="rdm-top-row">${topCards.map((b,i)=>_rdmCardHtml(b,colorMap,i,false,currentSprintId,objBands)).join('')}</div>
+    ?`<div class="rdm-top-row">${topCards.map((b,i)=>_rdmCardHtml(b,colorMap,i,false,currentSprintId)).join('')}</div>
       <div class="rdm-slide-divider" aria-hidden="true">
         <svg width="2" height="28" viewBox="0 0 2 28"><line x1="1" y1="0" x2="1" y2="28" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
       </div>`
     :'';
   const bottomHtml=futureBlocks.length
-    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId,objBands)).join('')}</div>`
+    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId)).join('')}</div>`
     :'';
   return`<div class="rdm-slide">${topHtml}${bottomHtml}</div>`;
 }

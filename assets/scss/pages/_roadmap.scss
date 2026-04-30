@@ -56,7 +56,6 @@
 
   &--current {
     border: 2.5px solid var(--primary);
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 18%, transparent), 0 8px 24px rgba(0,0,0,.12);
     .rdm-sprint-header { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--bg)) 0%, var(--bg) 100%); }
   }
 
