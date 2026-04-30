@@ -570,26 +570,28 @@ function calcCap(member,start,end,leaves){
   if(startDt.getFullYear()!==endDt.getFullYear())
     holidays(endDt.getFullYear(),country).forEach(x=>hols.add(x));
   const mLeaves=leaves.filter(l=>l.memberId==member.id);
-  let totH=0,lvH=0;
+  // Compter en jours (pas en heures) pour éviter les décimales liées au vendredi 7h
+  let totD=0,lvD=0;
   let d=new Date(startDt);
   while(d<=endDt){
     const dow=d.getDay();
     if(dow>0&&dow<6){
       const ds=toDS(d);
       if(!hols.has(ds)){
-        const h=dayH(d);totH+=h;
+        totD++;
         const lv=mLeaves.find(l=>l.date===ds);
-        if(lv) lvH+=(lv.type==='full'?h:h/2);
+        if(lv) lvD+=(lv.type==='full'?1:0.5);
       }
     }
     d.setDate(d.getDate()+1);
   }
-  const avail=totH-lvH;
-  const mtgH=avail*(member.meetings||20)/100;
+  const availD=totD-lvD;
   const velPct=member.velocity!=null?member.velocity:(vg[member.level]??85);
   const hasCustomVel=member.velocity!=null;
-  const prodH=(avail-mtgH)*(velPct/100)*(((member.know||70)+(member.adapt||80))/200);
-  return {totD:r2(totH/8),availD:r2(avail/8),mtgD:r2(mtgH/8),prodD:r2(prodH/8),velPct,hasCustomVel};
+  const mtgPct=member.meetings||20;
+  const mtgD=r2(availD*mtgPct/100);
+  const prodD=r2(availD*(velPct-mtgPct)/100);
+  return {totD,availD,mtgD,prodD,velPct,hasCustomVel};
 }
 
 // ── DASHBOARD ────────────────────────────────────────────
@@ -631,7 +633,7 @@ function renderDash(){
     :devs.map(m=>{const c=calcCap(m,cur.start,cur.end,leaves);const pct=Math.round(c.prodD/Math.max(.01,c.totD)*100);
       return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
         <span style="font-weight:600">${m.fname} ${m.lname} <span class="badge ${LB[m.level]||'badge-primary'}" style="font-size:10px">${m.level}</span></span>
-        <span style="color:var(--text3)">${c.prodD}j prod / ${c.availD}j dispo / ${c.totD}j bruts</span></div>
+        <span style="color:var(--text3)">${c.prodD}j prod / ${c.availD}j dispo</span></div>
         <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px">${c.mtgD}j réunions · ${RL[m.role]||m.role} · <span style="color:${c.hasCustomVel?'var(--primary)':'var(--text3)'}" title="${c.hasCustomVel?'Vélocité personnalisée':'Vélocité par niveau'}">${c.velPct}% vél.${c.hasCustomVel?' ✎':''}</span></div></div>`;}).join('');
   const objs=cur?.objectives||[];
