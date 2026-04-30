@@ -2634,17 +2634,18 @@ function _rdmBuildData(teamId){
     return{sprint,groups,projProgress,isPast};
   });
 
-  // Bandes cumulatives par carte avec couleurs dégradées selon position relative
-  // Solid: [primary, cyan, green, orange] pour offset 0..3
-  // Own card future sprint: primary@20% (offset+1), primary@40% (offset+2+)
-  // Done: primary (carte passée), vert (cartes courante/futures)
-  const SOLID_COLORS=['var(--primary)','#0891b2','var(--success,#22c55e)','#d97706'];
+  // Bandes cumulatives par carte : --primary décroissant (100→75→50→25%) par offset
+  const BAND_COLORS=[
+    'var(--primary)',
+    'color-mix(in srgb,var(--primary) 75%,transparent)',
+    'color-mix(in srgb,var(--primary) 50%,transparent)',
+    'color-mix(in srgb,var(--primary) 25%,transparent)'
+  ];
   const curBlockIdx=sprintsToShow.findIndex(s=>String(s.id)===String(currentSprintId));
   sprintBlocks.forEach((block,blockIdx)=>{
     block.objBands={};
     if(!S.objectivesData)return;
     const isPastCard=curBlockIdx>=0&&blockIdx<curBlockIdx;
-    const cardOffset=curBlockIdx>=0?blockIdx-curBlockIdx:-1;
     Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
       const tf=teamId?feats.filter(f=>String(f.team_id)===String(teamId)):feats;
       if(!tf.length)return;
@@ -2655,16 +2656,12 @@ function _rdmBuildData(teamId){
         for(let i=curBlockIdx;i<=blockIdx;i++){
           const sp=sprintsToShow[i];
           const o=i-curBlockIdx;
-          const isOwn=(o===cardOffset);
-          const color=isOwn&&o>0
-            ?(o===1?'color-mix(in srgb,var(--primary) 20%,transparent)':'color-mix(in srgb,var(--primary) 40%,transparent)')
-            :(SOLID_COLORS[o]||'#94a3b8');
           const count=tf.filter(f=>{
             if(f.done)return false;
             const bl=(S.backlog||[]).find(b=>b.jira_id===f.jira_id);
             return bl&&String(bl.sprint_id)===String(sp.id);
           }).length;
-          if(count>0)bands.push({color,pct:Math.round(count/total*100)});
+          if(count>0)bands.push({color:BAND_COLORS[o]||'color-mix(in srgb,var(--primary) 15%,transparent)',pct:Math.round(count/total*100)});
         }
       }
       const doneColor=isPastCard?'var(--primary)':'var(--success,#22c55e)';
