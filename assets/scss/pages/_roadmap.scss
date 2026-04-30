@@ -55,24 +55,22 @@
   letter-spacing: .3px;
 }
 
-// ── Canvas positionnel fixe 1024×580 ─────────────────────────────
+// ── Canvas positionnel fixe 1024×700 ─────────────────────────────
 .rdm-cards-map {
   position: relative;
   width: 1024px;
-  height: 580px;
+  height: 700px;
   margin: 0 auto;
   overflow: hidden;
   flex-shrink: 0;
 }
 
 // ── Ancre de carte sur son jalon ──────────────────────────────────
+// Largeur et position injectées en inline style selon le jalon
 .rdm-card-pin {
   position: absolute;
   z-index: 1;
-  width: 232px; // cartes rangée du haut
 }
-
-.rdm-card-pin--below { width: 272px; } // cartes rangée du bas (sprint courant + 1 autre)
 
 .rdm-card-pin--current { z-index: 3; }
 
@@ -80,7 +78,7 @@
 .rdm-stub { fill: none; stroke: var(--border); stroke-width: 1.5; stroke-dasharray: 4 3; }
 
 // ── Hauteur body limitée dans la roadmap ──────────────────────────
-.rdm-cards-map .rdm-sprint-body { max-height: 170px; overflow-y: auto; }
+.rdm-cards-map .rdm-sprint-body { max-height: 130px; overflow-y: auto; }
 
 // ── Carte sprint ─────────────────────────────────────────────
 .rdm-sprint-card {
