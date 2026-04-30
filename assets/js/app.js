@@ -60,7 +60,7 @@ async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/bac
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
-const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',objectives:'objectives',agenda:'planning',settings:'admin',users:'users'};
+const PAGE_SLUGS={dashboard:'dashboard',charts:'chart',sprints:'sprints',backlog:'backlog',objectives:'objectives',roadmap:'roadmap',agenda:'planning',settings:'admin',users:'users'};
 const SLUG_PAGES=Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v])=>[v,k]));
 
 // ── APP STATE ────────────────────────────────────────────
@@ -334,10 +334,14 @@ async function navTeam(dir){
   else if(activePage==='page-backlog'){renderBacklog();if(blActiveTab==='chrono'){const os=document.getElementById('bl-filter-obj');if(os){os.dataset.teamKey='';os.value='';}renderGantt();}}
   else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams()]);renderSettings();}
   else if(activePage==='page-objectives'){
-    // Mettre à jour le filtre par défaut vers la nouvelle équipe et re-filtrer
     const sel=document.getElementById('obj-team-filter');
     if(sel&&S.teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=selectedTeamId;
     renderObjectivesContent();
+  }
+  else if(activePage==='page-roadmap'){
+    const sel=document.getElementById('rdm-team-filter');
+    if(sel&&S.teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=selectedTeamId;
+    renderRoadmapContent();
   }
 }
 
@@ -452,6 +456,12 @@ async function navTo(p,noPush=false){
     document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement des objectifs…</p></div>`;
     try{await loadObjectives();}catch(e){document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||'Erreur lors du chargement'}</p></div>`;return;}
     renderObjectives();
+  }
+  if(p==='roadmap'){
+    document.getElementById('sprint-bar-sticky')?.classList.remove('active');
+    document.getElementById('rdm-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement…</p></div>`;
+    try{await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);}catch(e){document.getElementById('rdm-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||'Erreur lors du chargement'}</p></div>`;return;}
+    renderRoadmap();
   }
 }
 
@@ -2541,6 +2551,193 @@ async function refreshObjectives(){
   }catch(e){toast(e.error||'Erreur lors du chargement','error');}
   finally{if(btn){btn.disabled=false;btn.innerHTML='<span class="material-icons-round">refresh</span>Actualiser';}}
 }
+
+// ── ROADMAP ───────────────────────────────────────────────
+const RDM_COLORS=['#7c3aed','#0891b2','#059669','#d97706','#ec4899','#2563eb','#b45309','#0e7490'];
+const RDM_MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+let _rdmCarouselIdx=0;
+let _rdmSlides=[];
+
+function initRoadmapFilter(){
+  const sel=document.getElementById('rdm-team-filter');
+  if(!sel||!S.objectivesData)return;
+  const{teams}=S.objectivesData;
+  const prev=sel.value;
+  sel.innerHTML=`<option value="">Toutes les équipes</option>`+
+    teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  if(selectedTeamId&&teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=String(selectedTeamId);
+  else if(prev&&teams.find(t=>String(t.id)===prev))sel.value=prev;
+}
+
+function _rdmBuildData(teamId){
+  const now=new Date();now.setHours(0,0,0,0);
+  const sorted=[...S.sprints].sort((a,b)=>new Date(a.start)-new Date(b.start));
+  let curIdx=sorted.findIndex(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
+  if(curIdx<0)curIdx=sorted.findIndex(s=>!s.closed&&new Date(s.start)>now);
+  if(curIdx<0)curIdx=Math.max(0,sorted.length-1);
+  const startIdx=Math.max(0,curIdx-1);
+  const sprintsToShow=sorted.slice(startIdx,startIdx+5);
+  const currentSprintId=sorted[curIdx]?.id;
+
+  // jira_id → objectif
+  const jiraToObj={};
+  if(S.objectivesData){
+    Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
+      feats.forEach(f=>{jiraToObj[f.jira_id]=k;});
+    });
+  }
+
+  // Progression globale par objectif pour cette équipe
+  const objProgress={};
+  if(S.objectivesData){
+    Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
+      const tf=teamId?feats.filter(f=>String(f.team_id)===String(teamId)):feats;
+      const done=tf.filter(f=>f.done).length;
+      objProgress[k]={done,total:tf.length,pct:tf.length?Math.round(done/tf.length*100):0};
+    });
+  }
+
+  const DONE_ST=['10 - termine','9 - a livrer en prod'];
+  const sprintBlocks=sprintsToShow.map(sprint=>{
+    const features=(S.backlog||[]).filter(f=>
+      String(f.sprint_id)===String(sprint.id)&&
+      (!teamId||String(f.team_id)===String(teamId))
+    );
+    const groups={};
+    features.forEach(f=>{
+      const k=jiraToObj[f.jira_id]||'__orphan__';
+      if(!groups[k])groups[k]=[];
+      groups[k].push({...f,_done:DONE_ST.includes((f.status||'').trim().toLowerCase())});
+    });
+    return{sprint,groups};
+  });
+
+  return{sprintBlocks,objProgress,currentSprintId};
+}
+
+function _rdmAssignColors(sprintBlocks){
+  const colorMap={__orphan__:'#6b7280'};
+  let ci=0;const seen=new Set();
+  sprintBlocks.forEach(({groups})=>Object.keys(groups).forEach(k=>{
+    if(k!=='__orphan__'&&!seen.has(k)){seen.add(k);colorMap[k]=RDM_COLORS[ci++%RDM_COLORS.length];}
+  }));
+  return colorMap;
+}
+
+function _rdmSprintLabel(sprint){
+  const d=new Date(sprint.end||sprint.start);
+  return`${sprint.name} · ${RDM_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function _rdmBuildTrackHtml(data,colorMap){
+  const{sprintBlocks,objProgress,currentSprintId}=data;
+  return sprintBlocks.map(({sprint,groups},i)=>{
+    const isCurrent=String(sprint.id)===String(currentSprintId);
+    const isPast=!!sprint.closed;
+
+    const orderedKeys=[
+      ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
+      ...(groups['__orphan__']?['__orphan__']:[])
+    ];
+
+    const groupsHtml=orderedKeys.map(k=>{
+      const feats=groups[k];
+      const color=colorMap[k]||'#6b7280';
+      const label=k==='__orphan__'?'Sans objectif':k;
+      const prog=k!=='__orphan__'?objProgress[k]:null;
+      return`<div class="rdm-group" style="--rdm-color:${color}">
+        <div class="rdm-group-header">
+          <span class="rdm-group-label">${label}</span>
+          ${prog?`<span class="rdm-group-pct" style="color:${color}">${prog.pct}%</span>`:''}
+        </div>
+        ${prog?`<div class="rdm-group-progress"><div class="rdm-group-progress-fill" style="width:${prog.pct}%"></div></div>`:''}
+        <ul class="rdm-feature-list">${feats.map(f=>`
+          <li class="rdm-feature${f._done?' rdm-feature--done':''}">
+            ${f._done
+              ?'<span class="material-icons-round rdm-check">check_circle</span>'
+              :`<span class="rdm-dot" style="background:${color}"></span>`}
+            <span class="rdm-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||f.jira_id||'—'}</span>
+          </li>`).join('')}
+        </ul>
+      </div>`;
+    }).join('');
+
+    const connector=i<sprintBlocks.length-1?`<div class="rdm-connector" aria-hidden="true">
+      <svg viewBox="0 0 48 160" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+        <path d="M8,30 C40,30 40,80 8,80 C40,80 40,130 8,130" stroke="var(--primary)" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.25"/>
+        <circle cx="8" cy="130" r="3" fill="var(--primary)" opacity="0.35"/>
+      </svg>
+    </div>`:'';
+
+    return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${i*0.08}s">
+      <div class="rdm-sprint-header">
+        <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
+        <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
+        ${isCurrent?'<span class="rdm-badge-current">En cours</span>':''}
+      </div>
+      <div class="rdm-sprint-body">${groupsHtml||'<p class="rdm-empty">Aucune feature planifiée</p>'}</div>
+    </div>${connector}`;
+  }).join('');
+}
+
+function renderRoadmapContent(){
+  const content=document.getElementById('rdm-content');
+  if(!content)return;
+  const filterVal=document.getElementById('rdm-team-filter')?.value||'';
+
+  if(!filterVal){
+    // Mode carousel — toutes les équipes
+    const teams=S.objectivesData?.teams||[];
+    if(!teams.length){content.innerHTML='<p class="obj-empty">Aucune équipe disponible</p>';return;}
+    _rdmSlides=teams.map(t=>{
+      const data=_rdmBuildData(String(t.id));
+      const colorMap=_rdmAssignColors(data.sprintBlocks);
+      return{team:t,html:_rdmBuildTrackHtml(data,colorMap)};
+    });
+    _rdmCarouselIdx=Math.max(0,_rdmSlides.findIndex(s=>String(s.team.id)===String(selectedTeamId)));
+    content.innerHTML=`<div class="rdm-carousel" id="rdm-carousel">
+      <div class="rdm-carousel-controls">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="rdm-carousel-btn" onclick="rdmCarouselPrev()" ${_rdmSlides.length<=1?'disabled':''}><span class="material-icons-round">chevron_left</span></button>
+          <span class="rdm-carousel-team" id="rdm-carousel-team-name">${_rdmSlides[_rdmCarouselIdx]?.team.name||''}</span>
+          <button class="rdm-carousel-btn" onclick="rdmCarouselNext()" ${_rdmSlides.length<=1?'disabled':''}><span class="material-icons-round">chevron_right</span></button>
+        </div>
+        <div class="rdm-carousel-dots" id="rdm-carousel-dots">
+          ${_rdmSlides.map((_,i)=>`<span class="rdm-carousel-dot${i===_rdmCarouselIdx?' active':''}" onclick="rdmCarouselGo(${i})"></span>`).join('')}
+        </div>
+      </div>
+      <div id="rdm-carousel-slides">
+        ${_rdmSlides.map((s,i)=>`<div class="rdm-carousel-slide${i===_rdmCarouselIdx?' active':''}" data-idx="${i}">
+          <div class="rdm-track">${s.html}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  } else {
+    // Mode équipe unique
+    const data=_rdmBuildData(filterVal);
+    const colorMap=_rdmAssignColors(data.sprintBlocks);
+    content.innerHTML=`<div class="rdm-track">${_rdmBuildTrackHtml(data,colorMap)}</div>`;
+  }
+}
+
+function rdmCarouselGo(idx){
+  if(!_rdmSlides.length)return;
+  idx=((idx%_rdmSlides.length)+_rdmSlides.length)%_rdmSlides.length;
+  _rdmCarouselIdx=idx;
+  document.querySelectorAll('#rdm-carousel-slides .rdm-carousel-slide').forEach((s,i)=>s.classList.toggle('active',i===idx));
+  document.querySelectorAll('#rdm-carousel-dots .rdm-carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+  const tn=document.getElementById('rdm-carousel-team-name');
+  if(tn)tn.textContent=_rdmSlides[idx]?.team.name||'';
+}
+function rdmCarouselPrev(){rdmCarouselGo(_rdmCarouselIdx-1);}
+function rdmCarouselNext(){rdmCarouselGo(_rdmCarouselIdx+1);}
+
+function renderRoadmap(){
+  if(!S.objectivesData)return;
+  initRoadmapFilter();
+  renderRoadmapContent();
+}
+function filterRoadmap(){renderRoadmapContent();}
 
 // ── UTILS ────────────────────────────────────────────────
 function fd(ds){if(!ds)return '—';return new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}

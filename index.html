@@ -113,6 +113,7 @@
         <div class="nav-item" onclick="navTo('sprints')"><span class="material-icons-round">bolt</span><span>Sprints</span></div>
         <div class="nav-item" onclick="navTo('backlog')"><span class="material-icons-round">view_list</span><span>Backlog</span></div>
         <div class="nav-item" onclick="navTo('objectives')"><span class="material-icons-round">track_changes</span><span>Objectifs</span></div>
+        <div class="nav-item" onclick="navTo('roadmap')"><span class="material-icons-round">map</span><span>Roadmap</span></div>
         <div class="nav-item" onclick="navTo('agenda')"><span class="material-icons-round">calendar_month</span><span>Agenda</span></div>
         <div class="nav-item admin-only" onclick="navTo('settings')"><span class="material-icons-round">settings</span><span>Paramètres</span></div>
         <div class="nav-item admin-only" onclick="navTo('users')"><span class="material-icons-round">group</span><span>Utilisateurs</span></div>
@@ -252,6 +253,23 @@
           </div>
         </div>
         <div id="obj-content"></div>
+      </div>
+
+      <!-- ROADMAP -->
+      <div class="page" id="page-roadmap">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Roadmap 🗺️</div>
+            <div class="page-sub" id="rdm-sub">Vision des prochains sprints</div>
+          </div>
+          <div class="rdm-toolbar">
+            <div class="obj-filter-wrap">
+              <span class="material-icons-round">filter_list</span>
+              <select class="input" id="rdm-team-filter" onchange="filterRoadmap()"></select>
+            </div>
+          </div>
+        </div>
+        <div id="rdm-content"></div>
       </div>
 
       <!-- CHARTS -->
