@@ -532,7 +532,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-sprint-card--current .rdm-sprint-header{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 18%,var(--bg)) 0%,var(--bg) 100%);}
 .rdm-sprint-card--past{opacity:.62;filter:saturate(.55);}
 .rdm-current-stripe{height:4px;background:var(--primary);position:absolute;top:0;left:0;right:0;}
-.rdm-group-progress-seg{height:5px;background:var(--border);border-radius:99px;margin-bottom:6px;overflow:hidden;display:flex;}
+.rdm-group-progress-seg{height:5px;background:color-mix(in srgb,var(--border) 35%,transparent);border-radius:99px;margin-bottom:6px;overflow:hidden;display:flex;}
 .rdm-seg{height:100%;transition:width .6s ease;}
 .rdm-seg--done{background:var(--success,#22c55e);}
 @keyframes rdmCardIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}

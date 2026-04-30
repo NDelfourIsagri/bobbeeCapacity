@@ -231,7 +231,7 @@
 // ── Barre segmentée par sprint ────────────────────────────────
 .rdm-group-progress-seg {
   height: 5px;
-  background: var(--border);
+  background: color-mix(in srgb, var(--border) 35%, transparent);
   border-radius: 99px;
   margin-bottom: 6px;
   overflow: hidden;

@@ -2664,7 +2664,7 @@ function _rdmBuildData(teamId){
           if(count>0)bands.push({color:BAND_COLORS[o]||'color-mix(in srgb,var(--primary) 15%,transparent)',pct:Math.round(count/total*100)});
         }
       }
-      const doneColor=isPastCard?'var(--primary)':'var(--success,#22c55e)';
+      const doneColor='var(--primary)';
       block.objBands[k]={donePct:Math.round(doneCount/total*100),doneColor,bands};
     });
   });
