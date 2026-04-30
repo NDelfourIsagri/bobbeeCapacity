@@ -2581,24 +2581,23 @@ function _rdmBuildData(teamId){
 
   // jira_id → objectif
   const jiraToObj={};
-  if(S.objectivesData){
-    Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
-      feats.forEach(f=>{jiraToObj[f.jira_id]=k;});
-    });
-  }
+  if(S.objectivesData)
+    Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>feats.forEach(f=>{jiraToObj[f.jira_id]=k;}));
 
-  // Progression globale par objectif pour cette équipe
-  const objProgress={};
-  if(S.objectivesData){
-    Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
-      const tf=teamId?feats.filter(f=>String(f.team_id)===String(teamId)):feats;
-      const done=tf.filter(f=>f.done).length;
-      objProgress[k]={done,total:tf.length,pct:tf.length?Math.round(done/tf.length*100):0};
-    });
-  }
+  // Pour chaque feature de backlog, quelle date de fin de sprint ?
+  const jiraToSprintEnd={};
+  (S.backlog||[]).forEach(f=>{
+    const sp=S.sprints.find(s=>String(s.id)===String(f.sprint_id));
+    if(sp)jiraToSprintEnd[f.jira_id]=sp.end;
+  });
 
   const DONE_ST=['10 - termine','9 - a livrer en prod'];
+
   const sprintBlocks=sprintsToShow.map(sprint=>{
+    const isPast=!!sprint.closed;
+    const sprintEndDt=new Date(sprint.end);
+
+    // Features de ce sprint pour ce groupe
     const features=(S.backlog||[]).filter(f=>
       String(f.sprint_id)===String(sprint.id)&&
       (!teamId||String(f.team_id)===String(teamId))
@@ -2609,10 +2608,33 @@ function _rdmBuildData(teamId){
       if(!groups[k])groups[k]=[];
       groups[k].push({...f,_done:DONE_ST.includes((f.status||'').trim().toLowerCase())});
     });
-    return{sprint,groups};
+
+    // Progression par objectif — réelle pour sprint passé, projection pour les autres
+    const projProgress={};
+    if(S.objectivesData){
+      Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
+        const tf=teamId?feats.filter(f=>String(f.team_id)===String(teamId)):feats;
+        if(!tf.length)return;
+        if(isPast){
+          // État réel actuel
+          const done=tf.filter(f=>f.done).length;
+          projProgress[k]={done,total:tf.length,pct:Math.round(done/tf.length*100),isProjection:false};
+        } else {
+          // Projection : déjà faites OU sprint de livraison ≤ fin de ce sprint
+          const projDone=tf.filter(f=>{
+            if(f.done)return true;
+            const fEnd=jiraToSprintEnd[f.jira_id];
+            return fEnd&&new Date(fEnd)<=sprintEndDt;
+          }).length;
+          projProgress[k]={done:projDone,total:tf.length,pct:Math.round(projDone/tf.length*100),isProjection:true};
+        }
+      });
+    }
+
+    return{sprint,groups,projProgress,isPast};
   });
 
-  return{sprintBlocks,objProgress,currentSprintId};
+  return{sprintBlocks,currentSprintId};
 }
 
 function _rdmAssignColors(sprintBlocks){
@@ -2630,10 +2652,9 @@ function _rdmSprintLabel(sprint){
 }
 
 function _rdmBuildTrackHtml(data,colorMap){
-  const{sprintBlocks,objProgress,currentSprintId}=data;
-  return sprintBlocks.map(({sprint,groups},i)=>{
+  const{sprintBlocks,currentSprintId}=data;
+  return sprintBlocks.map(({sprint,groups,projProgress,isPast},i)=>{
     const isCurrent=String(sprint.id)===String(currentSprintId);
-    const isPast=!!sprint.closed;
 
     const orderedKeys=[
       ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
@@ -2644,11 +2665,16 @@ function _rdmBuildTrackHtml(data,colorMap){
       const feats=groups[k];
       const color=colorMap[k]||'#6b7280';
       const label=k==='__orphan__'?'Sans objectif':k;
-      const prog=k!=='__orphan__'?objProgress[k]:null;
+      const prog=k!=='__orphan__'?projProgress[k]:null;
+      const pctLabel=prog
+        ? prog.isProjection
+          ? `<span class="rdm-group-pct rdm-group-pct--proj" style="color:${color}" title="Projection à la clôture du sprint">→ ${prog.pct}%</span>`
+          : `<span class="rdm-group-pct" style="color:${color}" title="Avancement actuel">${prog.pct}%</span>`
+        : '';
       return`<div class="rdm-group" style="--rdm-color:${color}">
         <div class="rdm-group-header">
           <span class="rdm-group-label">${label}</span>
-          ${prog?`<span class="rdm-group-pct" style="color:${color}">${prog.pct}%</span>`:''}
+          ${pctLabel}
         </div>
         ${prog?`<div class="rdm-group-progress"><div class="rdm-group-progress-fill" style="width:${prog.pct}%"></div></div>`:''}
         <ul class="rdm-feature-list">${feats.map(f=>`
@@ -2673,7 +2699,7 @@ function _rdmBuildTrackHtml(data,colorMap){
       <div class="rdm-sprint-header">
         <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
         <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
-        ${isCurrent?'<span class="rdm-badge-current">En cours</span>':''}
+        ${isCurrent?'<span class="rdm-badge-current">En cours</span>':isPast?'<span class="rdm-badge-past">Clôturé</span>':''}
       </div>
       <div class="rdm-sprint-body">${groupsHtml||'<p class="rdm-empty">Aucune feature planifiée</p>'}</div>
     </div>${connector}`;
@@ -2695,21 +2721,24 @@ function renderRoadmapContent(){
       return{team:t,html:_rdmBuildTrackHtml(data,colorMap)};
     });
     _rdmCarouselIdx=Math.max(0,_rdmSlides.findIndex(s=>String(s.team.id)===String(selectedTeamId)));
+    const dis=_rdmSlides.length<=1?'disabled':'';
     content.innerHTML=`<div class="rdm-carousel" id="rdm-carousel">
-      <div class="rdm-carousel-controls">
-        <div style="display:flex;align-items:center;gap:10px">
-          <button class="rdm-carousel-btn" onclick="rdmCarouselPrev()" ${_rdmSlides.length<=1?'disabled':''}><span class="material-icons-round">chevron_left</span></button>
-          <span class="rdm-carousel-team" id="rdm-carousel-team-name">${_rdmSlides[_rdmCarouselIdx]?.team.name||''}</span>
-          <button class="rdm-carousel-btn" onclick="rdmCarouselNext()" ${_rdmSlides.length<=1?'disabled':''}><span class="material-icons-round">chevron_right</span></button>
+      <div class="rdm-carousel-header">
+        <span class="rdm-carousel-team-name" id="rdm-carousel-team-name">${_rdmSlides[_rdmCarouselIdx]?.team.name||''}</span>
+      </div>
+      <div class="rdm-carousel-stage">
+        <button class="rdm-carousel-btn" onclick="rdmCarouselPrev()" ${dis}><span class="material-icons-round">chevron_left</span></button>
+        <div class="rdm-carousel-slides-wrap" id="rdm-carousel-slides">
+          ${_rdmSlides.map((s,i)=>`<div class="rdm-carousel-slide${i===_rdmCarouselIdx?' active':''}" data-idx="${i}">
+            <div class="rdm-track">${s.html}</div>
+          </div>`).join('')}
         </div>
+        <button class="rdm-carousel-btn" onclick="rdmCarouselNext()" ${dis}><span class="material-icons-round">chevron_right</span></button>
+      </div>
+      <div class="rdm-carousel-footer">
         <div class="rdm-carousel-dots" id="rdm-carousel-dots">
           ${_rdmSlides.map((_,i)=>`<span class="rdm-carousel-dot${i===_rdmCarouselIdx?' active':''}" onclick="rdmCarouselGo(${i})"></span>`).join('')}
         </div>
-      </div>
-      <div id="rdm-carousel-slides">
-        ${_rdmSlides.map((s,i)=>`<div class="rdm-carousel-slide${i===_rdmCarouselIdx?' active':''}" data-idx="${i}">
-          <div class="rdm-track">${s.html}</div>
-        </div>`).join('')}
       </div>
     </div>`;
   } else {
