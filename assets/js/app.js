@@ -1704,7 +1704,7 @@ function switchBlTab(tab){
   const filterSel=document.getElementById('bl-filter-sprint');
   if(filterSel)filterSel.style.display=tab==='chrono'?'none':'block';
   const objSel=document.getElementById('bl-filter-obj');
-  if(objSel)objSel.style.display=tab==='chrono'?'block':'none';
+  if(objSel)objSel.style.display='block';
   const methodWrap=document.getElementById('bl-method-wrap');
   if(methodWrap)methodWrap.style.display=tab==='chrono'?'none':'flex';
   if(tab==='chrono')renderGantt();
@@ -1777,7 +1777,7 @@ function toggleBlSort(col){
   renderBacklog();
 }
 
-function _initGanttObjFilter(){
+function _initObjFilter(){
   const sel=document.getElementById('bl-filter-obj');
   if(!sel||!S.objectivesData)return;
   const teamKey=String(selectedTeamId||'');
@@ -1789,15 +1789,22 @@ function _initGanttObjFilter(){
   Object.entries(objectives||{}).forEach(([k,feats])=>{
     if(k==='__orphan__'||k.startsWith('__unresolved__'))return;
     const visible=selectedTeamId?feats.filter(f=>String(f.team_id)===teamKey):feats;
-    if(visible.length>0)opts.push(`<option value="${encodeURIComponent(k)}">${k}</option>`);
+    if(visible.length===0)return;
+    if(visible.every(f=>f.done))return;
+    opts.push(`<option value="${encodeURIComponent(k)}">${k}</option>`);
   });
   opts.push('<option value="__orphan__">Sans objectif</option>');
   sel.innerHTML=opts.join('');
   if(prev)sel.value=prev;
 }
 
+function onObjFilterChange(){
+  if(blActiveTab==='chrono')renderGantt();
+  else renderBacklog();
+}
+
 function renderGantt(){
-  _initGanttObjFilter();
+  _initObjFilter();
   const sel=document.getElementById('bl-filter-obj');
   const objVal=sel?sel.value:'';
   let items=S.backlog||[];
@@ -2081,6 +2088,9 @@ function _renderGanttChildren(jiraId, children) {
 
 function renderBacklog(){
   const isAdmin=['admin','super_admin'].includes(CU?.role);
+  _initObjFilter();
+  const objSel=document.getElementById('bl-filter-obj');
+  if(objSel)objSel.style.display='block';
   // Remplir le filtre sprint
   const openSprints=S.sprints.filter(s=>!s.closed);
   const filterEl=document.getElementById('bl-filter-sprint');
@@ -2096,6 +2106,16 @@ function renderBacklog(){
   // Filtrer
   let rows=[...S.backlog];
   if(filterVal)rows=rows.filter(r=>String(r.sprint_id)===String(filterVal));
+  const objVal=objSel?objSel.value:'';
+  if(objVal==='__orphan__'){
+    const allIds=new Set();
+    Object.entries(S.objectivesData?.objectives||{}).forEach(([k,feats])=>{if(k!=='__orphan__')feats.forEach(f=>allIds.add(f.jira_id));});
+    rows=rows.filter(r=>!allIds.has(r.jira_id));
+  } else if(objVal&&S.objectivesData){
+    const feats=S.objectivesData.objectives[decodeURIComponent(objVal)]||[];
+    const ids=new Set(feats.map(f=>f.jira_id));
+    rows=rows.filter(r=>ids.has(r.jira_id));
+  }
   // Calculer le score
   rows=rows.map(r=>({...r,_score:riceScore(r)}));
   // Trier
