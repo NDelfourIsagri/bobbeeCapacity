@@ -50,7 +50,7 @@
 
   &:hover { box-shadow: 0 8px 28px rgba(0,0,0,.1); transform: translateY(-2px); }
 
-  &--solo { width: 320px; flex: 0 0 320px; }
+  .rdm-top-row & { width: 320px; flex: 0 0 320px; }
 
   &--current {
     border-color: var(--primary);

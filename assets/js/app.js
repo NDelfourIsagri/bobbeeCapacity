@@ -2576,7 +2576,7 @@ function _rdmBuildData(teamId){
   if(curIdx<0)curIdx=sorted.findIndex(s=>!s.closed&&new Date(s.start)>now);
   if(curIdx<0)curIdx=Math.max(0,sorted.length-1);
   const startIdx=Math.max(0,curIdx-1);
-  const sprintsToShow=sorted.slice(startIdx,startIdx+4);
+  const sprintsToShow=sorted.slice(startIdx,startIdx+5);
   const currentSprintId=sorted[curIdx]?.id;
 
   // jira_id → objectif
@@ -2692,18 +2692,21 @@ let _rdmLastData=null;
 function _rdmBuildTrackHtml(data,colorMap){
   _rdmLastData=data;
   const{sprintBlocks,currentSprintId}=data;
-  const pastBlock=sprintBlocks[0];
-  const futureBlocks=sprintBlocks.slice(1);
-  const pastHtml=pastBlock
-    ?`<div class="rdm-top-row">${_rdmCardHtml(pastBlock,colorMap,0,true,currentSprintId)}</div>
+  const pastBlock=sprintBlocks.find(b=>b.isPast);
+  const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
+  const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
+
+  const topCards=[pastBlock,curBlock].filter(Boolean);
+  const topHtml=topCards.length
+    ?`<div class="rdm-top-row">${topCards.map((b,i)=>_rdmCardHtml(b,colorMap,i,false,currentSprintId)).join('')}</div>
       <div class="rdm-slide-divider" aria-hidden="true">
         <svg width="2" height="28" viewBox="0 0 2 28"><line x1="1" y1="0" x2="1" y2="28" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
       </div>`
     :'';
-  const futureHtml=futureBlocks.length
-    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,i+1,false,currentSprintId)).join('')}</div>`
+  const bottomHtml=futureBlocks.length
+    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId)).join('')}</div>`
     :'';
-  return`<div class="rdm-slide">${pastHtml}${futureHtml}</div>`;
+  return`<div class="rdm-slide">${topHtml}${bottomHtml}</div>`;
 }
 
 function renderRoadmapContent(){
