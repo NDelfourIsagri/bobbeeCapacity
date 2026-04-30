@@ -2743,54 +2743,41 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
   const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
 
-  // ── S inversé — layout : 2 cartes en haut, 3 cartes en bas ────────────────
-  // Conteneur 1024×700. Bandes route : y=225 (haut) et y=475 (bas).
-  // Jalons (tous sur le chemin) :
-  //   D1(200,225) D2(790,225) ← bande haute
-  //   D3(120,475) D4(400,475) D5(700,475) ← bande basse
-  // Cartes centrées horizontalement sur leur jalon, aucun chevauchement.
-  const PINS=[
-    {s:'left:93px;top:5px;width:215px;',   cls:''},  // D1 centre-x=200 haut-gauche
-    {s:'left:663px;top:5px;width:255px;',  cls:''},  // D2 centre-x=790 haut-droite
-    {s:'left:13px;top:485px;width:215px;', cls:''},  // D3 centre-x=120 bas-gauche
-    {s:'left:278px;top:485px;width:245px;',cls:''},  // D4 centre-x=400 bas-centre
-    {s:'left:578px;top:485px;width:245px;',cls:''},  // D5 centre-x=700 bas-droite
-  ];
-  const allCards=[pastBlock,curBlock,...futureBlocks.slice(0,3)].filter(Boolean);
-  const cardsHtml=allCards.map((block,i)=>{
-    const p=PINS[i]||PINS[PINS.length-1];
-    const isCur=curBlock&&block&&String(block.sprint.id)===String(currentSprintId);
+  // Ligne 1 (flex, centré) : sprint passé + sprint courant — dot dessous
+  // Ligne 2 (flex, centré) : 3 sprints futurs — dot dessus
+  // Route SVG S inversé en arrière-plan décoratif, s'adapte à la hauteur du conteneur
+  const makePin=(block,animIdx,dotBelow)=>{
+    if(!block)return'';
+    const isCur=curBlock&&String(block.sprint.id)===String(currentSprintId);
+    const dot=`<span class="rdm-milestone-dot${isCur?' rdm-milestone-dot--current':''}"></span>`;
     const cls=`rdm-card-pin${isCur?' rdm-card-pin--current':''}`;
-    return`<div class="${cls}" style="${p.s}">${_rdmCardHtml(block,colorMap,i,false,currentSprintId)}</div>`;
-  }).join('');
+    const card=_rdmCardHtml(block,colorMap,animIdx,false,currentSprintId);
+    return`<div class="${cls}">${dotBelow?card+dot:dot+card}</div>`;
+  };
 
-  // Route en S inversé : bord gauche → D1 → D2 → virage S vers bas-gauche → D3 → D4 → D5 → bord droit
-  // La S-curve D2→D3 descend verticalement depuis D2 (cp1 sous D2) puis remonte (cp2 au-dessus D3).
-  // Aucun croisement possible : les cp verticals restent entre les deux bandes y=225 et y=475.
-  const RD='M 0,225 C 60,225 140,225 200,225 C 340,225 650,225 790,225 C 790,350 120,350 120,475 C 200,475 320,475 400,475 C 480,475 620,475 700,475 C 800,478 940,510 1024,510';
-  const stubs=[
-    `<line class="rdm-stub" x1="200" y1="193" x2="200" y2="225"/>`,  // D1 ↕ carte haut
-    `<line class="rdm-stub" x1="790" y1="193" x2="790" y2="225"/>`,  // D2 ↕ carte haut
-    `<line class="rdm-stub" x1="120" y1="475" x2="120" y2="485"/>`,  // D3 ↕ carte bas
-    `<line class="rdm-stub" x1="400" y1="475" x2="400" y2="485"/>`,  // D4 ↕ carte bas
-    `<line class="rdm-stub" x1="700" y1="475" x2="700" y2="485"/>`,  // D5 ↕ carte bas
-  ].join('');
-  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 700" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  const row1=[pastBlock,curBlock].filter(Boolean);
+  const row2=futureBlocks.slice(0,3);
+  const row1Html=row1.map((b,i)=>makePin(b,i,true)).join('');
+  const row2Html=row2.map((b,i)=>makePin(b,i+2,false)).join('');
+
+  // S inversé : bord gauche y≈240 → top band → S-curve douce → bottom band y≈360 → bord droit
+  // cp1=(800,280) cp2=(160,320) : S harmonieux avec beaux arrondis, sans croisement
+  // viewBox 1024×600, preserveAspectRatio=none → s'étire proportionnellement avec le conteneur
+  const RD='M 0,240 C 80,240 150,240 230,240 C 360,240 620,240 760,240 C 800,280 160,320 230,360 C 360,360 560,360 694,360 C 800,360 920,360 1024,360';
+  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
-    ${stubs}
-    <circle class="rdm-road-dot" cx="200" cy="225" r="7" style="animation-delay:.7s"/>
-    <circle class="rdm-road-ring" cx="790" cy="225" r="10" style="animation-delay:2.0s"/>
-    <circle class="rdm-road-dot rdm-road-dot--cur" cx="790" cy="225" r="10" style="animation-delay:1.7s"/>
-    <circle class="rdm-road-dot" cx="120" cy="475" r="7" style="animation-delay:2.8s"/>
-    <circle class="rdm-road-dot" cx="400" cy="475" r="7" style="animation-delay:3.7s"/>
-    <circle class="rdm-road-dot" cx="700" cy="475" r="7" style="animation-delay:4.6s"/>
   </svg>`;
+
   const headerHtml=`<div class="rdm-slide-header">
     <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>
     ${teamName?`<span class="rdm-slide-hd-team">${teamName}</span>`:''}
   </div>`;
-  return`<div class="rdm-slide">${headerHtml}<div class="rdm-cards-map">${roadSvg}${cardsHtml}</div></div>`;
+  return`<div class="rdm-slide">${headerHtml}<div class="rdm-cards-map">
+    ${roadSvg}
+    <div class="rdm-row rdm-row--top">${row1Html}</div>
+    <div class="rdm-row rdm-row--bottom">${row2Html}</div>
+  </div></div>`;
 }
 
 function renderRoadmapContent(){

@@ -57,29 +57,63 @@
   letter-spacing: .3px;
 }
 
-// ── Canvas pleine largeur de la slide, hauteur fixe 700px ────────
+// ── Canvas flex — hauteur auto selon le contenu des cartes ───────
 .rdm-cards-map {
   position: relative;
   width: 100%;
-  height: 700px;
-  margin: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
 }
 
-// ── Ancre de carte sur son jalon ──────────────────────────────────
-// Largeur et position injectées en inline style selon le jalon
-.rdm-card-pin {
-  position: absolute;
+// ── Lignes de cartes ──────────────────────────────────────────────
+.rdm-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  align-items: flex-start;
+  position: relative;
   z-index: 1;
 }
 
-.rdm-card-pin--current { z-index: 3; }
+.rdm-row--top    { padding: 28px 32px 56px; } // gap dessous pour le S-curve
+.rdm-row--bottom { padding: 56px 32px 28px; } // gap dessus pour le S-curve
 
-// ── Stub pointillé reliant jalon → carte ─────────────────────────
-.rdm-stub { fill: none; stroke: var(--border); stroke-width: 1.5; stroke-dasharray: 4 3; }
+// ── Carte + point de jalon ────────────────────────────────────────
+.rdm-card-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 290px;
+  &--current { flex: 0 0 320px; z-index: 2; }
+}
 
-// ── Body limité sans scroll dans la roadmap ───────────────────────
-.rdm-cards-map .rdm-sprint-body { max-height: 120px; overflow: hidden; }
+// ── Point de jalon CSS ────────────────────────────────────────────
+.rdm-milestone-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+  opacity: .65;
+  margin: 5px 0;
+}
+
+.rdm-milestone-dot--current {
+  width: 13px;
+  height: 13px;
+  opacity: 1;
+  animation: rdmMilestonePulse 2.4s ease-out 1s infinite;
+}
+
+@keyframes rdmMilestonePulse {
+  0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--primary) 55%, transparent); }
+  60%  { box-shadow: 0 0 0 9px color-mix(in srgb, var(--primary) 0%, transparent); }
+  100% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--primary) 0%, transparent); }
+}
+
+// ── Body sans scroll dans la roadmap ─────────────────────────────
+.rdm-cards-map .rdm-sprint-body { max-height: none; overflow: hidden; }
 
 // ── Carte sprint ─────────────────────────────────────────────
 .rdm-sprint-card {
@@ -95,8 +129,6 @@
   overflow: hidden;
 
   &:hover { box-shadow: 0 8px 28px rgba(0,0,0,.1); transform: translateY(-2px); }
-
-  .rdm-top-row & { width: 320px; flex: 0 0 320px; }
 
   &--current {
     border: 2.5px solid var(--primary);
