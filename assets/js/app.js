@@ -35,7 +35,8 @@ function normSprint(s){
     velocityPlanned:s.velocity_planned??s.velocityPlanned??0,
     velocityCurrent:s.velocity_current??s.velocityCurrent??null,
     velocityActual:s.velocity_actual??s.velocityActual??null,
-    confidence:s.confidence||0,objectives:s.objectives||[],closed:!!s.closed};
+    confidence:s.confidence||0,objectives:s.objectives||[],closed:!!s.closed,
+    convergence:s.convergence??1};
 }
 async function loadTeam(){
   const q=selectedTeamId?`?teamId=${selectedTeamId}`:'';
