@@ -672,8 +672,10 @@ function renderDash(){
         <span style="font-weight:600">${m.fname} ${m.lname} <span class="badge ${LB[m.level]||'badge-primary'}" style="font-size:10px">${m.level}</span></span>
         <span style="color:var(--text3)">${hasConv?`${prodD}j dev + ${convD}j conv`:prodD+'j prod'} / ${availD}j dispo</span></div>
         <div class="progress-wrap">
-          <div class="progress-bar" style="width:${Math.round(prodD/Math.max(.01,totD)*100)}%;background:var(--primary)"></div>
-          ${hasConv?`<div class="progress-bar" style="width:${Math.round(convD/Math.max(.01,totD)*100)}%;background:var(--warning);margin-top:2px"></div>`:''}
+          <div style="display:flex;height:100%">
+            <div style="width:${Math.round(prodD/Math.max(.01,totD)*100)}%;background:var(--primary)"></div>
+            ${hasConv?`<div style="width:${Math.round(convD/Math.max(.01,totD)*100)}%;background:var(--warning);opacity:0.85"></div>`:''}
+          </div>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px">${mtgD}j réunions · ${RL[m.role]||m.role} · <span style="color:${hasCustomVel?'var(--primary)':'var(--text3)'}" title="${hasCustomVel?'Vélocité personnalisée':'Vélocité par niveau'}">${velPct}% vél.${hasCustomVel?' ✎':''}</span></div></div>`;
     }).join('');
