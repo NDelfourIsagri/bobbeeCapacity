@@ -2743,30 +2743,88 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
   const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
 
-  // Ligne 1 (flex, centré) : sprint passé + sprint courant — dot dessous
-  // Ligne 2 (flex, centré) : 3 sprints futurs — dot dessus
-  // Route SVG S inversé en arrière-plan décoratif, s'adapte à la hauteur du conteneur
-  const makePin=(block,animIdx,dotBelow)=>{
+  // ── Flex 2 lignes + route S inversée dynamique ─────────────────────────────
+  // Les centres X sont calculés depuis les largeurs CSS des .rdm-card-pin (290px/320px, gap 20px).
+  // Les points SVG sont placés exactement sur le chemin → dots toujours sur la route.
+  const makePin=(block,animIdx)=>{
     if(!block)return'';
     const isCur=curBlock&&String(block.sprint.id)===String(currentSprintId);
-    const dot=`<span class="rdm-milestone-dot${isCur?' rdm-milestone-dot--current':''}"></span>`;
     const cls=`rdm-card-pin${isCur?' rdm-card-pin--current':''}`;
-    const card=_rdmCardHtml(block,colorMap,animIdx,false,currentSprintId);
-    return`<div class="${cls}">${dotBelow?card+dot:dot+card}</div>`;
+    return`<div class="${cls}">${_rdmCardHtml(block,colorMap,animIdx,false,currentSprintId)}</div>`;
   };
 
   const row1=[pastBlock,curBlock].filter(Boolean);
   const row2=futureBlocks.slice(0,3);
-  const row1Html=row1.map((b,i)=>makePin(b,i,true)).join('');
-  const row2Html=row2.map((b,i)=>makePin(b,i+2,false)).join('');
+  const row1Html=row1.map((b,i)=>makePin(b,i)).join('');
+  const row2Html=row2.map((b,i)=>makePin(b,i+2)).join('');
 
-  // S inversé : bord gauche y≈240 → top band → S-curve douce → bottom band y≈360 → bord droit
-  // cp1=(800,280) cp2=(160,320) : S harmonieux avec beaux arrondis, sans croisement
-  // viewBox 1024×600, preserveAspectRatio=none → s'étire proportionnellement avec le conteneur
-  const RD='M 0,240 C 80,240 150,240 230,240 C 360,240 620,240 760,240 C 800,280 160,320 230,360 C 360,360 560,360 694,360 C 800,360 920,360 1024,360';
+  // Calcul des centres X (miroir exact du layout CSS flex)
+  const getXCenters=(cards,gap=20,W=1024)=>{
+    if(!cards.length)return[];
+    const widths=cards.map(b=>b&&curBlock&&String(b.sprint.id)===String(currentSprintId)?320:290);
+    const total=widths.reduce((a,b)=>a+b,0)+(cards.length-1)*gap;
+    let x=(W-total)/2;
+    return widths.map(w=>{const c=Math.round(x+w/2);x+=w+gap;return c;});
+  };
+  const cx1=getXCenters(row1); // ex: [342, 667]
+  const cx2=getXCenters(row2); // ex: [202, 512, 822]
+
+  // viewBox 1024×600, preserveAspectRatio=none → s'adapte à la hauteur du conteneur.
+  // TY≈240 = y bande haute (≈40% de 600), BY≈362 = y bande basse (≈60% de 600).
+  // Entrée bord gauche à y=88 (~15%) et sortie bord droit à y=512 (~85%) → inclinaison globale.
+  const TY=240, BY=362, MY=Math.round((TY+BY)/2);
+  let RD='', dotEls=[];
+
+  if(cx1.length){
+    const [d1x,d2x=d1x]=cx1;
+    // Arc d'entrée : bord gauche haut → D1 (arrive horizontalement)
+    RD=`M 0,88 C ${Math.round(d1x*0.22)},88 ${d1x-90},${TY} ${d1x},${TY}`;
+    // Bande haute
+    if(cx1.length>1) RD+=` C ${d1x+70},${TY} ${d2x-70},${TY} ${d2x},${TY}`;
+    // Jalons SVG ligne 1
+    cx1.forEach((cx,i)=>{
+      const isCur=row1[i]&&curBlock&&String(row1[i].sprint.id)===String(currentSprintId);
+      const delay=(0.7+i*0.9).toFixed(1);
+      if(isCur){
+        dotEls.push(`<circle class="rdm-road-ring" cx="${cx}" cy="${TY}" r="10" style="animation-delay:${(+delay+0.3).toFixed(1)}s"/>`);
+        dotEls.push(`<circle class="rdm-road-dot rdm-road-dot--cur" cx="${cx}" cy="${TY}" r="10" style="animation-delay:${delay}s"/>`);
+      }else{
+        dotEls.push(`<circle class="rdm-road-dot" cx="${cx}" cy="${TY}" r="7" style="animation-delay:${delay}s"/>`);
+      }
+    });
+    // S-curve : dernière carte ligne 1 → première carte ligne 2
+    // cp1 à droite du D2, cp2 à gauche du D3, tous deux au milieu vertical → S harmonieux
+    if(cx2.length){
+      const x2=cx1[cx1.length-1], x3=cx2[0];
+      RD+=` C ${x2+95},${MY} ${x3-95},${MY} ${x3},${BY}`;
+    }
+  }
+
+  if(cx2.length){
+    if(!cx1.length){
+      const [d3x]=cx2;
+      RD=`M 0,88 C ${Math.round(d3x*0.22)},88 ${d3x-90},${BY} ${d3x},${BY}`;
+    }
+    // Bande basse
+    cx2.slice(1).forEach((cx,i)=>{
+      RD+=` C ${cx2[i]+70},${BY} ${cx-70},${BY} ${cx},${BY}`;
+    });
+    // Jalons SVG ligne 2
+    cx2.forEach((cx,i)=>{
+      const delay=(2.8+i*0.9).toFixed(1);
+      dotEls.push(`<circle class="rdm-road-dot" cx="${cx}" cy="${BY}" r="7" style="animation-delay:${delay}s"/>`);
+    });
+    // Arc de sortie : dernière carte ligne 2 → bord droit bas
+    const lastX=cx2[cx2.length-1];
+    RD+=` C ${lastX+90},${BY} 960,480 1024,512`;
+  }else if(cx1.length){
+    RD+=` C ${cx1[cx1.length-1]+90},${TY} 960,460 1024,512`;
+  }
+
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
+    ${dotEls.join('')}
   </svg>`;
 
   const headerHtml=`<div class="rdm-slide-header">
