@@ -2634,7 +2634,28 @@ function _rdmBuildData(teamId){
     return{sprint,groups,projProgress,isPast};
   });
 
-  return{sprintBlocks,currentSprintId};
+  // Bandes par objectif : vert (déjà livré) + une couleur par sprint de la fenêtre
+  const SPRINT_BAND_COLORS=['#94a3b8','var(--primary)','#0891b2','#059669','#d97706'];
+  const objBands={};
+  if(S.objectivesData){
+    Object.entries(S.objectivesData.objectives||{}).forEach(([k,feats])=>{
+      const tf=teamId?feats.filter(f=>String(f.team_id)===String(teamId)):feats;
+      if(!tf.length)return;
+      const total=tf.length;
+      const doneCount=tf.filter(f=>f.done).length;
+      const bands=sprintsToShow.map((sprint,idx)=>{
+        const count=tf.filter(f=>{
+          if(f.done)return false;
+          const bl=(S.backlog||[]).find(b=>b.jira_id===f.jira_id);
+          return bl&&String(bl.sprint_id)===String(sprint.id);
+        }).length;
+        return{color:SPRINT_BAND_COLORS[idx]||'#94a3b8',pct:Math.round(count/total*100)};
+      }).filter(b=>b.pct>0);
+      objBands[k]={donePct:Math.round(doneCount/total*100),bands};
+    });
+  }
+
+  return{sprintBlocks,currentSprintId,objBands};
 }
 
 function _rdmAssignColors(sprintBlocks){
@@ -2651,7 +2672,7 @@ function _rdmSprintLabel(sprint){
   return`${sprint.name} · ${RDM_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=false,currentSprintId=null){
+function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=false,currentSprintId=null,objBands={}){
   const isCurrent=String(sprint.id)===String(currentSprintId||(_rdmLastData||{}).currentSprintId);
   const orderedKeys=[
     ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
@@ -2667,9 +2688,16 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=
         ?`<span class="rdm-group-pct rdm-group-pct--proj" style="color:${color}" title="Projection à la clôture du sprint">→ ${prog.pct}%</span>`
         :`<span class="rdm-group-pct" style="color:${color}" title="Avancement actuel">${prog.pct}%</span>`)
       :'';
+    const bdata=k!=='__orphan__'?objBands[k]:null;
+    const barHtml=bdata
+      ?`<div class="rdm-group-progress-seg">
+          ${bdata.donePct>0?`<div class="rdm-seg rdm-seg--done" style="width:${bdata.donePct}%" title="${bdata.donePct}% déjà livré"></div>`:''}
+          ${bdata.bands.map(b=>`<div class="rdm-seg" style="width:${b.pct}%;background:${b.color}"></div>`).join('')}
+        </div>`
+      :'';
     return`<div class="rdm-group" style="--rdm-color:${color}">
       <div class="rdm-group-header"><span class="rdm-group-label">${label}</span>${pctLabel}</div>
-      ${prog?`<div class="rdm-group-progress"><div class="rdm-group-progress-fill" style="width:${prog.pct}%"></div></div>`:''}
+      ${barHtml}
       <ul class="rdm-feature-list">${feats.map(f=>`
         <li class="rdm-feature${f._done?' rdm-feature--done':''}">
           ${f._done?'<span class="material-icons-round rdm-check">check_circle</span>':`<span class="rdm-dot" style="background:${color}"></span>`}
@@ -2678,7 +2706,8 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=
       </ul>
     </div>`;
   }).join('');
-  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}${solo?' rdm-sprint-card--solo':''}" style="animation-delay:${animIdx*0.09}s">
+  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${animIdx*0.09}s">
+    ${isCurrent?'<div class="rdm-current-stripe"></div>':''}
     <div class="rdm-sprint-header">
       <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
       <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
@@ -2696,15 +2725,16 @@ function _rdmBuildTrackHtml(data,colorMap){
   const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
   const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
 
+  const{objBands={}}=data;
   const topCards=[pastBlock,curBlock].filter(Boolean);
   const topHtml=topCards.length
-    ?`<div class="rdm-top-row">${topCards.map((b,i)=>_rdmCardHtml(b,colorMap,i,false,currentSprintId)).join('')}</div>
+    ?`<div class="rdm-top-row">${topCards.map((b,i)=>_rdmCardHtml(b,colorMap,i,false,currentSprintId,objBands)).join('')}</div>
       <div class="rdm-slide-divider" aria-hidden="true">
         <svg width="2" height="28" viewBox="0 0 2 28"><line x1="1" y1="0" x2="1" y2="28" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
       </div>`
     :'';
   const bottomHtml=futureBlocks.length
-    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId)).join('')}</div>`
+    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId,objBands)).join('')}</div>`
     :'';
   return`<div class="rdm-slide">${topHtml}${bottomHtml}</div>`;
 }

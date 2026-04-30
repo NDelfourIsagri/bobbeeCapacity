@@ -24,7 +24,7 @@
   max-width: 1100px;
 }
 
-.rdm-top-row { display: flex; justify-content: center; width: 100%; }
+.rdm-top-row { display: flex; justify-content: center; gap: 20px; width: 100%; }
 
 .rdm-slide-divider { display: flex; justify-content: center; margin: 10px 0; }
 
@@ -47,15 +47,17 @@
   flex-direction: column;
   transition: box-shadow 0.3s, transform 0.2s;
   animation: rdmCardIn 0.45s ease both;
+  position: relative;
+  overflow: hidden;
 
   &:hover { box-shadow: 0 8px 28px rgba(0,0,0,.1); transform: translateY(-2px); }
 
   .rdm-top-row & { width: 320px; flex: 0 0 320px; }
 
   &--current {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent), 0 4px 16px rgba(0,0,0,.07);
-    .rdm-sprint-header { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--bg)) 0%, var(--bg) 100%); }
+    border: 2.5px solid var(--primary);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 18%, transparent), 0 8px 24px rgba(0,0,0,.12);
+    .rdm-sprint-header { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--bg)) 0%, var(--bg) 100%); }
   }
 
   &--past { opacity: 0.62; filter: saturate(0.55); }
@@ -217,6 +219,30 @@
   align-self: stretch;
 
   svg { width: 44px; height: 160px; overflow: visible; }
+}
+
+// ── Stripe sprint courant ─────────────────────────────────────
+.rdm-current-stripe {
+  height: 4px;
+  background: var(--primary);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+}
+
+// ── Barre segmentée par sprint ────────────────────────────────
+.rdm-group-progress-seg {
+  height: 5px;
+  background: var(--border);
+  border-radius: 99px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  display: flex;
+}
+
+.rdm-seg {
+  height: 100%;
+  transition: width 0.6s ease;
+  &--done { background: var(--success, #22c55e); }
 }
 
 // ── Badges ────────────────────────────────────────────────────
