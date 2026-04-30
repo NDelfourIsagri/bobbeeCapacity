@@ -55,12 +55,14 @@
   letter-spacing: .3px;
 }
 
-// ── Canvas positionnel (aspect-ratio = viewBox SVG) ──────────────
+// ── Canvas positionnel fixe 1024×580 ─────────────────────────────
 .rdm-cards-map {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1100 / 680;
+  width: 1024px;
+  height: 580px;
+  margin: 0 auto;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 // ── Ancre de carte sur son jalon ──────────────────────────────────
@@ -69,7 +71,10 @@
   z-index: 1;
 }
 
-.rdm-card-pin--current .rdm-sprint-card { width: 320px; }
+.rdm-card-pin--current {
+  z-index: 3; // sprint courant toujours au-dessus
+  .rdm-sprint-card { width: 320px; }
+}
 
 // ── Carte sprint ─────────────────────────────────────────────
 .rdm-sprint-card {

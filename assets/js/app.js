@@ -2743,32 +2743,34 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
   const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
 
-  // viewBox 1100×680 — jalons: D1(280,165) D2(760,165) D3(160,530) D4(560,530) D5(940,530)
-  // Chaque carte est positionnée absolument sur son jalon, décalée pour que le point soit visible
+  // viewBox 1100×680 — jalons: D1(280,165) D2(960,165) D3(160,530) D4(560,530) D5(880,530)
+  // Styles positionnels absolus pour chaque carte (D2 ancré au bord droit = coin haut-droit)
   const PINS=[
-    {l:'25.5%',t:'24.3%',tx:'-50%',ty:'12px',cur:false},               // D1 passé
-    {l:'69.1%',t:'24.3%',tx:'-50%',ty:'12px',cur:true},                // D2 en cours
-    {l:'14.5%',t:'77.9%',tx:'-35%',ty:'calc(-100% - 12px)'},           // D3 +1
-    {l:'50.9%',t:'77.9%',tx:'-50%',ty:'calc(-100% - 12px)'},           // D4 +2
-    {l:'85.5%',t:'77.9%',tx:'-65%',ty:'calc(-100% - 12px)'},           // D5 +3
+    'left:25.5%;top:24.3%;transform:translate(-50%,12px)',                  // D1 passé
+    'right:1%;top:24.3%;',                                                   // D2 en cours — coin droit
+    'left:14.5%;top:77.9%;transform:translate(-35%,calc(-100% - 12px))',    // D3 +1
+    'left:50.9%;top:77.9%;transform:translate(-50%,calc(-100% - 12px))',    // D4 +2
+    'left:80%;top:77.9%;transform:translate(-65%,calc(-100% - 12px))',      // D5 +3
   ];
   const allCards=[pastBlock,curBlock,...futureBlocks.slice(0,3)].filter(Boolean);
   const cardsHtml=allCards.map((block,i)=>{
-    const p=PINS[i]||PINS[PINS.length-1];
-    return`<div class="rdm-card-pin${p.cur?' rdm-card-pin--current':''}" style="left:${p.l};top:${p.t};transform:translate(${p.tx},${p.ty})">${_rdmCardHtml(block,colorMap,i,false,currentSprintId)}</div>`;
+    const isCurPin=curBlock&&block&&String(block.sprint.id)===String(currentSprintId);
+    return`<div class="rdm-card-pin${isCurPin?' rdm-card-pin--current':''}" style="${PINS[i]||PINS[PINS.length-1]}">${_rdmCardHtml(block,colorMap,i,false,currentSprintId)}</div>`;
   }).join('');
 
-  // Chemin : S-courbes haut (D1→D2) → grand arc diagonal (D2→D3) → S-courbes bas (D3→D4→D5)
-  const RD='M -40,165 C 60,80 190,250 280,165 C 380,80 640,250 760,165 C 880,80 -80,340 160,530 C 200,470 420,590 560,530 C 640,470 860,590 940,530 C 980,490 1060,530 1140,530';
-  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 680" preserveAspectRatio="none" aria-hidden="true">
+  // viewBox 1024×580 — chemin sans croisement :
+  // S-courbes haut (→D1→D2) puis le chemin descend verticalement depuis D2
+  // avant de partir à gauche vers D3 → impossible de croiser les S-courbes du haut
+  const RD='M -20,141 C 60,70 180,215 261,141 C 345,65 700,220 854,141 C 854,240 575,415 149,452 C 215,430 395,490 521,452 C 600,420 760,490 819,452 C 880,420 970,455 1044,452';
+  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 580" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
-    <circle class="rdm-road-dot" cx="280" cy="165" r="7" style="animation-delay:.5s"/>
-    <circle class="rdm-road-ring" cx="760" cy="165" r="10" style="animation-delay:2.0s"/>
-    <circle class="rdm-road-dot rdm-road-dot--cur" cx="760" cy="165" r="10" style="animation-delay:1.7s"/>
-    <circle class="rdm-road-dot" cx="160" cy="530" r="7" style="animation-delay:3.5s"/>
-    <circle class="rdm-road-dot" cx="560" cy="530" r="7" style="animation-delay:4.3s"/>
-    <circle class="rdm-road-dot" cx="940" cy="530" r="7" style="animation-delay:5.1s"/>
+    <circle class="rdm-road-dot" cx="261" cy="141" r="7" style="animation-delay:.5s"/>
+    <circle class="rdm-road-ring" cx="854" cy="141" r="10" style="animation-delay:2.0s"/>
+    <circle class="rdm-road-dot rdm-road-dot--cur" cx="854" cy="141" r="10" style="animation-delay:1.7s"/>
+    <circle class="rdm-road-dot" cx="149" cy="452" r="7" style="animation-delay:3.5s"/>
+    <circle class="rdm-road-dot" cx="521" cy="452" r="7" style="animation-delay:4.3s"/>
+    <circle class="rdm-road-dot" cx="819" cy="452" r="7" style="animation-delay:5.1s"/>
   </svg>`;
   const headerHtml=`<div class="rdm-slide-header">
     <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>

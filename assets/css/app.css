@@ -526,8 +526,9 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-slide-hd-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--text1);letter-spacing:-.3px;}
 .rdm-slide-hd-title .material-icons-round{color:var(--primary);font-size:26px;}
 .rdm-slide-hd-team{font-size:14px;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent);padding:5px 16px;border-radius:99px;letter-spacing:.3px;}
-.rdm-cards-map{position:relative;width:100%;aspect-ratio:1100/680;overflow:hidden;}
+.rdm-cards-map{position:relative;width:1024px;height:580px;margin:0 auto;overflow:hidden;flex-shrink:0;}
 .rdm-card-pin{position:absolute;z-index:1;}
+.rdm-card-pin--current{z-index:3;}
 .rdm-card-pin--current .rdm-sprint-card{width:320px;}
 .rdm-sprint-card{width:280px;border-radius:16px;background:var(--bg);border:1.5px solid var(--border);display:flex;flex-direction:column;transition:box-shadow .3s,transform .2s;animation:rdmCardIn .45s ease both;position:relative;overflow:hidden;}
 .rdm-sprint-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.1);transform:translateY(-2px);}
