@@ -15,11 +15,13 @@
   border-radius: 28px;
   box-shadow: 0 4px 32px rgba(0,0,0,.1), 0 12px 60px rgba(0,0,0,.07);
   border: 1px solid var(--border);
-  padding: 28px 32px 28px;
+  padding: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 0;
   width: 100%;
+  max-width: 1024px;
   position: relative;
 }
 
@@ -29,8 +31,8 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding-bottom: 18px;
-  margin-bottom: 16px;
+  padding: 24px 32px 18px;
+  margin-bottom: 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -55,14 +57,13 @@
   letter-spacing: .3px;
 }
 
-// ── Canvas positionnel fixe 1024×700 ─────────────────────────────
+// ── Canvas pleine largeur de la slide, hauteur fixe 700px ────────
 .rdm-cards-map {
   position: relative;
-  width: 1024px;
+  width: 100%;
   height: 700px;
-  margin: 0 auto;
+  margin: 0;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 // ── Ancre de carte sur son jalon ──────────────────────────────────
@@ -77,8 +78,8 @@
 // ── Stub pointillé reliant jalon → carte ─────────────────────────
 .rdm-stub { fill: none; stroke: var(--border); stroke-width: 1.5; stroke-dasharray: 4 3; }
 
-// ── Hauteur body limitée dans la roadmap ──────────────────────────
-.rdm-cards-map .rdm-sprint-body { max-height: 130px; overflow-y: auto; }
+// ── Body limité sans scroll dans la roadmap ───────────────────────
+.rdm-cards-map .rdm-sprint-body { max-height: 120px; overflow: hidden; }
 
 // ── Carte sprint ─────────────────────────────────────────────
 .rdm-sprint-card {
@@ -99,6 +100,7 @@
 
   &--current {
     border: 2.5px solid var(--primary);
+    animation: rdmCardIn 0.45s ease both, rdmCurrentGlow 2.2s ease-in-out 0.45s infinite;
     .rdm-sprint-header { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--bg)) 0%, var(--bg) 100%); }
   }
 
@@ -108,6 +110,11 @@
 @keyframes rdmCardIn {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: none; }
+}
+
+@keyframes rdmCurrentGlow {
+  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent); }
+  50%       { box-shadow: 0 0 0 7px color-mix(in srgb, var(--primary) 8%, transparent); }
 }
 
 // ── Entête sprint ────────────────────────────────────────────
