@@ -527,10 +527,12 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-slide-hd-title .material-icons-round{color:var(--primary);font-size:26px;}
 .rdm-slide-hd-team{font-size:14px;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent);padding:5px 16px;border-radius:99px;letter-spacing:.3px;}
 .rdm-cards-map{position:relative;width:1024px;height:580px;margin:0 auto;overflow:hidden;flex-shrink:0;}
-.rdm-card-pin{position:absolute;z-index:1;}
+.rdm-card-pin{position:absolute;z-index:1;width:232px;}
+.rdm-card-pin--below{width:272px;}
 .rdm-card-pin--current{z-index:3;}
-.rdm-card-pin--current .rdm-sprint-card{width:320px;}
-.rdm-sprint-card{width:280px;border-radius:16px;background:var(--bg);border:1.5px solid var(--border);display:flex;flex-direction:column;transition:box-shadow .3s,transform .2s;animation:rdmCardIn .45s ease both;position:relative;overflow:hidden;}
+.rdm-stub{fill:none;stroke:var(--border);stroke-width:1.5;stroke-dasharray:4 3;}
+.rdm-sprint-card{width:100%;border-radius:16px;background:var(--bg);border:1.5px solid var(--border);display:flex;flex-direction:column;transition:box-shadow .3s,transform .2s;animation:rdmCardIn .45s ease both;position:relative;overflow:hidden;}
+.rdm-cards-map .rdm-sprint-body{max-height:170px;overflow-y:auto;}
 .rdm-sprint-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.1);transform:translateY(-2px);}
 .rdm-sprint-card--current{border:2.5px solid var(--primary);}
 .rdm-sprint-card--current .rdm-sprint-header{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 18%,var(--bg)) 0%,var(--bg) 100%);}
