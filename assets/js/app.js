@@ -2753,12 +2753,12 @@ function _rdmBuildTrackHtml(data,colorMap){
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 740" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
-    <circle class="rdm-road-dot" cx="380" cy="190" r="5" style="animation-delay:.85s"/>
-    <circle class="rdm-road-ring" cx="720" cy="190" r="7" style="animation-delay:1.45s"/>
-    <circle class="rdm-road-dot rdm-road-dot--cur" cx="720" cy="190" r="7" style="animation-delay:1.05s"/>
-    <circle class="rdm-road-dot" cx="256" cy="510" r="5" style="animation-delay:1.45s"/>
-    <circle class="rdm-road-dot" cx="550" cy="510" r="5" style="animation-delay:1.75s"/>
-    <circle class="rdm-road-dot" cx="844" cy="510" r="5" style="animation-delay:2.05s"/>
+    <circle class="rdm-road-dot" cx="380" cy="190" r="5" style="animation-delay:1.3s"/>
+    <circle class="rdm-road-ring" cx="720" cy="190" r="7" style="animation-delay:2.7s"/>
+    <circle class="rdm-road-dot rdm-road-dot--cur" cx="720" cy="190" r="7" style="animation-delay:2.3s"/>
+    <circle class="rdm-road-dot" cx="256" cy="510" r="5" style="animation-delay:3.2s"/>
+    <circle class="rdm-road-dot" cx="550" cy="510" r="5" style="animation-delay:4.1s"/>
+    <circle class="rdm-road-dot" cx="844" cy="510" r="5" style="animation-delay:5.0s"/>
   </svg>`;
   return`<div class="rdm-slide">${roadSvg}${topHtml}${bottomHtml}</div>`;
 }

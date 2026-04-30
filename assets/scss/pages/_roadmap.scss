@@ -347,26 +347,26 @@
   fill: none; stroke: var(--primary);
   stroke-width: 36; stroke-linecap: round; stroke-linejoin: round;
   stroke-dasharray: 1000; stroke-dashoffset: 1000; opacity: 0;
-  animation: rdmRoadDraw 2.4s cubic-bezier(.4,0,.2,1) forwards .15s;
+  animation: rdmRoadDraw 5.5s cubic-bezier(.4,0,.2,1) forwards .2s;
 }
 
 .rdm-road-line {
   fill: none; stroke: var(--primary);
   stroke-width: 1.5; stroke-linecap: round;
   stroke-dasharray: 14 10; opacity: 0;
-  animation: rdmRoadFadeIn .5s ease forwards 1.6s;
+  animation: rdmRoadFadeIn .8s ease forwards 5s;
 }
 
 .rdm-road-dot {
   fill: var(--primary); opacity: 0;
   transform-box: fill-box; transform-origin: center;
-  animation: rdmDotIn .45s cubic-bezier(.34,1.56,.64,1) forwards;
+  animation: rdmDotIn .6s cubic-bezier(.34,1.56,.64,1) forwards;
 }
 
 .rdm-road-ring {
   fill: none; stroke: var(--primary); stroke-width: 2; opacity: 0;
   transform-box: fill-box; transform-origin: center;
-  animation: rdmRingOut 2.2s ease-out infinite;
+  animation: rdmRingOut 2.6s ease-out infinite;
 }
 
 @keyframes rdmRoadDraw {
