@@ -15,16 +15,12 @@
   border-radius: 28px;
   box-shadow: 0 4px 32px rgba(0,0,0,.1), 0 12px 60px rgba(0,0,0,.07);
   border: 1px solid var(--border);
-  padding: 28px 32px 40px;
+  padding: 28px 32px 28px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0;
   width: 100%;
   position: relative;
-  overflow: hidden;
-
-  > *:not(.rdm-road-bg) { position: relative; z-index: 1; }
 }
 
 // ── Header interne ─────────────────────────────────────────────
@@ -59,19 +55,21 @@
   letter-spacing: .3px;
 }
 
-.rdm-top-row { display: flex; justify-content: center; align-items: flex-start; gap: 24px; width: 100%; opacity: .82; }
-
-.rdm-slide-divider { display: flex; justify-content: center; margin: 8px 0; }
-
-.rdm-bottom-row {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  align-items: flex-start;
-  flex-wrap: wrap;
+// ── Canvas positionnel (aspect-ratio = viewBox SVG) ──────────────
+.rdm-cards-map {
+  position: relative;
   width: 100%;
-  opacity: .75;
+  aspect-ratio: 1100 / 680;
+  overflow: hidden;
 }
+
+// ── Ancre de carte sur son jalon ──────────────────────────────────
+.rdm-card-pin {
+  position: absolute;
+  z-index: 1;
+}
+
+.rdm-card-pin--current .rdm-sprint-card { width: 320px; }
 
 // ── Carte sprint ─────────────────────────────────────────────
 .rdm-sprint-card {

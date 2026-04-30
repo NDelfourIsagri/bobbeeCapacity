@@ -521,17 +521,15 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 /* ── ROADMAP ────────────────────────────────────────────── */
 .rdm-toolbar{display:flex;align-items:center;gap:10px;}
 #rdm-content{display:flex;justify-content:center;padding:0 12px;}
-.rdm-slide{background:var(--bg3,var(--bg));border-radius:28px;box-shadow:0 4px 32px rgba(0,0,0,.1),0 12px 60px rgba(0,0,0,.07);border:1px solid var(--border);padding:28px 32px 40px;display:flex;flex-direction:column;align-items:center;gap:0;width:100%;position:relative;overflow:hidden;}
-.rdm-slide>*:not(.rdm-road-bg){position:relative;z-index:1;}
+.rdm-slide{background:var(--bg3,var(--bg));border-radius:28px;box-shadow:0 4px 32px rgba(0,0,0,.1),0 12px 60px rgba(0,0,0,.07);border:1px solid var(--border);padding:28px 32px 28px;display:flex;flex-direction:column;gap:0;width:100%;position:relative;}
 .rdm-slide-header{display:flex;align-items:center;justify-content:space-between;width:100%;padding-bottom:18px;margin-bottom:16px;border-bottom:1px solid var(--border);}
 .rdm-slide-hd-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--text1);letter-spacing:-.3px;}
 .rdm-slide-hd-title .material-icons-round{color:var(--primary);font-size:26px;}
 .rdm-slide-hd-team{font-size:14px;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent);padding:5px 16px;border-radius:99px;letter-spacing:.3px;}
-.rdm-top-row{display:flex;justify-content:center;align-items:flex-start;gap:24px;width:100%;margin-bottom:0;opacity:.82;}
-.rdm-slide-divider{display:flex;justify-content:center;margin:8px 0;}
-.rdm-bottom-row{display:flex;gap:16px;justify-content:center;align-items:flex-start;flex-wrap:wrap;width:100%;opacity:.75;}
-.rdm-sprint-card{width:280px;flex:0 0 280px;border-radius:16px;background:var(--bg);border:1.5px solid var(--border);display:flex;flex-direction:column;transition:box-shadow .3s,transform .2s;animation:rdmCardIn .45s ease both;position:relative;overflow:hidden;}
-.rdm-top-row .rdm-sprint-card{width:320px;flex:0 0 320px;}
+.rdm-cards-map{position:relative;width:100%;aspect-ratio:1100/680;overflow:hidden;}
+.rdm-card-pin{position:absolute;z-index:1;}
+.rdm-card-pin--current .rdm-sprint-card{width:320px;}
+.rdm-sprint-card{width:280px;border-radius:16px;background:var(--bg);border:1.5px solid var(--border);display:flex;flex-direction:column;transition:box-shadow .3s,transform .2s;animation:rdmCardIn .45s ease both;position:relative;overflow:hidden;}
 .rdm-sprint-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.1);transform:translateY(-2px);}
 .rdm-sprint-card--current{border:2.5px solid var(--primary);}
 .rdm-sprint-card--current .rdm-sprint-header{background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 18%,var(--bg)) 0%,var(--bg) 100%);}

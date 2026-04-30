@@ -2724,8 +2724,7 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
       </ul>
     </div>`;
   }).join('');
-  const _MT=[60,0,40,0,55];
-  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${animIdx*0.09}s;margin-top:${_MT[animIdx]??0}px">
+  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${animIdx*0.09}s">
     ${isCurrent?'<div class="rdm-current-stripe"></div>':''}
     <div class="rdm-sprint-header">
       <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
@@ -2744,32 +2743,38 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const curBlock=sprintBlocks.find(b=>String(b.sprint.id)===String(currentSprintId));
   const futureBlocks=sprintBlocks.filter(b=>!b.isPast&&String(b.sprint.id)!==String(currentSprintId));
 
-  const topCards=[pastBlock,curBlock].filter(Boolean);
-  const topHtml=topCards.length
-    ?`<div class="rdm-top-row">${topCards.map((b,i)=>_rdmCardHtml(b,colorMap,i,false,currentSprintId)).join('')}</div>
-      <div class="rdm-slide-divider" aria-hidden="true">
-        <svg width="2" height="28" viewBox="0 0 2 28"><line x1="1" y1="0" x2="1" y2="28" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
-      </div>`
-    :'';
-  const bottomHtml=futureBlocks.length
-    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId)).join('')}</div>`
-    :'';
-  const RD='M -20,190 C 80,55 270,335 380,190 C 490,45 665,335 720,190 C 820,190 95,510 256,510 C 85,615 455,375 550,510 C 685,645 965,365 844,510 C 1065,645 1185,455 1310,510';
-  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 740" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  // viewBox 1100×680 — jalons: D1(280,165) D2(760,165) D3(160,530) D4(560,530) D5(940,530)
+  // Chaque carte est positionnée absolument sur son jalon, décalée pour que le point soit visible
+  const PINS=[
+    {l:'25.5%',t:'24.3%',tx:'-50%',ty:'12px',cur:false},               // D1 passé
+    {l:'69.1%',t:'24.3%',tx:'-50%',ty:'12px',cur:true},                // D2 en cours
+    {l:'14.5%',t:'77.9%',tx:'-35%',ty:'calc(-100% - 12px)'},           // D3 +1
+    {l:'50.9%',t:'77.9%',tx:'-50%',ty:'calc(-100% - 12px)'},           // D4 +2
+    {l:'85.5%',t:'77.9%',tx:'-65%',ty:'calc(-100% - 12px)'},           // D5 +3
+  ];
+  const allCards=[pastBlock,curBlock,...futureBlocks.slice(0,3)].filter(Boolean);
+  const cardsHtml=allCards.map((block,i)=>{
+    const p=PINS[i]||PINS[PINS.length-1];
+    return`<div class="rdm-card-pin${p.cur?' rdm-card-pin--current':''}" style="left:${p.l};top:${p.t};transform:translate(${p.tx},${p.ty})">${_rdmCardHtml(block,colorMap,i,false,currentSprintId)}</div>`;
+  }).join('');
+
+  // Chemin : S-courbes haut (D1→D2) → grand arc diagonal (D2→D3) → S-courbes bas (D3→D4→D5)
+  const RD='M -40,165 C 60,80 190,250 280,165 C 380,80 640,250 760,165 C 880,80 -80,340 160,530 C 200,470 420,590 560,530 C 640,470 860,590 940,530 C 980,490 1060,530 1140,530';
+  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 680" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
-    <circle class="rdm-road-dot" cx="380" cy="190" r="7" style="animation-delay:1.3s"/>
-    <circle class="rdm-road-ring" cx="720" cy="190" r="10" style="animation-delay:2.7s"/>
-    <circle class="rdm-road-dot rdm-road-dot--cur" cx="720" cy="190" r="10" style="animation-delay:2.3s"/>
-    <circle class="rdm-road-dot" cx="256" cy="510" r="7" style="animation-delay:3.2s"/>
-    <circle class="rdm-road-dot" cx="550" cy="510" r="7" style="animation-delay:4.1s"/>
-    <circle class="rdm-road-dot" cx="844" cy="510" r="7" style="animation-delay:5.0s"/>
+    <circle class="rdm-road-dot" cx="280" cy="165" r="7" style="animation-delay:.5s"/>
+    <circle class="rdm-road-ring" cx="760" cy="165" r="10" style="animation-delay:2.0s"/>
+    <circle class="rdm-road-dot rdm-road-dot--cur" cx="760" cy="165" r="10" style="animation-delay:1.7s"/>
+    <circle class="rdm-road-dot" cx="160" cy="530" r="7" style="animation-delay:3.5s"/>
+    <circle class="rdm-road-dot" cx="560" cy="530" r="7" style="animation-delay:4.3s"/>
+    <circle class="rdm-road-dot" cx="940" cy="530" r="7" style="animation-delay:5.1s"/>
   </svg>`;
   const headerHtml=`<div class="rdm-slide-header">
     <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>
     ${teamName?`<span class="rdm-slide-hd-team">${teamName}</span>`:''}
   </div>`;
-  return`<div class="rdm-slide">${roadSvg}${headerHtml}${topHtml}${bottomHtml}</div>`;
+  return`<div class="rdm-slide">${headerHtml}<div class="rdm-cards-map">${roadSvg}${cardsHtml}</div></div>`;
 }
 
 function renderRoadmapContent(){
