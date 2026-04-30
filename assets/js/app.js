@@ -2749,7 +2749,18 @@ function _rdmBuildTrackHtml(data,colorMap){
   const bottomHtml=futureBlocks.length
     ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,topCards.length+i,false,currentSprintId)).join('')}</div>`
     :'';
-  return`<div class="rdm-slide">${topHtml}${bottomHtml}</div>`;
+  const RD='M -20,190 C 80,55 270,335 380,190 C 490,45 665,335 720,190 C 820,190 95,510 256,510 C 85,615 455,375 550,510 C 685,645 965,365 844,510 C 1065,645 1185,455 1310,510';
+  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1100 740" preserveAspectRatio="none" aria-hidden="true">
+    <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
+    <path class="rdm-road-line" d="${RD}"/>
+    <circle class="rdm-road-dot" cx="380" cy="190" r="5" style="animation-delay:.85s"/>
+    <circle class="rdm-road-ring" cx="720" cy="190" r="7" style="animation-delay:1.45s"/>
+    <circle class="rdm-road-dot rdm-road-dot--cur" cx="720" cy="190" r="7" style="animation-delay:1.05s"/>
+    <circle class="rdm-road-dot" cx="256" cy="510" r="5" style="animation-delay:1.45s"/>
+    <circle class="rdm-road-dot" cx="550" cy="510" r="5" style="animation-delay:1.75s"/>
+    <circle class="rdm-road-dot" cx="844" cy="510" r="5" style="animation-delay:2.05s"/>
+  </svg>`;
+  return`<div class="rdm-slide">${roadSvg}${topHtml}${bottomHtml}</div>`;
 }
 
 function renderRoadmapContent(){
