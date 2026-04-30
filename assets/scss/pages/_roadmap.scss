@@ -6,25 +6,40 @@
   gap: 10px;
 }
 
-// ── Track (conteneur horizontal des cartes sprint) ──────────
-.rdm-track {
-  display: flex;
-  align-items: flex-start;
-  gap: 0;
-  overflow-x: auto;
-  padding: 4px 2px 20px;
-  scroll-behavior: smooth;
+// ── Page centering ────────────────────────────────────────────
+#rdm-content { display: flex; justify-content: center; }
 
-  &::-webkit-scrollbar { height: 6px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+// ── Slide PowerPoint ──────────────────────────────────────────
+.rdm-slide {
+  background: var(--bg3, var(--bg));
+  border-radius: 24px;
+  box-shadow: 0 2px 24px rgba(0,0,0,.09), 0 8px 48px rgba(0,0,0,.06);
+  border: 1px solid var(--border);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.rdm-top-row { display: flex; justify-content: center; width: 100%; }
+
+.rdm-slide-divider { display: flex; justify-content: center; margin: 10px 0; }
+
+.rdm-bottom-row {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 // ── Carte sprint ─────────────────────────────────────────────
 .rdm-sprint-card {
-  min-width: 260px;
-  max-width: 290px;
-  flex: 0 0 260px;
+  width: 280px;
+  flex: 0 0 280px;
   border-radius: 16px;
   background: var(--bg);
   border: 1.5px solid var(--border);
@@ -34,6 +49,8 @@
   animation: rdmCardIn 0.45s ease both;
 
   &:hover { box-shadow: 0 8px 28px rgba(0,0,0,.1); transform: translateY(-2px); }
+
+  &--solo { width: 320px; flex: 0 0 320px; }
 
   &--current {
     border-color: var(--primary);

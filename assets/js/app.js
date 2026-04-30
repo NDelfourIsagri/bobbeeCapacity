@@ -2576,7 +2576,7 @@ function _rdmBuildData(teamId){
   if(curIdx<0)curIdx=sorted.findIndex(s=>!s.closed&&new Date(s.start)>now);
   if(curIdx<0)curIdx=Math.max(0,sorted.length-1);
   const startIdx=Math.max(0,curIdx-1);
-  const sprintsToShow=sorted.slice(startIdx,startIdx+5);
+  const sprintsToShow=sorted.slice(startIdx,startIdx+4);
   const currentSprintId=sorted[curIdx]?.id;
 
   // jira_id → objectif
@@ -2651,59 +2651,59 @@ function _rdmSprintLabel(sprint){
   return`${sprint.name} · ${RDM_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function _rdmBuildTrackHtml(data,colorMap){
-  const{sprintBlocks,currentSprintId}=data;
-  return sprintBlocks.map(({sprint,groups,projProgress,isPast},i)=>{
-    const isCurrent=String(sprint.id)===String(currentSprintId);
-
-    const orderedKeys=[
-      ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
-      ...(groups['__orphan__']?['__orphan__']:[])
-    ];
-
-    const groupsHtml=orderedKeys.map(k=>{
-      const feats=groups[k];
-      const color=colorMap[k]||'#6b7280';
-      const label=k==='__orphan__'?'Sans objectif':k;
-      const prog=k!=='__orphan__'?projProgress[k]:null;
-      const pctLabel=prog
-        ? prog.isProjection
-          ? `<span class="rdm-group-pct rdm-group-pct--proj" style="color:${color}" title="Projection à la clôture du sprint">→ ${prog.pct}%</span>`
-          : `<span class="rdm-group-pct" style="color:${color}" title="Avancement actuel">${prog.pct}%</span>`
-        : '';
-      return`<div class="rdm-group" style="--rdm-color:${color}">
-        <div class="rdm-group-header">
-          <span class="rdm-group-label">${label}</span>
-          ${pctLabel}
-        </div>
-        ${prog?`<div class="rdm-group-progress"><div class="rdm-group-progress-fill" style="width:${prog.pct}%"></div></div>`:''}
-        <ul class="rdm-feature-list">${feats.map(f=>`
-          <li class="rdm-feature${f._done?' rdm-feature--done':''}">
-            ${f._done
-              ?'<span class="material-icons-round rdm-check">check_circle</span>'
-              :`<span class="rdm-dot" style="background:${color}"></span>`}
-            <span class="rdm-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||f.jira_id||'—'}</span>
-          </li>`).join('')}
-        </ul>
-      </div>`;
-    }).join('');
-
-    const connector=i<sprintBlocks.length-1?`<div class="rdm-connector" aria-hidden="true">
-      <svg viewBox="0 0 48 160" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-        <path d="M8,30 C40,30 40,80 8,80 C40,80 40,130 8,130" stroke="var(--primary)" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.25"/>
-        <circle cx="8" cy="130" r="3" fill="var(--primary)" opacity="0.35"/>
-      </svg>
-    </div>`:'';
-
-    return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${i*0.08}s">
-      <div class="rdm-sprint-header">
-        <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
-        <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
-        ${isCurrent?'<span class="rdm-badge-current">En cours</span>':isPast?'<span class="rdm-badge-past">Clôturé</span>':''}
-      </div>
-      <div class="rdm-sprint-body">${groupsHtml||'<p class="rdm-empty">Aucune feature planifiée</p>'}</div>
-    </div>${connector}`;
+function _rdmCardHtml({sprint,groups,projProgress,isPast},colorMap,animIdx,solo=false,currentSprintId=null){
+  const isCurrent=String(sprint.id)===String(currentSprintId||(_rdmLastData||{}).currentSprintId);
+  const orderedKeys=[
+    ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
+    ...(groups['__orphan__']?['__orphan__']:[])
+  ];
+  const groupsHtml=orderedKeys.map(k=>{
+    const feats=groups[k];
+    const color=colorMap[k]||'#6b7280';
+    const label=k==='__orphan__'?'Sans objectif':k;
+    const prog=k!=='__orphan__'?projProgress[k]:null;
+    const pctLabel=prog
+      ?(prog.isProjection
+        ?`<span class="rdm-group-pct rdm-group-pct--proj" style="color:${color}" title="Projection à la clôture du sprint">→ ${prog.pct}%</span>`
+        :`<span class="rdm-group-pct" style="color:${color}" title="Avancement actuel">${prog.pct}%</span>`)
+      :'';
+    return`<div class="rdm-group" style="--rdm-color:${color}">
+      <div class="rdm-group-header"><span class="rdm-group-label">${label}</span>${pctLabel}</div>
+      ${prog?`<div class="rdm-group-progress"><div class="rdm-group-progress-fill" style="width:${prog.pct}%"></div></div>`:''}
+      <ul class="rdm-feature-list">${feats.map(f=>`
+        <li class="rdm-feature${f._done?' rdm-feature--done':''}">
+          ${f._done?'<span class="material-icons-round rdm-check">check_circle</span>':`<span class="rdm-dot" style="background:${color}"></span>`}
+          <span class="rdm-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||f.jira_id||'—'}</span>
+        </li>`).join('')}
+      </ul>
+    </div>`;
   }).join('');
+  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}${solo?' rdm-sprint-card--solo':''}" style="animation-delay:${animIdx*0.09}s">
+    <div class="rdm-sprint-header">
+      <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
+      <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
+      ${isCurrent?'<span class="rdm-badge-current">En cours</span>':isPast?'<span class="rdm-badge-past">Clôturé</span>':''}
+    </div>
+    <div class="rdm-sprint-body">${groupsHtml||'<p class="rdm-empty">Aucune feature planifiée</p>'}</div>
+  </div>`;
+}
+
+let _rdmLastData=null;
+function _rdmBuildTrackHtml(data,colorMap){
+  _rdmLastData=data;
+  const{sprintBlocks,currentSprintId}=data;
+  const pastBlock=sprintBlocks[0];
+  const futureBlocks=sprintBlocks.slice(1);
+  const pastHtml=pastBlock
+    ?`<div class="rdm-top-row">${_rdmCardHtml(pastBlock,colorMap,0,true,currentSprintId)}</div>
+      <div class="rdm-slide-divider" aria-hidden="true">
+        <svg width="2" height="28" viewBox="0 0 2 28"><line x1="1" y1="0" x2="1" y2="28" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
+      </div>`
+    :'';
+  const futureHtml=futureBlocks.length
+    ?`<div class="rdm-bottom-row">${futureBlocks.map((b,i)=>_rdmCardHtml(b,colorMap,i+1,false,currentSprintId)).join('')}</div>`
+    :'';
+  return`<div class="rdm-slide">${pastHtml}${futureHtml}</div>`;
 }
 
 function renderRoadmapContent(){
@@ -2718,7 +2718,7 @@ function renderRoadmapContent(){
     _rdmSlides=teams.map(t=>{
       const data=_rdmBuildData(String(t.id));
       const colorMap=_rdmAssignColors(data.sprintBlocks);
-      return{team:t,html:_rdmBuildTrackHtml(data,colorMap)};
+      return{team:t,html:_rdmBuildTrackHtml(data,colorMap),data};
     });
     _rdmCarouselIdx=Math.max(0,_rdmSlides.findIndex(s=>String(s.team.id)===String(selectedTeamId)));
     const dis=_rdmSlides.length<=1?'disabled':'';
@@ -2729,9 +2729,7 @@ function renderRoadmapContent(){
       <div class="rdm-carousel-stage">
         <button class="rdm-carousel-btn" onclick="rdmCarouselPrev()" ${dis}><span class="material-icons-round">chevron_left</span></button>
         <div class="rdm-carousel-slides-wrap" id="rdm-carousel-slides">
-          ${_rdmSlides.map((s,i)=>`<div class="rdm-carousel-slide${i===_rdmCarouselIdx?' active':''}" data-idx="${i}">
-            <div class="rdm-track">${s.html}</div>
-          </div>`).join('')}
+          ${_rdmSlides.map((s,i)=>`<div class="rdm-carousel-slide${i===_rdmCarouselIdx?' active':''}" data-idx="${i}">${s.html}</div>`).join('')}
         </div>
         <button class="rdm-carousel-btn" onclick="rdmCarouselNext()" ${dis}><span class="material-icons-round">chevron_right</span></button>
       </div>
@@ -2745,7 +2743,7 @@ function renderRoadmapContent(){
     // Mode équipe unique
     const data=_rdmBuildData(filterVal);
     const colorMap=_rdmAssignColors(data.sprintBlocks);
-    content.innerHTML=`<div class="rdm-track">${_rdmBuildTrackHtml(data,colorMap)}</div>`;
+    content.innerHTML=_rdmBuildTrackHtml(data,colorMap);
   }
 }
 
