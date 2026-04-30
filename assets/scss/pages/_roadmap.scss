@@ -7,38 +7,69 @@
 }
 
 // ── Page centering ────────────────────────────────────────────
-#rdm-content { display: flex; justify-content: center; }
+#rdm-content { display: flex; justify-content: center; padding: 0 12px; }
 
 // ── Slide PowerPoint ──────────────────────────────────────────
 .rdm-slide {
   background: var(--bg3, var(--bg));
-  border-radius: 24px;
-  box-shadow: 0 2px 24px rgba(0,0,0,.09), 0 8px 48px rgba(0,0,0,.06);
+  border-radius: 28px;
+  box-shadow: 0 4px 32px rgba(0,0,0,.1), 0 12px 60px rgba(0,0,0,.07);
   border: 1px solid var(--border);
-  padding: 32px 28px;
+  padding: 28px 32px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0;
   width: 100%;
-  max-width: 1100px;
   position: relative;
   overflow: hidden;
 
   > *:not(.rdm-road-bg) { position: relative; z-index: 1; }
 }
 
-.rdm-top-row { display: flex; justify-content: center; gap: 20px; width: 100%; opacity: 0.80; }
+// ── Header interne ─────────────────────────────────────────────
+.rdm-slide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-bottom: 18px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
 
-.rdm-slide-divider { display: flex; justify-content: center; margin: 10px 0; }
+.rdm-slide-hd-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text1);
+  letter-spacing: -.3px;
+  .material-icons-round { color: var(--primary); font-size: 26px; }
+}
+
+.rdm-slide-hd-team {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  padding: 5px 16px;
+  border-radius: 99px;
+  letter-spacing: .3px;
+}
+
+.rdm-top-row { display: flex; justify-content: center; align-items: flex-start; gap: 24px; width: 100%; }
+
+.rdm-slide-divider { display: flex; justify-content: center; margin: 8px 0; }
 
 .rdm-bottom-row {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   justify-content: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   width: 100%;
-  opacity:0.75;
 }
 
 // ── Carte sprint ─────────────────────────────────────────────

@@ -2724,7 +2724,8 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
       </ul>
     </div>`;
   }).join('');
-  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${animIdx*0.09}s">
+  const _MT=[60,0,40,0,55];
+  return`<div class="rdm-sprint-card${isCurrent?' rdm-sprint-card--current':''}${isPast?' rdm-sprint-card--past':''}" style="animation-delay:${animIdx*0.09}s;margin-top:${_MT[animIdx]??0}px">
     ${isCurrent?'<div class="rdm-current-stripe"></div>':''}
     <div class="rdm-sprint-header">
       <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
@@ -2736,7 +2737,7 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
 }
 
 let _rdmLastData=null;
-function _rdmBuildTrackHtml(data,colorMap){
+function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   _rdmLastData=data;
   const{sprintBlocks,currentSprintId}=data;
   const pastBlock=sprintBlocks.find(b=>b.isPast);
@@ -2764,7 +2765,11 @@ function _rdmBuildTrackHtml(data,colorMap){
     <circle class="rdm-road-dot" cx="550" cy="510" r="5" style="animation-delay:4.1s"/>
     <circle class="rdm-road-dot" cx="844" cy="510" r="5" style="animation-delay:5.0s"/>
   </svg>`;
-  return`<div class="rdm-slide">${roadSvg}${topHtml}${bottomHtml}</div>`;
+  const headerHtml=`<div class="rdm-slide-header">
+    <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>
+    ${teamName?`<span class="rdm-slide-hd-team">${teamName}</span>`:''}
+  </div>`;
+  return`<div class="rdm-slide">${roadSvg}${headerHtml}${topHtml}${bottomHtml}</div>`;
 }
 
 function renderRoadmapContent(){
@@ -2779,7 +2784,7 @@ function renderRoadmapContent(){
     _rdmSlides=teams.map(t=>{
       const data=_rdmBuildData(String(t.id));
       const colorMap=_rdmAssignColors(data.sprintBlocks);
-      return{team:t,html:_rdmBuildTrackHtml(data,colorMap),data};
+      return{team:t,html:_rdmBuildTrackHtml(data,colorMap,t.name),data};
     });
     _rdmCarouselIdx=Math.max(0,_rdmSlides.findIndex(s=>String(s.team.id)===String(selectedTeamId)));
     const dis=_rdmSlides.length<=1?'disabled':'';
@@ -2804,7 +2809,8 @@ function renderRoadmapContent(){
     // Mode équipe unique
     const data=_rdmBuildData(filterVal);
     const colorMap=_rdmAssignColors(data.sprintBlocks);
-    content.innerHTML=_rdmBuildTrackHtml(data,colorMap);
+    const tn=(S.objectivesData?.teams||[]).find(t=>String(t.id)===String(filterVal))?.name||'';
+    content.innerHTML=_rdmBuildTrackHtml(data,colorMap,tn);
   }
 }
 
