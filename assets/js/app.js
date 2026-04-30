@@ -460,7 +460,11 @@ async function navTo(p,noPush=false){
   if(p==='roadmap'){
     document.getElementById('sprint-bar-sticky')?.classList.remove('active');
     document.getElementById('rdm-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement…</p></div>`;
-    try{await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);}catch(e){document.getElementById('rdm-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||'Erreur lors du chargement'}</p></div>`;return;}
+    try{await Promise.all([
+      API.get('/api/sprints').then(d=>{S.sprints=d.map(normSprint);}),
+      Promise.all((S.teams||[]).map(t=>API.get('/api/backlog?teamId='+t.id).catch(()=>[]))).then(results=>{S.backlog=results.flat();}),
+      loadObjectives()
+    ]);}catch(e){document.getElementById('rdm-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||'Erreur lors du chargement'}</p></div>`;return;}
     renderRoadmap();
   }
 }
