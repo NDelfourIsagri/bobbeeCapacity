@@ -346,6 +346,16 @@
         <span class="star material-icons-round" onclick="setStar(5)">star</span>
       </div>
     </div>
+    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <label class="input-label" style="margin-bottom:2px">Semaine de convergence</label>
+        <div style="font-size:11px;color:var(--text3)">Dernière semaine réservée aux tests &amp; corrections</div>
+      </div>
+      <label class="obj-toggle-wrap" style="margin:0">
+        <input type="checkbox" id="sm-convergence" checked>
+        <span class="obj-toggle-slider"></span>
+      </label>
+    </div>
     <div class="form-group"><label class="input-label">Objectifs</label>
       <div id="sm-objs"></div>
       <div class="sm-obj-row"><input type="text" class="input" id="sm-obj-in" placeholder="Ajouter un objectif..." onkeydown="if(event.key==='Enter')addObj()"><button class="btn btn-outline btn-sm" onclick="addObj()"><span class="material-icons-round">add</span></button></div>

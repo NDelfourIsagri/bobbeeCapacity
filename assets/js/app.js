@@ -562,6 +562,19 @@ function holidays(year,country='FR'){
 const r2=v=>Math.round(v*100)/100;
 function dayH(dt){return dt.getDay()===5?7:8;}
 
+// Retourne la date (YYYY-MM-DD) du premier jour de la semaine de convergence
+// = premier des 5 derniers jours ouvrés du sprint
+function convergenceStart(sprintEnd){
+  const hols=holidays(new Date(sprintEnd).getFullYear(),'FR');
+  let count=0,d=new Date(sprintEnd);
+  while(count<5){
+    const dow=d.getDay();
+    if(dow>0&&dow<6&&!hols.has(toDS(d)))count++;
+    if(count<5)d.setDate(d.getDate()-1);
+  }
+  return toDS(d);
+}
+
 function calcCap(member,start,end,leaves){
   const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
   const startDt=parseDate(start),endDt=parseDate(end);
@@ -615,8 +628,19 @@ function renderDash(){
       ||sprints.filter(s=>!s.closed).sort((a,b)=>new Date(a.start)-new Date(b.start))[0]);
   document.getElementById('dash-sprint-label').textContent=cur?`${cur.name} · ${fd(cur.start)} → ${fd(cur.end)}`:'Aucun sprint actif';
   const devs=team.filter(m=>(m.role==='dev'||m.role==='tech_lead')&&(!cur||memberActiveInPeriod(m,cur.start,cur.end)));
-  let totA=0,totP=0;
-  if(cur)devs.forEach(m=>{const c=calcCap(m,cur.start,cur.end,leaves);totA+=c.availD;totP+=c.prodD;});
+  let totA=0,totP=0,totC=0;
+  const hasConv=cur&&(cur.convergence===1||cur.convergence===true);
+  const convStart=hasConv?convergenceStart(cur.end):null;
+  const prodEnd=convStart?toDS(new Date(new Date(convStart).setDate(new Date(convStart).getDate()-1))):null;
+  if(cur)devs.forEach(m=>{
+    if(hasConv){
+      const cP=calcCap(m,cur.start,prodEnd,leaves);
+      const cC=calcCap(m,convStart,cur.end,leaves);
+      totA+=cP.availD+cC.availD;totP+=cP.prodD;totC+=cC.prodD;
+    }else{
+      const c=calcCap(m,cur.start,cur.end,leaves);totA+=c.availD;totP+=c.prodD;
+    }
+  });
   const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const sprintStart=cur?parseDate(cur.start):null;
   const sprintEnd=cur?parseDate(cur.end):null;
@@ -625,17 +649,33 @@ function renderDash(){
   const remainDays=cur?Math.max(0,countWorkDays(fromDay,sprintEnd)):0;
   document.getElementById('dash-stats').innerHTML=`
     <div class="card stat-card"><div class="stat-value">${devs.length}</div><div class="stat-label">Développeurs</div><div class="stat-sub">${team.length} membres total</div></div>
-    <div class="card stat-card"><div class="stat-value">${r2(totP)}j</div><div class="stat-label">Capacité productive</div><div class="stat-sub">sur ${r2(totA)}j disponibles</div></div>
+    <div class="card stat-card"><div class="stat-value">${r2(totP)}j</div><div class="stat-label">Capacité dev</div><div class="stat-sub">${hasConv?`+ ${r2(totC)}j convergence · `:''}sur ${r2(totA)}j dispo</div></div>
     <div class="card stat-card"><div class="stat-value">${cur?.velocityPlanned||'—'}</div><div class="stat-label">Points planifiés</div><div class="stat-sub">Vélocité cible</div></div>
     <div class="card stat-card"><div class="stat-value">${cur?remainDays+'j':'—'}</div><div class="stat-label">Jours restants</div><div class="stat-sub">${cur?`sur ${totalDays}j ouvrés`:'—'}</div></div>`;
   document.getElementById('dash-cap').innerHTML=!cur||devs.length===0
     ?'<p style="color:var(--text3);font-size:13px">Configurez l\'équipe et un sprint</p>'
-    :devs.map(m=>{const c=calcCap(m,cur.start,cur.end,leaves);const pct=Math.round(c.prodD/Math.max(.01,c.totD)*100);
+    :devs.map(m=>{
+      let prodD,convD,availD,totD,mtgD,velPct,hasCustomVel;
+      if(hasConv){
+        const cP=calcCap(m,cur.start,prodEnd,leaves);
+        const cC=calcCap(m,convStart,cur.end,leaves);
+        prodD=cP.prodD;convD=cC.prodD;availD=cP.availD+cC.availD;
+        totD=cP.totD+cC.totD;mtgD=r2(cP.mtgD+cC.mtgD);velPct=cP.velPct;hasCustomVel=cP.hasCustomVel;
+      }else{
+        const c=calcCap(m,cur.start,cur.end,leaves);
+        prodD=c.prodD;convD=0;availD=c.availD;totD=c.totD;mtgD=c.mtgD;velPct=c.velPct;hasCustomVel=c.hasCustomVel;
+      }
+      const totalProd=r2(prodD+(convD||0));
+      const pct=Math.round(totalProd/Math.max(.01,totD)*100);
       return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
         <span style="font-weight:600">${m.fname} ${m.lname} <span class="badge ${LB[m.level]||'badge-primary'}" style="font-size:10px">${m.level}</span></span>
-        <span style="color:var(--text3)">${c.prodD}j prod / ${c.availD}j dispo</span></div>
-        <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
-        <div style="font-size:11px;color:var(--text3);margin-top:3px">${c.mtgD}j réunions · ${RL[m.role]||m.role} · <span style="color:${c.hasCustomVel?'var(--primary)':'var(--text3)'}" title="${c.hasCustomVel?'Vélocité personnalisée':'Vélocité par niveau'}">${c.velPct}% vél.${c.hasCustomVel?' ✎':''}</span></div></div>`;}).join('');
+        <span style="color:var(--text3)">${hasConv?`${prodD}j dev + ${convD}j conv`:prodD+'j prod'} / ${availD}j dispo</span></div>
+        <div class="progress-wrap">
+          <div class="progress-bar" style="width:${Math.round(prodD/Math.max(.01,totD)*100)}%;background:var(--primary)"></div>
+          ${hasConv?`<div class="progress-bar" style="width:${Math.round(convD/Math.max(.01,totD)*100)}%;background:var(--warning);margin-top:2px"></div>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">${mtgD}j réunions · ${RL[m.role]||m.role} · <span style="color:${hasCustomVel?'var(--primary)':'var(--text3)'}" title="${hasCustomVel?'Vélocité personnalisée':'Vélocité par niveau'}">${velPct}% vél.${hasCustomVel?' ✎':''}</span></div></div>`;
+    }).join('');
   const objs=cur?.objectives||[];
   const canToggle=cur&&!cur.closed&&['admin','super_admin'].includes(CU?.role);
   const isAdmin=['admin','super_admin'].includes(CU?.role);
@@ -685,7 +725,11 @@ function renderDash(){
     :dashTeam.map((m,i)=>`<div class="member-card">
       <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
       <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${m.meetings||20}% réun.</div></div>
-      ${cur&&(m.role==='dev'||m.role==='tech_lead')?`<div style="text-align:right;flex-shrink:0"><div style="font-size:15px;font-weight:700;color:var(--primary)">${calcCap(m,cur.start,cur.end,leaves).prodD}j</div><div style="font-size:10px;color:var(--text3)">prod.</div></div>`:''}
+      ${cur&&(m.role==='dev'||m.role==='tech_lead')?`<div style="text-align:right;flex-shrink:0">${(()=>{
+        if(hasConv){const cP=calcCap(m,cur.start,prodEnd,leaves);const cC=calcCap(m,convStart,cur.end,leaves);
+          return `<div style="font-size:13px;font-weight:700;color:var(--primary)">${cP.prodD}j <span style="font-size:10px;color:var(--text3)">dev</span></div><div style="font-size:11px;font-weight:600;color:var(--warning)">${cC.prodD}j <span style="font-size:10px;color:var(--text3)">conv.</span></div>`;}
+        return `<div style="font-size:15px;font-weight:700;color:var(--primary)">${calcCap(m,cur.start,cur.end,leaves).prodD}j</div><div style="font-size:10px;color:var(--text3)">prod.</div>`;
+      })()}</div>`:''}
     </div>`).join('');
 }
 
@@ -1013,6 +1057,7 @@ function openSprintModal(id=null){
   document.getElementById('sm-start').value=s?.start||'';
   document.getElementById('sm-end').value=s?.end||'';
   document.getElementById('sm-vel').value=s?.velocityPlanned||'';
+  document.getElementById('sm-convergence').checked=s?(s.convergence!==0&&s.convergence!==false):true;
   if(s?.objectives)tmpObjs=[...s.objectives];
   if(s?.confidence){sprintStars=s.confidence;}
   updateStars();renderTmpObjs();
@@ -1027,6 +1072,7 @@ async function saveSprint(){
   const start=document.getElementById('sm-start').value;
   const end=document.getElementById('sm-end').value;
   const vp=Number(document.getElementById('sm-vel').value);
+  const convergence=document.getElementById('sm-convergence').checked;
   if(!name||!start||!end){toast('Champs obligatoires manquants','error');return;}
   try{
     if(editSprintId){
@@ -1036,10 +1082,10 @@ async function saveSprint(){
         velocityCurrent:s?.velocityCurrent||null,
         velocityActual:s?.velocityActual||null,
         confidence:sprintStars,objectives:tmpObjs,closed:s?.closed||false,
-        teamId:Number(selectedTeamId),
+        teamId:Number(selectedTeamId),convergence,
       });
     }else{
-      await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs,teamId:selectedTeamId?Number(selectedTeamId):null});
+      await API.post('/api/sprints',{name,start,end,velocityPlanned:vp,confidence:sprintStars,objectives:tmpObjs,teamId:selectedTeamId?Number(selectedTeamId):null,convergence});
     }
     await loadSprints();
     closeModal('modal-sprint');toast('Sprint sauvegardé ✓','success');renderSprints();
@@ -1168,18 +1214,29 @@ function renderCharts(){
       scales:{...base.scales,y:{...base.scales.y,min:0}}});
   } else dChart('chart-burndown','line',{labels:[],datasets:[]},base);
   const leaves=S.leaves,team=S.team;
-  const cP=[],cA=[];
+  const warn=cv('--warning')||'#f59e0b';
+  const cDev=[],cConv=[],cA=[];
   sprints.forEach(s=>{
-    let tp=0;
-    // Filtrer les devs actifs pendant CE sprint
     const sDevs=team.filter(m=>(m.role==='dev'||m.role==='tech_lead')&&memberActiveInPeriod(m,s.start,s.end));
-    sDevs.forEach(m=>{tp+=calcCap(m,s.start,s.end,leaves).prodD;});
-    cP.push(r2(tp));cA.push(s.velocityActual||null);
+    const hasConv=s.convergence===1||s.convergence===true;
+    const convStart=hasConv?convergenceStart(s.end):null;
+    const prodEnd=convStart?toDS(new Date(new Date(convStart).setDate(new Date(convStart).getDate()-1))):null;
+    let tDev=0,tConv=0;
+    sDevs.forEach(m=>{
+      if(hasConv&&convStart&&prodEnd){
+        tDev+=calcCap(m,s.start,prodEnd,leaves).prodD;
+        tConv+=calcCap(m,convStart,s.end,leaves).prodD;
+      } else {
+        tDev+=calcCap(m,s.start,s.end,leaves).prodD;
+      }
+    });
+    cDev.push(r2(tDev));cConv.push(hasConv?r2(tConv):null);cA.push(s.velocityActual||null);
   });
   dChart('chart-capacity','bar',{labels,datasets:[
-    {label:'Capacité (j)',data:cP,backgroundColor:pr+'44',borderColor:pr,borderWidth:2,borderRadius:8,yAxisID:'y'},
+    {label:'Capacité dev (j)',data:cDev,backgroundColor:pr+'55',borderColor:pr,borderWidth:2,borderRadius:4,stack:'cap',yAxisID:'y'},
+    {label:'Capacité convergence (j)',data:cConv,backgroundColor:warn+'88',borderColor:warn,borderWidth:2,borderRadius:4,stack:'cap',yAxisID:'y'},
     {label:'Vélocité réalisée (pts)',data:cA,backgroundColor:sc+'44',borderColor:sc,borderWidth:2,borderRadius:8,yAxisID:'y1'}
-  ]},{...base,scales:{x:{ticks:{color:t2},grid:{color:dv}},y:{type:'linear',position:'left',ticks:{color:t2},grid:{color:dv},beginAtZero:true},y1:{type:'linear',position:'right',ticks:{color:t2},grid:{drawOnChartArea:false},beginAtZero:true}}});
+  ]},{...base,scales:{x:{ticks:{color:t2},grid:{color:dv}},y:{type:'linear',position:'left',stacked:true,ticks:{color:t2},grid:{color:dv},beginAtZero:true},y1:{type:'linear',position:'right',ticks:{color:t2},grid:{drawOnChartArea:false},beginAtZero:true}}});
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
