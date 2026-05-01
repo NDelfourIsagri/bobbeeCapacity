@@ -426,7 +426,7 @@
   stroke-width: 5; stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 15px 2px color-mix(in srgb, var(--primary) 35%, transparent));
-  stroke-dasharray: 1000; stroke-dashoffset: 1000; opacity: 0;
+  stroke-dasharray: 5000; stroke-dashoffset: 5000; opacity: 0;
   animation: rdmRoadLine 5s cubic-bezier(.4,0,.2,1) forwards .2s;
 }
 
@@ -439,7 +439,7 @@
 }
 
 @keyframes rdmRoadLine {
-  0%   { stroke-dashoffset: 1000; opacity: 0; }
+  0%   { stroke-dashoffset: 5000; opacity: 0; }
   4%   { opacity: .28; }
   100% { stroke-dashoffset: 0;    opacity: .28; }
 }
