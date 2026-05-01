@@ -2758,67 +2758,88 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const row1Html=row1.map((b,i)=>makePin(b,i)).join('');
   const row2Html=row2.map((b,i)=>makePin(b,i+2)).join('');
 
-  // Calcul des centres X (miroir exact du layout CSS flex)
-  const getXCenters=(cards,gap=20,W=1024)=>{
+  // Calcul des boîtes englobantes des cartes depuis les largeurs CSS flex
+  // viewBox 0 0 1024 600, preserveAspectRatio=none
+  // Dots placés aux BORDS des cartes (gaps latéraux et inter-rangée) → toujours visibles
+  const getCardLayout=(cards,gap=20,W=1024)=>{
     if(!cards.length)return[];
     const widths=cards.map(b=>b&&curBlock&&String(b.sprint.id)===String(currentSprintId)?320:290);
     const total=widths.reduce((a,b)=>a+b,0)+(cards.length-1)*gap;
     let x=(W-total)/2;
-    return widths.map(w=>{const c=Math.round(x+w/2);x+=w+gap;return c;});
+    return widths.map(w=>{
+      const left=Math.round(x),center=Math.round(x+w/2),right=Math.round(x+w);
+      x+=w+gap;
+      return{left,center,right};
+    });
   };
-  const cx1=getXCenters(row1); // ex: [342, 667]
-  const cx2=getXCenters(row2); // ex: [202, 512, 822]
+  const layout1=getCardLayout(row1);
+  const layout2=getCardLayout(row2);
 
-  // viewBox 1024×600, preserveAspectRatio=none → s'adapte à la hauteur du conteneur.
-  // TY≈240 = y bande haute (≈40% de 600), BY≈362 = y bande basse (≈60% de 600).
-  // Entrée bord gauche à y=88 (~15%) et sortie bord droit à y=512 (~85%) → inclinaison globale.
-  const TY=240, BY=362, MY=Math.round((TY+BY)/2);
+  // Positions des jalons (dans le gap de chaque bord de carte)
+  // D1 = 20px à gauche de Sprint-passé   → gap gauche de la rangée haute
+  // D2 = 13px à droite de Sprint-courant → gap droit de la rangée haute
+  // D3 = 10px à gauche de Sprint+1       → gap inter-rangée, côté gauche
+  // D4 = milieu du gap entre Sprint+1 et Sprint+2
+  // D5 = 10px à droite de Sprint+3       → gap droit de la rangée basse
+  const D1x=layout1.length>=1?layout1[0].left-20:165,         D1y=30;
+  const D2x=layout1.length>=2?layout1[1].right+13:layout1.length>=1?layout1[0].right+13:840, D2y=115;
+  const D3x=layout2.length>=1?layout2[0].left-10:47,          D3y=272;
+  const D4x=layout2.length>=2?Math.round((layout2[0].right+layout2[1].left)/2):357, D4y=408;
+  const D5x=layout2.length>=1?layout2[layout2.length-1].right+10:977, D5y=440;
+
+  const isCurFn=b=>curBlock&&b&&String(b.sprint.id)===String(currentSprintId);
   let RD='', dotEls=[];
 
-  if(cx1.length){
-    const [d1x,d2x=d1x]=cx1;
-    // Arc d'entrée : bord gauche haut → D1 (arrive horizontalement)
-    RD=`M 0,88 C ${Math.round(d1x*0.22)},88 ${d1x-90},${TY} ${d1x},${TY}`;
-    // Bande haute
-    if(cx1.length>1) RD+=` C ${d1x+70},${TY} ${d2x-70},${TY} ${d2x},${TY}`;
-    // Jalons SVG ligne 1
-    cx1.forEach((cx,i)=>{
-      const isCur=row1[i]&&curBlock&&String(row1[i].sprint.id)===String(currentSprintId);
-      const delay=(0.7+i*0.9).toFixed(1);
-      if(isCur){
-        dotEls.push(`<circle class="rdm-road-ring" cx="${cx}" cy="${TY}" r="10" style="animation-delay:${(+delay+0.3).toFixed(1)}s"/>`);
-        dotEls.push(`<circle class="rdm-road-dot rdm-road-dot--cur" cx="${cx}" cy="${TY}" r="10" style="animation-delay:${delay}s"/>`);
-      }else{
-        dotEls.push(`<circle class="rdm-road-dot" cx="${cx}" cy="${TY}" r="7" style="animation-delay:${delay}s"/>`);
-      }
-    });
-    // S-curve : dernière carte ligne 1 → première carte ligne 2
-    // cp1 à droite du D2, cp2 à gauche du D3, tous deux au milieu vertical → S harmonieux
-    if(cx2.length){
-      const x2=cx1[cx1.length-1], x3=cx2[0];
-      RD+=` C ${x2+95},${MY} ${x3-95},${MY} ${x3},${BY}`;
+  // ── Tracé : entrée (bord gauche, quasi sommet) ─────────────────────────────
+  RD=`M 0,28`;
+
+  if(layout1.length>=1){
+    // Entrée → D1 : quasi horizontal
+    RD+=` C 55,28 100,29 ${D1x},${D1y}`;
+    if(isCurFn(row1[0])){
+      dotEls.push(`<circle class="rdm-road-ring" cx="${D1x}" cy="${D1y}" r="10" style="animation-delay:1.0s"/>`);
+      dotEls.push(`<circle class="rdm-road-dot rdm-road-dot--cur" cx="${D1x}" cy="${D1y}" r="10" style="animation-delay:0.7s"/>`);
+    }else{
+      dotEls.push(`<circle class="rdm-road-dot" cx="${D1x}" cy="${D1y}" r="7" style="animation-delay:0.7s"/>`);
     }
   }
 
-  if(cx2.length){
-    if(!cx1.length){
-      const [d3x]=cx2;
-      RD=`M 0,88 C ${Math.round(d3x*0.22)},88 ${d3x-90},${BY} ${d3x},${BY}`;
+  if(layout1.length>=2){
+    // D1 → D2 : légère pente montante
+    RD+=` C ${D1x+145},${D1y} ${D2x-120},${D2y-7} ${D2x},${D2y}`;
+    if(isCurFn(row1[1])){
+      dotEls.push(`<circle class="rdm-road-ring" cx="${D2x}" cy="${D2y}" r="10" style="animation-delay:1.9s"/>`);
+      dotEls.push(`<circle class="rdm-road-dot rdm-road-dot--cur" cx="${D2x}" cy="${D2y}" r="10" style="animation-delay:1.6s"/>`);
+    }else{
+      dotEls.push(`<circle class="rdm-road-dot" cx="${D2x}" cy="${D2y}" r="7" style="animation-delay:1.6s"/>`);
     }
-    // Bande basse
-    cx2.slice(1).forEach((cx,i)=>{
-      RD+=` C ${cx2[i]+70},${BY} ${cx-70},${BY} ${cx},${BY}`;
-    });
-    // Jalons SVG ligne 2
-    cx2.forEach((cx,i)=>{
-      const delay=(2.8+i*0.9).toFixed(1);
-      dotEls.push(`<circle class="rdm-road-dot" cx="${cx}" cy="${BY}" r="7" style="animation-delay:${delay}s"/>`);
-    });
-    // Arc de sortie : dernière carte ligne 2 → bord droit bas
-    const lastX=cx2[cx2.length-1];
-    RD+=` C ${lastX+90},${BY} 960,480 1024,512`;
-  }else if(cx1.length){
-    RD+=` C ${cx1[cx1.length-1]+90},${TY} 960,460 1024,512`;
+    // D2 → D3 : grand C inversé (boucle vers la droite puis plonge à gauche)
+    RD+=` C ${D2x+130},${D2y+80} ${D3x+60},${D3y-47} ${D3x},${D3y}`;
+  }else if(layout1.length===1){
+    // Seule carte en haut → descend directement vers D3
+    RD+=` C ${D1x+130},${D1y+80} ${D3x+60},${D3y-47} ${D3x},${D3y}`;
+  }
+
+  if(layout2.length>=1){
+    dotEls.push(`<circle class="rdm-road-dot" cx="${D3x}" cy="${D3y}" r="7" style="animation-delay:2.8s"/>`);
+    if(layout2.length>=2){
+      // D3 → D4 : descend puis vire à droite
+      RD+=` C ${D3x+10},${D3y+50} ${D4x-137},${D4y-13} ${D4x},${D4y}`;
+      dotEls.push(`<circle class="rdm-road-dot" cx="${D4x}" cy="${D4y}" r="7" style="animation-delay:3.7s"/>`);
+      if(layout2.length>=3){
+        // D4 → D5 : quasi horizontal vers la droite
+        RD+=` C ${D4x+133},${D4y+7} ${D5x-110},${D5y-2} ${D5x},${D5y}`;
+        dotEls.push(`<circle class="rdm-road-dot" cx="${D5x}" cy="${D5y}" r="7" style="animation-delay:4.6s"/>`);
+        // D5 → sortie bord droit
+        RD+=` C ${D5x+30},${D5y+1} 1024,${D5y+5} 1024,${D5y+5}`;
+      }else{
+        RD+=` C ${D4x+100},${D4y+5} 1010,${D4y+8} 1024,${D4y+8}`;
+      }
+    }else{
+      RD+=` C ${D3x+100},${D3y+50} 1010,${D3y+60} 1024,${D3y+60}`;
+    }
+  }else if(layout1.length>=1){
+    RD+=` C ${layout1[layout1.length-1].right+80},${D2y+80} 1010,${D2y+100} 1024,${D2y+100}`;
   }
 
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
