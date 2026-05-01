@@ -423,14 +423,17 @@
 
 .rdm-road-glow {
   fill: none; stroke: var(--primary);
-  stroke-width: 28; stroke-linecap: round; stroke-linejoin: round;
+  stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: blur(10px);
   stroke-dasharray: 1000; stroke-dashoffset: 1000; opacity: 0;
   animation: rdmRoadGlow 5s cubic-bezier(.4,0,.2,1) forwards .2s;
 }
 
 .rdm-road-line {
   fill: none; stroke: var(--primary);
-  stroke-width: 2; stroke-linecap: round;
+  stroke-width: 2.5; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
   stroke-dasharray: 1000; stroke-dashoffset: 1000; opacity: 0;
   animation: rdmRoadLine 5s cubic-bezier(.4,0,.2,1) forwards .2s;
 }
@@ -445,13 +448,13 @@
 
 @keyframes rdmRoadGlow {
   0%   { stroke-dashoffset: 1000; opacity: 0; }
-  4%   { opacity: .06; }
-  100% { stroke-dashoffset: 0;    opacity: .06; }
+  4%   { opacity: .45; }
+  100% { stroke-dashoffset: 0;    opacity: .45; }
 }
 @keyframes rdmRoadLine {
   0%   { stroke-dashoffset: 1000; opacity: 0; }
-  4%   { opacity: .22; }
-  100% { stroke-dashoffset: 0;    opacity: .22; }
+  4%   { opacity: .28; }
+  100% { stroke-dashoffset: 0;    opacity: .28; }
 }
 @keyframes rdmArrowShow { to { opacity: .7; } }
 

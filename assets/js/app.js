@@ -2758,8 +2758,8 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const row1Html=row1.map((b,i)=>makePin(b,i)).join('');
   const row2Html=row2.map((b,i)=>makePin(b,i+2)).join('');
 
-  // Chemin sinueux fixe (S inversé à deux boucles, coordonnées viewBox 1024×600)
-  const RD=`M 0,92 C 70,40 155,18 220,55 C 290,95 295,175 215,218 C 155,255 215,315 355,345 C 490,375 625,365 658,288 C 690,215 660,340 614,452 C 575,548 795,572 1024,574`;
+  // Chemin sinueux fixe — double S, G1 continu à chaque jonction
+  const RD=`M 0,92 C 70,40 155,18 220,55 C 290,95 225,162 215,218 C 207,265 280,328 360,345 C 450,365 630,370 660,290 C 688,213 660,342 615,450 C 576,545 800,573 1024,575`;
   const AW=`M -13,-7 L 3,0 L -13,7 L -8,0 Z`;
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>

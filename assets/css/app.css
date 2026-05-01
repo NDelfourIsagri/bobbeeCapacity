@@ -591,12 +591,12 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-carousel-slide.active{display:block;animation:rdmFadeIn .3s ease;}
 @keyframes rdmFadeIn{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:none;}}
 .rdm-road-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;}
-.rdm-road-glow{fill:none;stroke:var(--primary);stroke-width:28;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1000;stroke-dashoffset:1000;opacity:0;animation:rdmRoadGlow 5s cubic-bezier(.4,0,.2,1) forwards .2s;}
-.rdm-road-line{fill:none;stroke:var(--primary);stroke-width:2;stroke-linecap:round;stroke-dasharray:1000;stroke-dashoffset:1000;opacity:0;animation:rdmRoadLine 5s cubic-bezier(.4,0,.2,1) forwards .2s;}
+.rdm-road-glow{fill:none;stroke:var(--primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:blur(10px);stroke-dasharray:1000;stroke-dashoffset:1000;opacity:0;animation:rdmRoadGlow 5s cubic-bezier(.4,0,.2,1) forwards .2s;}
+.rdm-road-line{fill:none;stroke:var(--primary);stroke-width:2.5;stroke-linecap:round;vector-effect:non-scaling-stroke;stroke-dasharray:1000;stroke-dashoffset:1000;opacity:0;animation:rdmRoadLine 5s cubic-bezier(.4,0,.2,1) forwards .2s;}
 .rdm-arrow{fill:#64748b;opacity:0;}
 .rdm-arrow--1{animation:rdmArrowShow .01s 5s forwards;}
 .rdm-arrow--2{animation:rdmArrowShow .01s 7.4s forwards;}
 .rdm-arrow--3{animation:rdmArrowShow .01s 13.4s forwards;}
-@keyframes rdmRoadGlow{0%{stroke-dashoffset:1000;opacity:0}4%{opacity:.06}100%{stroke-dashoffset:0;opacity:.06}}
-@keyframes rdmRoadLine{0%{stroke-dashoffset:1000;opacity:0}4%{opacity:.22}100%{stroke-dashoffset:0;opacity:.22}}
+@keyframes rdmRoadGlow{0%{stroke-dashoffset:1000;opacity:0}4%{opacity:.45}100%{stroke-dashoffset:0;opacity:.45}}
+@keyframes rdmRoadLine{0%{stroke-dashoffset:1000;opacity:0}4%{opacity:.28}100%{stroke-dashoffset:0;opacity:.28}}
 @keyframes rdmArrowShow{to{opacity:.7}}
