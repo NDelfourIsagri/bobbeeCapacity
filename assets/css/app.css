@@ -594,7 +594,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-road-line{fill:none;stroke:var(--primary);stroke-width:5;stroke-linecap:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 15px 2px color-mix(in srgb,var(--primary) 35%,transparent));stroke-dasharray:5000;stroke-dashoffset:5000;opacity:0;animation:rdmRoadLine 5s cubic-bezier(.4,0,.2,1) forwards .2s;}
 .rdm-arrow{fill:#64748b;opacity:0;}
 .rdm-arrow--1{animation:rdmArrowShow .01s 5s forwards;}
-.rdm-arrow--2{animation:rdmArrowShow .01s 7.4s forwards;}
-.rdm-arrow--3{animation:rdmArrowShow .01s 13.4s forwards;}
+.rdm-arrow--2{animation:rdmArrowShow .01s 9s forwards;}
+.rdm-arrow--3{animation:rdmArrowShow .01s 19s forwards;}
 @keyframes rdmRoadLine{0%{stroke-dashoffset:5000;opacity:0}4%{opacity:.28}100%{stroke-dashoffset:0;opacity:.28}}
 @keyframes rdmArrowShow{to{opacity:.7}}

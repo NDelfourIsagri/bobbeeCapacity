@@ -433,9 +433,9 @@
 // Flèches ardoise — neutres pour ne pas concurrencer les couleurs d'objectifs
 .rdm-arrow {
   fill: #64748b; opacity: 0;
-  &--1 { animation: rdmArrowShow .01s 5s   forwards; }
-  &--2 { animation: rdmArrowShow .01s 7.4s forwards; }
-  &--3 { animation: rdmArrowShow .01s 13.4s forwards; }
+  &--1 { animation: rdmArrowShow .01s 5s  forwards; }
+  &--2 { animation: rdmArrowShow .01s 9s  forwards; }
+  &--3 { animation: rdmArrowShow .01s 19s forwards; }
 }
 
 @keyframes rdmRoadLine {

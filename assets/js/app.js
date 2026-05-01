@@ -2763,9 +2763,9 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const AW=`M -10,-6 L 4,0 L -10,6 L -6,0 Z`;
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1022 670" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-line" opacity="0" d="${RD}"/>
-    <path class="rdm-arrow rdm-arrow--1" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="5s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
-    <path class="rdm-arrow rdm-arrow--2" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="7.4s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
-    <path class="rdm-arrow rdm-arrow--3" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="13.4s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--1" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="5s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--2" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="9s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--3" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="19s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
   </svg>`;
 
   const headerHtml=`<div class="rdm-slide-header">
