@@ -423,7 +423,7 @@
 
 .rdm-road-glow {
   fill: none; stroke: var(--primary);
-  stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+  stroke-width: 5; stroke-linecap: round; stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
   filter: blur(10px);
   stroke-dasharray: 1000; stroke-dashoffset: 1000; opacity: 0;
@@ -432,8 +432,9 @@
 
 .rdm-road-line {
   fill: none; stroke: var(--primary);
-  stroke-width: 2.5; stroke-linecap: round;
+  stroke-width: 5; stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 5px 10px color-mix(in srgb, var(--primary) 50%, transparent));
   stroke-dasharray: 1000; stroke-dashoffset: 1000; opacity: 0;
   animation: rdmRoadLine 5s cubic-bezier(.4,0,.2,1) forwards .2s;
 }
