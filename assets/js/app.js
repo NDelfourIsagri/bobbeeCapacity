@@ -2758,11 +2758,23 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const row1Html=row1.map((b,i)=>makePin(b,i)).join('');
   const row2Html=row2.map((b,i)=>makePin(b,i+2)).join('');
 
+  // Chemin sinueux fixe (S inversé à deux boucles, coordonnées viewBox 1024×600)
+  const RD=`M 0,92 C 70,40 155,18 220,55 C 290,95 295,175 215,218 C 155,255 215,315 355,345 C 490,375 625,365 658,288 C 690,215 660,340 614,452 C 575,548 795,572 1024,574`;
+  const AW=`M -13,-7 L 3,0 L -13,7 L -8,0 Z`;
+  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
+    <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
+    <path class="rdm-road-line" pathLength="1000" d="${RD}"/>
+    <path class="rdm-arrow rdm-arrow--1" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="5s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--2" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="7.4s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--3" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="13.4s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+  </svg>`;
+
   const headerHtml=`<div class="rdm-slide-header">
     <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>
     ${teamName?`<span class="rdm-slide-hd-team">${teamName}</span>`:''}
   </div>`;
   return`<div class="rdm-slide">${headerHtml}<div class="rdm-cards-map">
+    ${roadSvg}
     <div class="rdm-row rdm-row--top">${row1Html}</div>
     <div class="rdm-row rdm-row--bottom">${row2Html}</div>
   </div></div>`;
