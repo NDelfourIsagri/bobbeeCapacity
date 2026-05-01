@@ -74,6 +74,7 @@
   align-items: flex-start;
   position: relative;
   z-index: 1;
+  opacity: .85;
 }
 
 .rdm-row--top    { padding: 28px 32px 56px; } // gap dessous pour le S-curve
@@ -433,9 +434,20 @@
 // Flèches ardoise — neutres pour ne pas concurrencer les couleurs d'objectifs
 .rdm-arrow {
   fill: #64748b; opacity: 0;
-  &--1 { animation: rdmArrowShow .01s 5s  forwards; }
-  &--2 { animation: rdmArrowShow .01s 9s  forwards; }
-  &--3 { animation: rdmArrowShow .01s 19s forwards; }
+  transform-box: fill-box; transform-origin: center;
+  // périodes incommensurables par flèche → effet pseudo-aléatoire dans le temps
+  &--1 { animation: rdmArrowPulse 7s   5s  ease-in-out infinite, rdmArrowShimmer 4.3s 5s  ease-in-out infinite; }
+  &--2 { animation: rdmArrowPulse 5.3s 9s  ease-in-out infinite, rdmArrowShimmer 6.7s 9s  ease-in-out infinite; }
+  &--3 { animation: rdmArrowPulse 9.1s 19s ease-in-out infinite, rdmArrowShimmer 5.1s 19s ease-in-out infinite; }
+}
+
+@keyframes rdmArrowPulse {
+  0%, 60%, 100% { transform: scale(1); }
+  80%           { transform: scale(1.35); }
+}
+@keyframes rdmArrowShimmer {
+  0%, 35%, 100% { opacity: .7; }
+  18%           { opacity: 1; }
 }
 
 @keyframes rdmRoadLine {
@@ -443,5 +455,4 @@
   4%   { opacity: .28; }
   100% { stroke-dashoffset: 0;    opacity: .28; }
 }
-@keyframes rdmArrowShow { to { opacity: .7; } }
 
