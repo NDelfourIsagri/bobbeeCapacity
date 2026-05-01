@@ -590,19 +590,3 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .rdm-carousel-slide{display:none;}
 .rdm-carousel-slide.active{display:block;animation:rdmFadeIn .3s ease;}
 @keyframes rdmFadeIn{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:none;}}
-/* ── Route sinueuse en arrière-plan ── */
-.rdm-road-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;}
-.rdm-road-glow{fill:none;stroke:var(--primary);stroke-width:36;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1000;stroke-dashoffset:1000;opacity:0;animation:rdmRoadDraw 5.5s cubic-bezier(.4,0,.2,1) forwards .2s;}
-.rdm-road-line{fill:none;stroke:var(--primary);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:14 10;opacity:0;animation:rdmRoadFadeIn .8s ease forwards 5s;}
-.rdm-road-dot{fill:var(--primary);opacity:0;transform-box:fill-box;transform-origin:center;animation:rdmDotIn .6s cubic-bezier(.34,1.56,.64,1) forwards;}
-.rdm-road-ring{fill:none;stroke:var(--primary);stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center;animation:rdmRingOut 2.6s ease-out infinite;}
-@keyframes rdmRoadDraw{0%{stroke-dashoffset:1000;opacity:0}5%{opacity:.05}100%{stroke-dashoffset:0;opacity:.05}}
-@keyframes rdmRoadFadeIn{to{opacity:.14}}
-@keyframes rdmDotIn{from{opacity:0;transform:scale(0)}to{opacity:.55;transform:scale(1)}}
-@keyframes rdmRingOut{0%{opacity:.65;transform:scale(1)}70%{opacity:0;transform:scale(2.8)}100%{opacity:0;transform:scale(2.8)}}
-.rdm-road-dot-pin{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--primary);margin-left:-7px;margin-top:-7px;opacity:0;animation:rdmDotPinIn .6s cubic-bezier(.34,1.56,.64,1) forwards;z-index:2;pointer-events:none;transform-origin:center}
-.rdm-road-dot-pin--cur{width:18px;height:18px;margin-left:-9px;margin-top:-9px;animation:rdmDotPinInCur .6s cubic-bezier(.34,1.56,.64,1) forwards}
-.rdm-road-ring-pin{position:absolute;width:18px;height:18px;border-radius:50%;background:transparent;border:2px solid var(--primary);margin-left:-9px;margin-top:-9px;opacity:0;animation:rdmRingPinOut 2.6s ease-out infinite;z-index:2;pointer-events:none;transform-origin:center}
-@keyframes rdmDotPinIn{from{opacity:0;transform:scale(0)}to{opacity:.55;transform:scale(1)}}
-@keyframes rdmDotPinInCur{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
-@keyframes rdmRingPinOut{0%{opacity:.65;transform:scale(1)}70%{opacity:0;transform:scale(2.8)}100%{opacity:0;transform:scale(2.8)}}

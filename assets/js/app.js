@@ -2758,101 +2758,11 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const row1Html=row1.map((b,i)=>makePin(b,i)).join('');
   const row2Html=row2.map((b,i)=>makePin(b,i+2)).join('');
 
-  // Calcul des boîtes englobantes des cartes depuis les largeurs CSS flex
-  // viewBox 0 0 1024 600, preserveAspectRatio=none
-  // Dots placés aux BORDS des cartes (gaps latéraux et inter-rangée) → toujours visibles
-  const getCardLayout=(cards,gap=20,W=1024)=>{
-    if(!cards.length)return[];
-    const widths=cards.map(b=>b&&curBlock&&String(b.sprint.id)===String(currentSprintId)?320:290);
-    const total=widths.reduce((a,b)=>a+b,0)+(cards.length-1)*gap;
-    let x=(W-total)/2;
-    return widths.map(w=>{
-      const left=Math.round(x),center=Math.round(x+w/2),right=Math.round(x+w);
-      x+=w+gap;
-      return{left,center,right};
-    });
-  };
-  const layout1=getCardLayout(row1);
-  const layout2=getCardLayout(row2);
-
-  // Positions des jalons (dans le gap de chaque bord de carte)
-  // D1 = 20px à gauche de Sprint-passé   → gap gauche de la rangée haute
-  // D2 = 13px à droite de Sprint-courant → gap droit de la rangée haute
-  // D3 = 10px à gauche de Sprint+1       → gap inter-rangée, côté gauche
-  // D4 = milieu du gap entre Sprint+1 et Sprint+2
-  // D5 = 10px à droite de Sprint+3       → gap droit de la rangée basse
-  const D1x=layout1.length>=1?layout1[0].left-20:165,         D1y=30;
-  const D2x=layout1.length>=2?layout1[1].right+13:layout1.length>=1?layout1[0].right+13:840, D2y=115;
-  const D3x=layout2.length>=1?layout2[0].left-10:47,          D3y=272;
-  const D4x=layout2.length>=2?Math.round((layout2[0].right+layout2[1].left)/2):357, D4y=408;
-  const D5x=layout2.length>=1?layout2[layout2.length-1].right+10:977, D5y=440;
-
-  const isCurFn=b=>curBlock&&b&&String(b.sprint.id)===String(currentSprintId);
-  let RD='', dotEls=[];
-
-  // Dot pin helper — div absolus pour éviter la déformation SVG preserveAspectRatio=none
-  const dotPin=(x,y,delay,isCur=false)=>{
-    const lp=(x/1024*100).toFixed(2), tp=(y/600*100).toFixed(2);
-    const cls=isCur?'rdm-road-dot-pin rdm-road-dot-pin--cur':'rdm-road-dot-pin';
-    let h=`<div class="${cls}" style="left:${lp}%;top:${tp}%;animation-delay:${delay}s"></div>`;
-    if(isCur) h+=`<div class="rdm-road-ring-pin" style="left:${lp}%;top:${tp}%;animation-delay:${(delay+0.3).toFixed(1)}s"></div>`;
-    return h;
-  };
-
-  // ── Tracé : entrée (bord gauche, quasi sommet) ─────────────────────────────
-  RD=`M 0,28`;
-
-  if(layout1.length>=1){
-    // Entrée → D1 : quasi horizontal
-    RD+=` C 55,28 100,29 ${D1x},${D1y}`;
-    dotEls.push(dotPin(D1x,D1y,0.7,isCurFn(row1[0])));
-  }
-
-  if(layout1.length>=2){
-    // D1 → D2 : légère pente montante
-    RD+=` C ${D1x+145},${D1y} ${D2x-120},${D2y-7} ${D2x},${D2y}`;
-    dotEls.push(dotPin(D2x,D2y,1.6,isCurFn(row1[1])));
-    // D2 → D3 : grand C inversé — G1 continu (tangentes colinéaires en D2 et D3)
-    RD+=` C ${D2x+180},${D2y+11} ${D3x-7},${D3y-82} ${D3x},${D3y}`;
-  }else if(layout1.length===1){
-    // Seule carte en haut → descend directement vers D3
-    RD+=` C ${D1x+130},${D1y+80} ${D3x+60},${D3y-47} ${D3x},${D3y}`;
-  }
-
-  if(layout2.length>=1){
-    dotEls.push(dotPin(D3x,D3y,2.8));
-    if(layout2.length>=2){
-      // D3 → D4 : G1 continu (tangente douce en D3)
-      RD+=` C ${D3x+5},${D3y+57} ${D4x-140},${D4y-10} ${D4x},${D4y}`;
-      dotEls.push(dotPin(D4x,D4y,3.7));
-      if(layout2.length>=3){
-        // D4 → D5 : quasi horizontal vers la droite
-        RD+=` C ${D4x+133},${D4y+7} ${D5x-110},${D5y-2} ${D5x},${D5y}`;
-        dotEls.push(dotPin(D5x,D5y,4.6));
-        // D5 → sortie bord droit
-        RD+=` C ${D5x+30},${D5y+1} 1024,${D5y+5} 1024,${D5y+5}`;
-      }else{
-        RD+=` C ${D4x+100},${D4y+5} 1010,${D4y+8} 1024,${D4y+8}`;
-      }
-    }else{
-      RD+=` C ${D3x+100},${D3y+50} 1010,${D3y+60} 1024,${D3y+60}`;
-    }
-  }else if(layout1.length>=1){
-    RD+=` C ${layout1[layout1.length-1].right+80},${D2y+80} 1010,${D2y+100} 1024,${D2y+100}`;
-  }
-
-  const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
-    <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
-    <path class="rdm-road-line" d="${RD}"/>
-  </svg>`;
-
   const headerHtml=`<div class="rdm-slide-header">
     <div class="rdm-slide-hd-title"><span class="material-icons-round">map</span>Roadmap</div>
     ${teamName?`<span class="rdm-slide-hd-team">${teamName}</span>`:''}
   </div>`;
   return`<div class="rdm-slide">${headerHtml}<div class="rdm-cards-map">
-    ${roadSvg}
-    ${dotEls.join('')}
     <div class="rdm-row rdm-row--top">${row1Html}</div>
     <div class="rdm-row rdm-row--bottom">${row2Html}</div>
   </div></div>`;
