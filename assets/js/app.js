@@ -2790,46 +2790,45 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const isCurFn=b=>curBlock&&b&&String(b.sprint.id)===String(currentSprintId);
   let RD='', dotEls=[];
 
+  // Dot pin helper — div absolus pour éviter la déformation SVG preserveAspectRatio=none
+  const dotPin=(x,y,delay,isCur=false)=>{
+    const lp=(x/1024*100).toFixed(2), tp=(y/600*100).toFixed(2);
+    const cls=isCur?'rdm-road-dot-pin rdm-road-dot-pin--cur':'rdm-road-dot-pin';
+    let h=`<div class="${cls}" style="left:${lp}%;top:${tp}%;animation-delay:${delay}s"></div>`;
+    if(isCur) h+=`<div class="rdm-road-ring-pin" style="left:${lp}%;top:${tp}%;animation-delay:${(delay+0.3).toFixed(1)}s"></div>`;
+    return h;
+  };
+
   // ── Tracé : entrée (bord gauche, quasi sommet) ─────────────────────────────
   RD=`M 0,28`;
 
   if(layout1.length>=1){
     // Entrée → D1 : quasi horizontal
     RD+=` C 55,28 100,29 ${D1x},${D1y}`;
-    if(isCurFn(row1[0])){
-      dotEls.push(`<circle class="rdm-road-ring" cx="${D1x}" cy="${D1y}" r="10" style="animation-delay:1.0s"/>`);
-      dotEls.push(`<circle class="rdm-road-dot rdm-road-dot--cur" cx="${D1x}" cy="${D1y}" r="10" style="animation-delay:0.7s"/>`);
-    }else{
-      dotEls.push(`<circle class="rdm-road-dot" cx="${D1x}" cy="${D1y}" r="7" style="animation-delay:0.7s"/>`);
-    }
+    dotEls.push(dotPin(D1x,D1y,0.7,isCurFn(row1[0])));
   }
 
   if(layout1.length>=2){
     // D1 → D2 : légère pente montante
     RD+=` C ${D1x+145},${D1y} ${D2x-120},${D2y-7} ${D2x},${D2y}`;
-    if(isCurFn(row1[1])){
-      dotEls.push(`<circle class="rdm-road-ring" cx="${D2x}" cy="${D2y}" r="10" style="animation-delay:1.9s"/>`);
-      dotEls.push(`<circle class="rdm-road-dot rdm-road-dot--cur" cx="${D2x}" cy="${D2y}" r="10" style="animation-delay:1.6s"/>`);
-    }else{
-      dotEls.push(`<circle class="rdm-road-dot" cx="${D2x}" cy="${D2y}" r="7" style="animation-delay:1.6s"/>`);
-    }
-    // D2 → D3 : grand C inversé (boucle vers la droite puis plonge à gauche)
-    RD+=` C ${D2x+130},${D2y+80} ${D3x+60},${D3y-47} ${D3x},${D3y}`;
+    dotEls.push(dotPin(D2x,D2y,1.6,isCurFn(row1[1])));
+    // D2 → D3 : grand C inversé — G1 continu (tangentes colinéaires en D2 et D3)
+    RD+=` C ${D2x+180},${D2y+11} ${D3x-7},${D3y-82} ${D3x},${D3y}`;
   }else if(layout1.length===1){
     // Seule carte en haut → descend directement vers D3
     RD+=` C ${D1x+130},${D1y+80} ${D3x+60},${D3y-47} ${D3x},${D3y}`;
   }
 
   if(layout2.length>=1){
-    dotEls.push(`<circle class="rdm-road-dot" cx="${D3x}" cy="${D3y}" r="7" style="animation-delay:2.8s"/>`);
+    dotEls.push(dotPin(D3x,D3y,2.8));
     if(layout2.length>=2){
-      // D3 → D4 : descend puis vire à droite
-      RD+=` C ${D3x+10},${D3y+50} ${D4x-137},${D4y-13} ${D4x},${D4y}`;
-      dotEls.push(`<circle class="rdm-road-dot" cx="${D4x}" cy="${D4y}" r="7" style="animation-delay:3.7s"/>`);
+      // D3 → D4 : G1 continu (tangente douce en D3)
+      RD+=` C ${D3x+5},${D3y+57} ${D4x-140},${D4y-10} ${D4x},${D4y}`;
+      dotEls.push(dotPin(D4x,D4y,3.7));
       if(layout2.length>=3){
         // D4 → D5 : quasi horizontal vers la droite
         RD+=` C ${D4x+133},${D4y+7} ${D5x-110},${D5y-2} ${D5x},${D5y}`;
-        dotEls.push(`<circle class="rdm-road-dot" cx="${D5x}" cy="${D5y}" r="7" style="animation-delay:4.6s"/>`);
+        dotEls.push(dotPin(D5x,D5y,4.6));
         // D5 → sortie bord droit
         RD+=` C ${D5x+30},${D5y+1} 1024,${D5y+5} 1024,${D5y+5}`;
       }else{
@@ -2845,7 +2844,6 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1024 600" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" d="${RD}"/>
-    ${dotEls.join('')}
   </svg>`;
 
   const headerHtml=`<div class="rdm-slide-header">
@@ -2854,6 +2852,7 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   </div>`;
   return`<div class="rdm-slide">${headerHtml}<div class="rdm-cards-map">
     ${roadSvg}
+    ${dotEls.join('')}
     <div class="rdm-row rdm-row--top">${row1Html}</div>
     <div class="rdm-row rdm-row--bottom">${row2Html}</div>
   </div></div>`;
