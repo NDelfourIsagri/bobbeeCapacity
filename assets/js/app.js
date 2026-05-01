@@ -2762,7 +2762,6 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
   const RD=`M 1.12 119.821 C 1.12 119.821 92.997 38.635 154.365 37.514 C 215.733 36.393 247.112 35.834 261.635 103.024 C 276.158 170.214 226.936 187.571 210.737 218.365 C 194.538 249.159 190.772 319.708 226.209 336.506 C 261.645 353.304 314.232 349.384 402.292 320.829 C 490.352 292.274 613.676 198.208 663.902 190.37 C 714.129 182.532 728.832 187.01 748.187 203.808 C 767.541 220.606 798.736 253.08 796.896 326.988 C 795.056 400.896 743.846 456.887 669.375 471.445 C 594.905 486.003 515.178 497.76 457.569 496.081 C 399.96 494.402 251.482 497.761 197.054 511.199 C 142.625 524.637 78.185 543.673 100.729 583.427 C 123.273 623.181 218.21 628.779 302.684 617.582 C 387.158 606.385 557.441 579.507 598.689 576.708 C 639.936 573.909 730.346 571.668 813.863 585.107 C 897.379 598.546 885.011 597.425 939.741 596.305 C 994.471 595.185 1019.1 586.227 1021.84 586.227`;
   const AW=`M -10,-6 L 4,0 L -10,6 L -6,0 Z`;
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1022 670" preserveAspectRatio="none" aria-hidden="true">
-    <path class="rdm-road-glow" pathLength="1000" d="${RD}"/>
     <path class="rdm-road-line" pathLength="1000" d="${RD}"/>
     <path class="rdm-arrow rdm-arrow--1" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="5s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
     <path class="rdm-arrow rdm-arrow--2" d="${AW}"><animateMotion path="${RD}" dur="12s" begin="7.4s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
