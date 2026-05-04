@@ -2907,6 +2907,10 @@ function _rdmPrepareForExport(slide){
     });
     svg.removeChild(tmp);
   }
+  // Geler les animations d'entrée des cartes (opacity:0 dans le keyframe "from")
+  slide.querySelectorAll('.rdm-sprint-card').forEach(c=>{
+    c.style.animation='none';c.style.opacity='1';c.style.transform='none';
+  });
   // Material Icons ne peut pas être ré-intégré par html-to-image (CORS Google Fonts)
   // → icône titre masquée, check remplacé par un cercle coloré
   const st=document.createElement('style');
@@ -2924,6 +2928,9 @@ function _rdmRestoreAfterExport(slide){
   if(line){line.style.strokeDashoffset='';line.style.opacity='';line.style.animation='';}
   slide.querySelectorAll('.rdm-arrow').forEach(a=>{a.style.display=a._pdfDisplay||'';delete a._pdfDisplay;});
   slide.querySelectorAll('.rdm-static-arrow').forEach(a=>a.remove());
+  slide.querySelectorAll('.rdm-sprint-card').forEach(c=>{
+    c.style.animation='';c.style.opacity='';c.style.transform='';
+  });
   document.getElementById('rdm-pdf-style')?.remove();
 }
 
