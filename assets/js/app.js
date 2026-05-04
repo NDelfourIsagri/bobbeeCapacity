@@ -2881,6 +2881,16 @@ function _rdmPrepareForExport(slide){
     });
     svg.removeChild(tmp);
   }
+  // Material Icons ne peut pas être ré-intégré par html-to-image (CORS Google Fonts)
+  // → icône titre masquée, check remplacé par un cercle coloré
+  const st=document.createElement('style');
+  st.id='rdm-pdf-style';
+  st.textContent=
+    '.rdm-slide .rdm-slide-hd-title .material-icons-round{font-size:0!important;width:0;overflow:hidden;}'+
+    '.rdm-slide .rdm-check{font-size:0!important;display:inline-block!important;'+
+    'width:11px!important;height:11px!important;border-radius:50%!important;'+
+    'background:#22c55e!important;margin-top:2px!important;flex-shrink:0!important;}';
+  document.head.appendChild(st);
 }
 
 function _rdmRestoreAfterExport(slide){
@@ -2888,6 +2898,7 @@ function _rdmRestoreAfterExport(slide){
   if(line){line.style.strokeDashoffset='';line.style.opacity='';line.style.animation='';}
   slide.querySelectorAll('.rdm-arrow').forEach(a=>{a.style.display=a._pdfDisplay||'';delete a._pdfDisplay;});
   slide.querySelectorAll('.rdm-static-arrow').forEach(a=>a.remove());
+  document.getElementById('rdm-pdf-style')?.remove();
 }
 
 async function rdmExportPdf(){
@@ -2918,6 +2929,8 @@ async function rdmExportPdf(){
         wrap.style.position='fixed';wrap.style.left='-9999px';
         wrap.style.top='0';wrap.style.display='block';
       }
+      const natW=slide.offsetWidth||1024;
+      const natH=slide.offsetHeight||576;
       _rdmPrepareForExport(slide);
       const dataUrl=await htmlToImage.toPng(slide,{pixelRatio:2});
       _rdmRestoreAfterExport(slide);
@@ -2926,7 +2939,14 @@ async function rdmExportPdf(){
         wrap.style.top='';wrap.style.display='';
       }
       if(i>0)pdf.addPage();
-      pdf.addImage(dataUrl,'PNG',0,0,297,167);
+      // Placement en respectant le ratio — fond neutre pour les marges éventuelles
+      const pdfW=297,pdfH=167,r=natH/natW;
+      let iw,ih,ix,iy;
+      if(r*pdfW<=pdfH){iw=pdfW;ih=pdfW*r;ix=0;iy=(pdfH-ih)/2;}
+      else{ih=pdfH;iw=pdfH/r;ix=(pdfW-iw)/2;iy=0;}
+      pdf.setFillColor(248,250,252);
+      pdf.rect(0,0,pdfW,pdfH,'F');
+      pdf.addImage(dataUrl,'PNG',ix,iy,iw,ih);
     }
     pdf.save('roadmap.pdf');
   }catch(e){
