@@ -2840,6 +2840,103 @@ function renderRoadmap(){
 }
 function filterRoadmap(){renderRoadmapContent();}
 
+// ── PDF EXPORT ───────────────────────────────────────────
+function _rdmLoadScript(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector(`script[src="${src}"]`)){resolve();return;}
+    const s=document.createElement('script');
+    s.src=src; s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
+function _rdmPrepareForExport(slide){
+  const line=slide.querySelector('.rdm-road-line');
+  if(line){
+    line.style.strokeDashoffset='0';
+    line.style.opacity='0.28';
+    line.style.animation='none';
+  }
+  slide.querySelectorAll('.rdm-arrow').forEach(a=>{a._pdfDisplay=a.style.display;a.style.display='none';});
+  const svg=slide.querySelector('.rdm-road-bg');
+  if(svg&&line){
+    const tmp=document.createElementNS('http://www.w3.org/2000/svg','path');
+    tmp.setAttribute('d',line.getAttribute('d'));
+    tmp.style.visibility='hidden';
+    svg.appendChild(tmp);
+    const total=tmp.getTotalLength();
+    const AW='M -10,-6 L 4,0 L -10,6 L -6,0 Z';
+    [0.20,0.55,0.85].forEach(pct=>{
+      const len=total*pct;
+      const pt=tmp.getPointAtLength(len);
+      const pt2=tmp.getPointAtLength(Math.min(len+2,total));
+      const angle=Math.atan2(pt2.y-pt.y,pt2.x-pt.x)*180/Math.PI;
+      const arrow=document.createElementNS('http://www.w3.org/2000/svg','path');
+      arrow.setAttribute('d',AW);
+      arrow.setAttribute('fill','#64748b');
+      arrow.setAttribute('opacity','0.7');
+      arrow.setAttribute('transform',`translate(${pt.x},${pt.y}) rotate(${angle})`);
+      arrow.classList.add('rdm-static-arrow');
+      svg.appendChild(arrow);
+    });
+    svg.removeChild(tmp);
+  }
+}
+
+function _rdmRestoreAfterExport(slide){
+  const line=slide.querySelector('.rdm-road-line');
+  if(line){line.style.strokeDashoffset='';line.style.opacity='';line.style.animation='';}
+  slide.querySelectorAll('.rdm-arrow').forEach(a=>{a.style.display=a._pdfDisplay||'';delete a._pdfDisplay;});
+  slide.querySelectorAll('.rdm-static-arrow').forEach(a=>a.remove());
+}
+
+async function rdmExportPdf(){
+  const btn=document.getElementById('rdm-export-btn');
+  if(btn){btn.disabled=true;}
+  try{
+    await Promise.all([
+      _rdmLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+      _rdmLoadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+    ]);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:[297,167]});
+    const entries=[];
+    const filterVal=document.getElementById('rdm-team-filter')?.value||'';
+    if(!filterVal){
+      document.querySelectorAll('#rdm-carousel-slides .rdm-carousel-slide').forEach(wrap=>{
+        const slide=wrap.querySelector('.rdm-slide');
+        if(slide)entries.push({slide,wrap});
+      });
+    } else {
+      const slide=document.querySelector('#rdm-content > .rdm-slide');
+      if(slide)entries.push({slide,wrap:null});
+    }
+    for(let i=0;i<entries.length;i++){
+      const{slide,wrap}=entries[i];
+      const wasHidden=wrap&&!wrap.classList.contains('active');
+      if(wasHidden){
+        wrap.style.position='fixed';wrap.style.left='-9999px';
+        wrap.style.top='0';wrap.style.display='block';
+      }
+      _rdmPrepareForExport(slide);
+      const canvas=await html2canvas(slide,{scale:2,useCORS:true,logging:false});
+      _rdmRestoreAfterExport(slide);
+      if(wasHidden){
+        wrap.style.position='';wrap.style.left='';
+        wrap.style.top='';wrap.style.display='';
+      }
+      if(i>0)pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,297,167);
+    }
+    pdf.save('roadmap.pdf');
+  }catch(e){
+    console.error('PDF export failed',e);
+    alert('Erreur lors de l\'export PDF. Vérifiez la console.');
+  }finally{
+    if(btn){btn.disabled=false;}
+  }
+}
+
 // ── UTILS ────────────────────────────────────────────────
 function fd(ds){if(!ds)return '—';return new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
