@@ -2841,6 +2841,32 @@ function renderRoadmap(){
 function filterRoadmap(){renderRoadmapContent();}
 
 // ── PDF EXPORT ───────────────────────────────────────────
+let _rdmFontCSS=null; // cache Inter base64 entre exports
+
+async function _rdmBuildFontEmbedCSS(){
+  if(_rdmFontCSS!==null)return _rdmFontCSS;
+  try{
+    const css=await fetch(
+      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
+    ).then(r=>r.text());
+    const urls=[...css.matchAll(/url\((https?:\/\/[^)]+)\)/g)].map(m=>m[1]);
+    const encoded=await Promise.all(urls.map(async url=>{
+      try{
+        const ab=await fetch(url).then(r=>r.arrayBuffer());
+        const bytes=new Uint8Array(ab);
+        let bin='';
+        for(let j=0;j<bytes.length;j+=8192)
+          bin+=String.fromCharCode.apply(null,bytes.subarray(j,j+8192));
+        return{url,data:`data:font/woff2;base64,${btoa(bin)}`};
+      }catch{return null;}
+    }));
+    let result=css;
+    encoded.forEach(e=>e&&(result=result.split(e.url).join(e.data)));
+    _rdmFontCSS=result;
+  }catch{_rdmFontCSS='';}
+  return _rdmFontCSS;
+}
+
 function _rdmLoadScript(src){
   return new Promise((resolve,reject)=>{
     if(document.querySelector(`script[src="${src}"]`)){resolve();return;}
@@ -2911,6 +2937,7 @@ async function rdmExportPdf(){
     ]);
     const {jsPDF}=window.jspdf;
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:[297,167]});
+    const fontEmbedCSS=await _rdmBuildFontEmbedCSS();
     const entries=[];
     const filterVal=document.getElementById('rdm-team-filter')?.value||'';
     if(!filterVal){
@@ -2932,7 +2959,7 @@ async function rdmExportPdf(){
       const natW=slide.offsetWidth||1024;
       const natH=slide.offsetHeight||576;
       _rdmPrepareForExport(slide);
-      const dataUrl=await htmlToImage.toPng(slide,{pixelRatio:2});
+      const dataUrl=await htmlToImage.toPng(slide,{pixelRatio:2,fontEmbedCSS:fontEmbedCSS||undefined});
       _rdmRestoreAfterExport(slide);
       if(wasHidden){
         wrap.style.position='';wrap.style.left='';
