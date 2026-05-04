@@ -2896,7 +2896,7 @@ async function rdmExportPdf(){
   try{
     await Promise.all([
       _rdmLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-      _rdmLoadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+      _rdmLoadScript('https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js')
     ]);
     const {jsPDF}=window.jspdf;
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:[297,167]});
@@ -2919,14 +2919,14 @@ async function rdmExportPdf(){
         wrap.style.top='0';wrap.style.display='block';
       }
       _rdmPrepareForExport(slide);
-      const canvas=await html2canvas(slide,{scale:2,useCORS:true,logging:false});
+      const dataUrl=await htmlToImage.toPng(slide,{pixelRatio:2});
       _rdmRestoreAfterExport(slide);
       if(wasHidden){
         wrap.style.position='';wrap.style.left='';
         wrap.style.top='';wrap.style.display='';
       }
       if(i>0)pdf.addPage();
-      pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,297,167);
+      pdf.addImage(dataUrl,'PNG',0,0,297,167);
     }
     pdf.save('roadmap.pdf');
   }catch(e){
