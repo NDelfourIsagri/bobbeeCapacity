@@ -1166,19 +1166,18 @@ function renderCharts(){
   const base={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{color:t2,font:{family:ff,size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleFont:{family:ff},bodyFont:{family:ff}}},
     scales:{x:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv}},y:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv},beginAtZero:true}}};
-  const labels=sprints.map(s=>s.name);
+  const labels=sprints.map(s=>s.name+(s.closed?'':' (en cours)'));
   dChart('chart-velocity','bar',{labels,datasets:[
     {label:'Planifiée',data:sprints.map(s=>s.velocityPlanned||0),backgroundColor:pr+'55',borderColor:pr,borderWidth:2,borderRadius:8},
     {label:'Réalisée',data:sprints.map(s=>s.velocityActual||null),backgroundColor:sc+'55',borderColor:sc,borderWidth:2,borderRadius:8}
   ]},base);
   const gS=sprints.filter(s=>(s.objectives||[]).length>0);
   const gLabels=gS.map(s=>s.name+(s.closed?'':' (en cours)'));
-  const gPrBg=gS.map(s=>s.closed?pr+'55':pr+'28'),gPrBd=gS.map(s=>s.closed?pr:pr+'99');
-  const gScBg=gS.map(s=>s.closed?sc+'55':sc+'28'),gScBd=gS.map(s=>s.closed?sc:sc+'99');
+  const warnG=cv('--warning')||'#f59e0b';
   dChart('chart-goals','bar',{labels:gLabels,datasets:[
-    {label:'Prévus',data:gS.map(s=>s.objectives.length),backgroundColor:gPrBg,borderColor:gPrBd,borderWidth:2,borderRadius:8},
-    {label:'Atteints',data:gS.map(s=>s.objectives.filter(o=>o.done).length),backgroundColor:gScBg,borderColor:gScBd,borderWidth:2,borderRadius:8}
-  ]},{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:t2,font:{family:ff,size:11},stepSize:1}}}});
+    {label:'Atteints',data:gS.map(s=>s.objectives.filter(o=>o.done).length),backgroundColor:sc+'88',borderColor:sc,borderWidth:2,borderRadius:6,stack:'obj'},
+    {label:'Restants',data:gS.map(s=>s.objectives.length-s.objectives.filter(o=>o.done).length),backgroundColor:warnG+'55',borderColor:warnG,borderWidth:2,borderRadius:6,stack:'obj'}
+  ]},{...base,scales:{...base.scales,y:{...base.scales.y,stacked:true,ticks:{color:t2,font:{family:ff,size:11},stepSize:1}},x:{...base.scales.x,stacked:true}}});
   const cur=selectedSprintId
     ?S.sprints.find(s=>String(s.id)===String(selectedSprintId))
     :S.sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
@@ -1259,7 +1258,7 @@ function renderCharts(){
     {label:'Capacité dev (j)',data:cDev,backgroundColor:pr+'55',borderColor:pr,borderWidth:2,borderRadius:4,stack:'cap',yAxisID:'y'},
     {label:'Capacité convergence (j)',data:cConv,backgroundColor:warn+'88',borderColor:warn,borderWidth:2,borderRadius:4,stack:'cap',yAxisID:'y'},
     {label:'Vélocité réalisée (pts)',data:cA,backgroundColor:sc+'44',borderColor:sc,borderWidth:2,borderRadius:8,yAxisID:'y1'}
-  ]},{...base,scales:{x:{ticks:{color:t2},grid:{color:dv}},y:{type:'linear',position:'left',stacked:true,ticks:{color:t2},grid:{color:dv},beginAtZero:true},y1:{type:'linear',position:'right',ticks:{color:t2},grid:{drawOnChartArea:false},beginAtZero:true}}});
+  ]},{...base,scales:{x:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv}},y:{type:'linear',position:'left',stacked:true,ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv},beginAtZero:true,title:{display:true,text:'Jours',color:t2,font:{family:ff,size:11}}},y1:{type:'linear',position:'right',ticks:{color:t2,font:{family:ff,size:11}},grid:{drawOnChartArea:false},beginAtZero:true,title:{display:true,text:'Story points',color:t2,font:{family:ff,size:11}}}}});
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
