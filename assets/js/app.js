@@ -1166,13 +1166,13 @@ function renderCharts(){
   const base={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{color:t2,font:{family:ff,size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleFont:{family:ff},bodyFont:{family:ff}}},
     scales:{x:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv}},y:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv},beginAtZero:true}}};
-  const labels=sprints.map(s=>s.name+(s.closed?'':' (en cours)'));
+  const labels=sprints.map(s=>s.name+(!s.closed&&new Date(s.start)<=now?' (en cours)':''));
   dChart('chart-velocity','bar',{labels,datasets:[
     {label:'Planifiée',data:sprints.map(s=>s.velocityPlanned||0),backgroundColor:pr+'55',borderColor:pr,borderWidth:2,borderRadius:8},
     {label:'Réalisée',data:sprints.map(s=>s.velocityActual||null),backgroundColor:sc+'55',borderColor:sc,borderWidth:2,borderRadius:8}
   ]},base);
   const gS=sprints.filter(s=>(s.objectives||[]).length>0);
-  const gLabels=gS.map(s=>s.name+(s.closed?'':' (en cours)'));
+  const gLabels=gS.map(s=>s.name+(!s.closed&&new Date(s.start)<=now?' (en cours)':''));
   const warnG=cv('--warning')||'#f59e0b';
   dChart('chart-goals','bar',{labels:gLabels,datasets:[
     {label:'Atteints',data:gS.map(s=>s.objectives.filter(o=>o.done).length),backgroundColor:sc+'88',borderColor:sc,borderWidth:2,borderRadius:6,stack:'obj'},
