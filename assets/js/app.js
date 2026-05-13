@@ -1171,9 +1171,14 @@ function renderCharts(){
     {label:'Planifiée',data:sprints.map(s=>s.velocityPlanned||0),backgroundColor:pr+'55',borderColor:pr,borderWidth:2,borderRadius:8},
     {label:'Réalisée',data:sprints.map(s=>s.velocityActual||null),backgroundColor:sc+'55',borderColor:sc,borderWidth:2,borderRadius:8}
   ]},base);
-  const gS=sprints.filter(s=>s.closed&&(s.objectives||[]).length>0);
-  dChart('chart-goals','line',{labels:gS.map(s=>s.name),datasets:[{label:'% objectifs atteints',data:gS.map(s=>Math.round(s.objectives.filter(o=>o.done).length/s.objectives.length*100)),borderColor:pr,backgroundColor:pr+'20',fill:true,tension:0.4,pointBackgroundColor:pr,pointRadius:5}]},
-    {...base,scales:{...base.scales,y:{...base.scales.y,max:100,ticks:{callback:v=>v+'%'}}}});
+  const gS=sprints.filter(s=>(s.objectives||[]).length>0);
+  const gLabels=gS.map(s=>s.name+(s.closed?'':' (en cours)'));
+  const gPrBg=gS.map(s=>s.closed?pr+'55':pr+'28'),gPrBd=gS.map(s=>s.closed?pr:pr+'99');
+  const gScBg=gS.map(s=>s.closed?sc+'55':sc+'28'),gScBd=gS.map(s=>s.closed?sc:sc+'99');
+  dChart('chart-goals','bar',{labels:gLabels,datasets:[
+    {label:'Prévus',data:gS.map(s=>s.objectives.length),backgroundColor:gPrBg,borderColor:gPrBd,borderWidth:2,borderRadius:8},
+    {label:'Atteints',data:gS.map(s=>s.objectives.filter(o=>o.done).length),backgroundColor:gScBg,borderColor:gScBd,borderWidth:2,borderRadius:8}
+  ]},{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{color:t2,font:{family:ff,size:11},stepSize:1}}}});
   const cur=selectedSprintId
     ?S.sprints.find(s=>String(s.id)===String(selectedSprintId))
     :S.sprints.find(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
