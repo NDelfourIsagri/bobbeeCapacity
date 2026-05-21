@@ -500,6 +500,33 @@
   top: 13px;
   border-radius: 3px;
   opacity: 0.7;
+  transition: box-shadow 0.15s, opacity 0.15s;
+
+  &.done { opacity: 0.45; }
+
+  &[data-drag-child] { cursor: grab; }
+  &[data-drag-child]:hover { opacity: 0.9; box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
+
+  &.gantt-dragging {
+    opacity: 0.95 !important;
+    cursor: grabbing !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 2px rgba(255,255,255,0.5);
+    z-index: 10;
+    transition: none;
+  }
+}
+
+.gantt-sprint-cell.drag-over {
+  background: rgba(var(--primary-rgb), 0.18) !important;
+  outline: 2px dashed var(--primary);
+}
+
+.gantt-child-warn {
+  font-size: 13px !important;
+  color: #f59e0b;
+  vertical-align: middle;
+  margin-left: 4px;
+  cursor: default;
 }
 
 .gantt-wi-id {

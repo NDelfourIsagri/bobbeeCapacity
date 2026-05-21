@@ -1669,9 +1669,10 @@ let blSort={col:'score',dir:'desc'};
 let blActiveTab='prio';
 let blLabelW=Number(localStorage.getItem('bl_label_w'))||220;
 let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
-let blGanttExpanded = new Set(); // jiraIds actuellement développés
-let blGanttChildren = {};        // cache : jiraId → tableau d'enfants
-let blPrioExpanded  = new Set(); // jiraIds ouverts dans l'onglet priorisation
+let blGanttExpanded  = new Set(); // jiraIds actuellement développés
+let blGanttChildren  = {};        // cache : jiraId → tableau d'enfants
+let blChildPositions = {};        // cache : jiraId → { offset_px, sprint_name }
+let blPrioExpanded   = new Set(); // jiraIds ouverts dans l'onglet priorisation
 let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null, bc: null };
 let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
 
@@ -1881,6 +1882,7 @@ function renderGanttFor(backlogItems, wrapId){
   const totalDays=Math.ceil((gEnd-gStart)/86400000)+1;
   const totalW=totalDays*PX;
   _ganttMeta.totalW = totalW;
+  _ganttMeta.gStart = gStart;
   const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
   _ganttMeta.toX = toX;
   // Sprints triés par date de début
@@ -1901,6 +1903,7 @@ function renderGanttFor(backlogItems, wrapId){
   };
   // Sprints visibles triés
   const vSprints=S.sprints.filter(s=>s.start&&s.end&&new Date(s.end)>=gStart&&new Date(s.start)<=gEnd).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  _ganttMeta.vSprints = vSprints;
   // Mois
   const months=[];
   let mc=new Date(gStart);
@@ -1951,7 +1954,7 @@ function renderGanttFor(backlogItems, wrapId){
   // En-tête sprints
   const sHtml=sCells.map(c=>c.gap
     ?`<div class="gantt-sprint-cell is-gap" style="width:${c.w}px"></div>`
-    :`<div class="gantt-sprint-cell ${c.cur?'is-current':''}" style="width:${c.w}px">
+    :`<div class="gantt-sprint-cell ${c.cur?'is-current':''}" data-sprint-id="${c.s.id}" style="width:${c.w}px">
       ${c.cur?'<span class="material-icons-round" style="font-size:10px;flex-shrink:0">radio_button_checked</span>':''}
       <span style="overflow:hidden;text-overflow:ellipsis">${c.s.name}</span>
     </div>`).join('');
@@ -2012,6 +2015,14 @@ function renderGanttFor(backlogItems, wrapId){
   blGanttExpanded.forEach(jiraId => {
     if (blGanttChildren[jiraId]) _renderGanttChildren(jiraId, blGanttChildren[jiraId]);
   });
+  // Activer le drag sur les barres enfants (admin uniquement, délégation sur le conteneur)
+  if (['admin','super_admin'].includes(CU?.role)) {
+    const ganttRight = wrap.querySelector('.gantt-right');
+    if (ganttRight && !ganttRight._dragInit) {
+      ganttRight._dragInit = true;
+      initGanttChildDrag(ganttRight);
+    }
+  }
 }
 
 async function toggleGanttFeature(jiraId) {
@@ -2038,14 +2049,38 @@ async function toggleGanttFeature(jiraId) {
     }
     btn?.classList.remove('loading');
     btn?.classList.add('open');
+    // Charger les positions sauvegardées
+    const kids = blGanttChildren[jiraId] || [];
+    const keys = kids.map(c => c.jira_id).filter(Boolean);
+    if (keys.length) {
+      try {
+        const pos = await API.get(`/api/children/positions?keys=${keys.map(encodeURIComponent).join(',')}`);
+        Object.assign(blChildPositions, pos);
+      } catch {}
+    }
     _renderGanttChildren(jiraId, blGanttChildren[jiraId]);
   }
+}
+
+// Retourne le sprint correspondant à une position x (pixels) dans le Gantt
+function sprintAtX(x) {
+  const { vSprints, toX } = _ganttMeta;
+  if (!vSprints || !toX) return null;
+  return vSprints.find(s => {
+    const sx = toX(s.start);
+    const ex = toX(s.end) + _ganttMeta.PX;
+    return x >= sx && x < ex;
+  }) || null;
 }
 
 function _renderGanttChildren(jiraId, children) {
   const leftRow = document.querySelector(`.gantt-left-wi[data-gantt-id="${jiraId}"]`);
   const barRow  = document.querySelector(`.gantt-wi-row[data-gantt-bar-id="${jiraId}"]`);
   if (!leftRow || !barRow) return;
+
+  // Supprimer les lignes enfants existantes avant re-render
+  document.querySelectorAll(`.gantt-left-wi[data-gantt-parent="${jiraId}"]`).forEach(el => el.remove());
+  document.querySelectorAll(`.gantt-wi-row[data-gantt-parent="${jiraId}"]`).forEach(el => el.remove());
 
   const { totalW, ROW_H, PX, toX, bc } = _ganttMeta;
   const JIRA = 'https://isagri.atlassian.net/browse/';
@@ -2070,11 +2105,13 @@ function _renderGanttChildren(jiraId, children) {
     return;
   }
 
+  const isAdmin = ['admin','super_admin'].includes(CU?.role);
   let lastLeft = leftRow, lastBar = barRow;
+  let hasChildInLaterSprint = false;
+
   children.forEach(child => {
     const lbl = (child.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const href = child.jira_id ? `${JIRA}${encodeURIComponent(child.jira_id)}` : null;
-
     const done = ['10 - termine', '9 - a livrer en prod'].includes(child.status.trim().toLowerCase());
 
     // Ligne gauche
@@ -2090,15 +2127,28 @@ function _renderGanttChildren(jiraId, children) {
     lastLeft.after(lEl); lastLeft = lEl;
 
     // Barre droite — si pas de sprint Jira sur l'enfant, on utilise le sprint de la feature parente
-    const sp = (child.sprint_name && S.sprints.find(s => s.name === child.sprint_name)) || parentSprint;
+    const savedPos = child.jira_id ? blChildPositions[child.jira_id] : null;
+    const effectiveSprintName = savedPos?.sprint_name || child.sprint_name;
+    const sp = (effectiveSprintName && S.sprints.find(s => s.name === effectiveSprintName)) || parentSprint;
+
+    // Warning si l'enfant est dans un sprint postérieur à celui du parent
+    if (parentSprint && sp && sp.start && parentSprint.start && new Date(sp.start) > new Date(parentSprint.start)) {
+      hasChildInLaterSprint = true;
+    }
+
     let barHtml = '';
     if (sp?.start && sp?.end && toX) {
-      const startX = toX(sp.start);
+      const spStartX = toX(sp.start);
+      const spEndX   = toX(sp.end) + PX;
       const days = PT_DAYS[child.points] ?? Math.min(child.points || 1, 10);
-      const bw = Math.max(16, days * PX);
-      const endX = toX(sp.end) + PX;
+      const bw = Math.max(16, Math.min(days * PX, spEndX - spStartX));
+      const offset = savedPos?.offset_px ?? 0;
+      const startX = Math.max(spStartX, Math.min(spStartX + offset, spEndX - bw));
       const col = done ? '#9ca3af' : parentColor;
-      barHtml = `<div class="gantt-bar gantt-child-bar${done?' done':''}" style="left:${startX}px;width:${Math.min(bw, endX - startX)}px;background:${col}" title="${lbl} · ${child.status}${child.points?' · '+child.points+' pts':''}">
+      const dragAttrs = isAdmin && child.jira_id
+        ? ` data-drag-child="${child.jira_id}" data-drag-parent="${jiraId}" data-drag-bw="${bw}" style="left:${startX}px;width:${bw}px;background:${col};cursor:grab"`
+        : ` style="left:${startX}px;width:${bw}px;background:${col}"`;
+      barHtml = `<div class="gantt-bar gantt-child-bar${done?' done':''}"${dragAttrs} title="${lbl} · ${child.status}${child.points?' · '+child.points+' pts':''}">
         <span class="gantt-bar-label" style="font-size:10px">${child.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
       </div>`;
@@ -2108,6 +2158,121 @@ function _renderGanttChildren(jiraId, children) {
     bEl.style.cssText = `width:${totalW}px;height:${ROW_H}px`;
     bEl.innerHTML = barHtml;
     lastBar.after(bEl); lastBar = bEl;
+  });
+
+  // Indicateur ⚠️ sur la barre parent si un enfant est dans un sprint ultérieur
+  const parentBarEl = barRow.querySelector('.gantt-bar');
+  if (parentBarEl) {
+    parentBarEl.querySelectorAll('.gantt-child-warn').forEach(el => el.remove());
+    if (hasChildInLaterSprint) {
+      const warn = document.createElement('span');
+      warn.className = 'gantt-child-warn material-icons-round';
+      warn.title = 'Des tickets enfants sont planifiés dans un sprint ultérieur';
+      warn.textContent = 'warning';
+      parentBarEl.appendChild(warn);
+    }
+  }
+}
+
+// ── Drag horizontal des tickets enfants Gantt ─────────────
+let _ganttDrag = null; // état courant du drag
+
+// Listeners document attachés une seule fois (évite les doublons au re-render)
+document.addEventListener('mousemove', e => {
+  if (!_ganttDrag) return;
+  const { bar, bw, startLeft, startMouseX, timeline } = _ganttDrag;
+  const { totalW, toX, PX } = _ganttMeta;
+  const dx = e.clientX - startMouseX;
+  const newLeft = Math.max(0, Math.min(totalW - bw, startLeft + dx));
+  bar.style.left = newLeft + 'px';
+
+  // Surbrillance du sprint survolé
+  if (timeline) {
+    timeline.querySelectorAll('.gantt-sprint-cell').forEach(c => c.classList.remove('drag-over'));
+    const sp = sprintAtX(newLeft + bw / 2);
+    if (sp) {
+      const cell = timeline.querySelector(`.gantt-sprint-cell[data-sprint-id="${sp.id}"]`);
+      if (cell) cell.classList.add('drag-over');
+    }
+  }
+});
+
+document.addEventListener('mouseup', async e => {
+  if (!_ganttDrag) return;
+  const { bar, childId, parentId, bw, startLeft, timeline } = _ganttDrag;
+  const { PX, toX } = _ganttMeta;
+  bar.style.cursor = 'grab';
+  bar.classList.remove('gantt-dragging');
+  document.body.style.userSelect = '';
+  if (timeline) timeline.querySelectorAll('.gantt-sprint-cell').forEach(c => c.classList.remove('drag-over'));
+
+  const finalLeft = parseInt(bar.style.left, 10);
+  _ganttDrag = null;
+
+  if (Math.abs(finalLeft - startLeft) < 2) return;
+
+  const sp = sprintAtX(finalLeft + bw / 2);
+  if (!sp) { bar.style.left = startLeft + 'px'; return; }
+
+  if (sp.closed) {
+    bar.style.left = startLeft + 'px';
+    toast('Sprint clôturé — déplacement interdit', 'error');
+    return;
+  }
+
+  const spStartX = toX(sp.start);
+  const spEndX   = toX(sp.end) + PX;
+  const offset = Math.max(0, Math.min(finalLeft - spStartX, spEndX - bw - spStartX));
+
+  const child = (blGanttChildren[parentId] || []).find(c => c.jira_id === childId);
+  const prevPos = blChildPositions[childId];
+  const prevSprintName = prevPos?.sprint_name || child?.sprint_name || null;
+  const sprintChanged = prevSprintName !== sp.name;
+
+  try {
+    await API.put('/api/children/position', { jira_id: childId, offset_px: offset, sprint_name: sp.name });
+    blChildPositions[childId] = { offset_px: offset, sprint_name: sp.name };
+  } catch {
+    toast('Erreur lors de la sauvegarde de la position', 'error');
+    bar.style.left = startLeft + 'px';
+    return;
+  }
+
+  if (sprintChanged) {
+    try {
+      const res = await API.post('/api/jira/move-sprint', { jira_id: childId, sprint_name: sp.name });
+      if (res.jira) {
+        toast(`${childId} déplacé dans "${sp.name}"`, 'success');
+        if (child) child.sprint_name = sp.name;
+      } else {
+        toast(`Position sauvegardée — Jira non mis à jour : ${res.reason || ''}`, 'warning');
+      }
+    } catch {
+      toast('Position sauvegardée — erreur Jira', 'warning');
+    }
+  }
+
+  _renderGanttChildren(parentId, blGanttChildren[parentId] || []);
+});
+
+// Initialise le drag sur un conteneur (mousedown uniquement — délégation)
+function initGanttChildDrag(container) {
+  container.addEventListener('mousedown', e => {
+    if (!['admin','super_admin'].includes(CU?.role)) return;
+    const bar = e.target.closest('[data-drag-child]');
+    if (!bar || e.target.closest('.gantt-bar-link')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const childId     = bar.dataset.dragChild;
+    const parentId    = bar.dataset.dragParent;
+    const bw          = parseInt(bar.dataset.dragBw, 10);
+    const startLeft   = parseInt(bar.style.left, 10);
+    const startMouseX = e.clientX;
+    const timeline    = bar.closest('.gantt-timeline');
+    _ganttDrag = { bar, childId, parentId, bw, startLeft, startMouseX, timeline };
+    bar.style.cursor = 'grabbing';
+    bar.classList.add('gantt-dragging');
+    document.body.style.userSelect = 'none';
   });
 }
 
@@ -3064,7 +3229,8 @@ function fd(ds){if(!ds)return '—';return new Date(ds).toLocaleDateString('fr-F
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function toast(msg,type='success'){
   const c=document.getElementById('toast-container'),t=document.createElement('div');
-  t.className=`toast ${type}`;t.innerHTML=`<span class="material-icons-round ti">${type==='success'?'check_circle':'error'}</span>${msg}`;
+  const icon=type==='success'?'check_circle':type==='warning'?'warning':'error';
+  t.className=`toast ${type}`;t.innerHTML=`<span class="material-icons-round ti">${icon}</span>${msg}`;
   c.appendChild(t);setTimeout(()=>t.remove(),3000);
 }
 

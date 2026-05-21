@@ -108,7 +108,7 @@ tr:hover td{background:var(--chip);}
 #toast-container{position:fixed;bottom:80px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
 .toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 18px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);backdrop-filter:blur(12px);animation:slideIn 0.3s ease;}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-.toast.success .ti{color:var(--success);}.toast.error .ti{color:var(--danger);}
+.toast.success .ti{color:var(--success);}.toast.error .ti{color:var(--danger);}.toast.warning .ti{color:#f59e0b;}
 
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
@@ -353,8 +353,13 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .gantt-child-wi.done{opacity:.45;}
 .gantt-child-wi.done .gantt-wi-label{text-decoration:line-through;}
 .gantt-child-type-badge{font-size:9px;font-weight:600;color:var(--text3);background:var(--bg2);padding:1px 5px;border-radius:3px;flex-shrink:0;white-space:nowrap;margin-left:auto;}
-.gantt-child-bar{height:14px!important;top:13px;border-radius:3px;opacity:.7;}
+.gantt-child-bar{height:14px!important;top:13px;border-radius:3px;opacity:.7;transition:box-shadow .15s,opacity .15s;}
 .gantt-child-bar.done{opacity:.45;}
+.gantt-child-bar[data-drag-child]{cursor:grab;}
+.gantt-child-bar[data-drag-child]:hover{opacity:.9;box-shadow:0 0 0 2px rgba(255,255,255,.4);}
+.gantt-child-bar.gantt-dragging{opacity:.95!important;cursor:grabbing!important;box-shadow:0 4px 12px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.5);z-index:10;transition:none;}
+.gantt-sprint-cell.drag-over{background:rgba(var(--primary-rgb),.18)!important;outline:2px dashed var(--primary);}
+.gantt-child-warn{font-size:13px!important;color:#f59e0b;vertical-align:middle;margin-left:4px;cursor:default;}
 @media(max-width:640px){.gantt-left{width:140px;}.gantt-wi-id{font-size:10px;}.gantt-month-cell,.gantt-sprint-cell{font-size:10px;padding:0 6px;}}
 
 /* ── BACKLOG PRIO — TICKETS ENFANTS ──────────── */
