@@ -1,0 +1,19 @@
+{
+  "name": "bobbee Capacity Planner",
+  "short_name": "bobbee",
+  "description": "Planification de capacité et suivi de sprints",
+  "start_url": "/bobbeeCapacity/",
+  "scope": "/bobbeeCapacity/",
+  "display": "standalone",
+  "background_color": "#110f1f",
+  "theme_color": "#110f1f",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/bobbeeCapacity/assets/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>bobbee Capacity Planner</title>
 <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+<link rel="manifest" href="/bobbeeCapacity/manifest.json">
+<meta name="theme-color" content="#110f1f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="bobbee">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/app.css">
@@ -508,5 +513,10 @@
 <div id="note-tip"></div>
 
 <script src="assets/js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/bobbeeCapacity/sw.js'));
+  }
+</script>
 </body>
 </html>
