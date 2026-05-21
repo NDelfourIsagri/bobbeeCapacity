@@ -68,7 +68,7 @@ let CU=null;
 let calDate=new Date();
 let editSprintId=null,closeSprintId=null,sprintStars=0,tmpObjs=[];
 let selectedSprintId=null;
-let editMemberId=null;
+let editMemberId=null,_modalTeams=[];
 let charts={};
 
 // ── AUTH ─────────────────────────────────────────────────
@@ -1337,7 +1337,7 @@ async function saveMtgGrid(){
 function addTeamRow(assignment=null){
   const list=document.getElementById('mm-teams-list');
   if(!list)return;
-  const opts=S.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const opts=_modalTeams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
   const div=document.createElement('div');
   div.className='mm-team-row';
   div.style.cssText='display:flex;gap:6px;align-items:center';
@@ -1375,7 +1375,8 @@ async function openMemberModal(id=null){
   const teamsList=document.getElementById('mm-teams-list');
   if(teamsGroup)teamsGroup.style.display=isAdmin?'':'none';
   if(teamsList){teamsList.innerHTML='';}
-  if(isAdmin&&S.teams.length){
+  if(isAdmin){
+    try{_modalTeams=await API.get('/api/teams/all');}catch(e){_modalTeams=S.teams;}
     let assignments=[];
     if(id){try{assignments=await API.get('/api/team/'+id+'/teams');}catch(e){}}
     if(assignments.length){
