@@ -1671,6 +1671,7 @@ let blLabelW=Number(localStorage.getItem('bl_label_w'))||220;
 let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
 let blGanttExpanded = new Set(); // jiraIds actuellement développés
 let blGanttChildren = {};        // cache : jiraId → tableau d'enfants
+let blPrioExpanded  = new Set(); // jiraIds ouverts dans l'onglet priorisation
 let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null, bc: null };
 let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
 
@@ -2110,6 +2111,64 @@ function _renderGanttChildren(jiraId, children) {
   });
 }
 
+function _statusDotPrio(s){
+  const sl=(s||'').trim().toLowerCase();
+  const done=['10 - termine','9 - a livrer en prod','8 - a tester en staging','7 - a livrer en staging'].some(x=>sl.includes(x));
+  const inProg=['en cours','pull request','livrer en dev','tester en dev','ephemere'].some(x=>sl.includes(x));
+  const col=done?'var(--success)':inProg?'var(--warning)':'var(--text3)';
+  return `<span class="bl-child-dot" style="background:${col}" title="${(s||'—').replace(/"/g,'&quot;')}"></span>`;
+}
+function _renderPrioChildren(jiraId){
+  const btn=document.querySelector(`.bl-prio-expand-btn[data-jira="${jiraId}"]`);
+  if(!btn)return;
+  const tr=btn.closest('tr');
+  const existing=tr.nextElementSibling;
+  if(existing?.classList.contains('bl-prio-children-row'))existing.remove();
+  const children=blGanttChildren[jiraId]||[];
+  const JIRA_BASE='https://isagri.atlassian.net/browse/';
+  let inner;
+  if(!children.length){
+    inner=`<span style="color:var(--text3);font-size:12px;font-style:italic">Aucun ticket enfant</span>`;
+  }else{
+    inner=children.map(c=>{
+      const href=c.jira_id?`${JIRA_BASE}${encodeURIComponent(c.jira_id)}`:null;
+      const sp=c.sprint_name?S.sprints.find(s=>s.name===c.sprint_name):null;
+      const spLabel=sp?sp.name:'—';
+      const lbl=(c.label||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<span class="bl-child-chip" title="${lbl} · ${c.status||'—'}">
+        ${href?`<a class="bl-child-id" href="${href}" target="_blank" rel="noopener">${c.jira_id}</a>`:''}
+        <span class="bl-child-label">${lbl}</span>
+        ${c.type?`<span class="bl-child-type">${c.type}</span>`:''}
+        ${c.points?`<span class="bl-child-pts">${c.points}pts</span>`:''}
+        <span class="bl-child-sprint">${spLabel}</span>
+        ${_statusDotPrio(c.status)}
+      </span>`;
+    }).join('');
+  }
+  const row=document.createElement('tr');
+  row.className='bl-prio-children-row';
+  row.innerHTML=`<td colspan="20" class="bl-prio-children-td"><div class="bl-prio-children-wrap">${inner}</div></td>`;
+  tr.after(row);
+}
+async function togglePrioChildren(jiraId,btn){
+  if(blPrioExpanded.has(jiraId)){
+    blPrioExpanded.delete(jiraId);
+    btn.classList.remove('open');
+    const next=btn.closest('tr').nextElementSibling;
+    if(next?.classList.contains('bl-prio-children-row'))next.remove();
+    return;
+  }
+  blPrioExpanded.add(jiraId);
+  btn.classList.add('loading');
+  if(!blGanttChildren[jiraId]){
+    try{blGanttChildren[jiraId]=await API.get(`/api/jira/children?key=${encodeURIComponent(jiraId)}`);}
+    catch(e){blGanttChildren[jiraId]=[];toast('Impossible de charger les tickets enfants','error');}
+  }
+  btn.classList.remove('loading');
+  btn.classList.add('open');
+  _renderPrioChildren(jiraId);
+}
+
 function renderBacklog(){
   const isAdmin=['admin','super_admin'].includes(CU?.role);
   _initObjFilter();
@@ -2241,8 +2300,8 @@ function renderBacklog(){
       const score=r._score;
       const isJira=r.source==='jira';
       if(!isAdmin) return `<tr>
-        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
-        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;color:var(--text2);font-size:12px;font-weight:600">${r.jira_id||'<span style="color:var(--text3)">—</span>'}</td>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${r.jira_id?`<button class="bl-prio-expand-btn${blPrioExpanded.has(r.jira_id)?' open':''}" data-jira="${r.jira_id}" onclick="togglePrioChildren('${r.jira_id}',this)" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`:`<span id="bl-jira-link-${r.id}" style="color:var(--text3);display:inline-flex;align-items:center"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`}</td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;font-size:12px;font-weight:600">${r.jira_id?`<a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--text2);text-decoration:none;font-weight:600">${r.jira_id}</a>`:'<span style="color:var(--text3)">—</span>'}</td>
         <td class="bl-sk bl-label-col" style="left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td>${(sp=>!sp?'<span style="color:var(--text3)">—</span>':sp.closed?`<span style="color:var(--text3)" title="Sprint clôturé">${sp.name}</span>`:sp.name)(S.sprints.find(s=>String(s.id)===String(r.sprint_id)))}</td>
@@ -2256,8 +2315,8 @@ function renderBacklog(){
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
       </tr>`;
       return `<tr>
-        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${jiraIcon(r.jira_id,r.id)}</td>
-        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px">${isJira?`<span style="color:var(--text2);font-size:12px;font-weight:600;padding:0 4px">${r.jira_id}</span>`:`<input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())">`}</td>
+        <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${r.jira_id?`<button class="bl-prio-expand-btn${blPrioExpanded.has(r.jira_id)?' open':''}" data-jira="${r.jira_id}" onclick="togglePrioChildren('${r.jira_id}',this)" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`:`<span id="bl-jira-link-${r.id}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`}</td>
+        <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px">${isJira?`<a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--text2);font-size:12px;font-weight:600;padding:0 4px;text-decoration:none" title="Ouvrir dans Jira">${r.jira_id}</a>`:`<input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())">`}</td>
         <td class="bl-sk bl-label-col" style="left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
@@ -2273,6 +2332,8 @@ function renderBacklog(){
       </tr>`;
     }).join('');
 
+  // Re-insérer les lignes enfants ouvertes après rebuild du tbody
+  blPrioExpanded.forEach(id=>{if(blGanttChildren[id]!==undefined)_renderPrioChildren(id);});
   // Bouton d'ajout toujours visible sous le tableau (admin seulement)
   const addFooter=document.getElementById('bl-add-footer');
   if(addFooter)addFooter.style.display=isAdmin?'block':'none';
