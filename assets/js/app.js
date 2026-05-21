@@ -2590,7 +2590,9 @@ async function blUpdate(id,patch){
         try{
           const r=await API.post('/api/jira/move-sprint',{jira_id:item.jira_id,sprint_name:newSp.name});
           if(r.jira){
-            toast(`Jira : ${item.jira_id} déplacé vers "${r.sprint_name||newSp.name}"`, 'success');
+            const due=r.due_date?` · due ${r.due_date}`:'';
+            toast(`Jira : ${item.jira_id} → "${r.sprint_name||newSp.name}"${due}`, 'success');
+            if(r.warning)toast(`${item.jira_id} : ${r.warning}`, 'warning');
           } else {
             toast(`${item.jira_id} sauvegardé dans bobbee — Jira : ${r.reason||'échec inconnu'}`, 'warning');
           }
