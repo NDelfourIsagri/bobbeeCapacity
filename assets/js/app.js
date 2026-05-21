@@ -439,6 +439,7 @@ function selectSprint(id){
 
 // ── NAV ──────────────────────────────────────────────────
 async function navTo(p,noPush=false){
+  if(['settings','users'].includes(p)&&!['admin','super_admin'].includes(CU?.role))return navTo('dashboard',noPush);
   if(!noPush)history.pushState({page:p},'',BASE_PATH+(PAGE_SLUGS[p]||p));
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p)?.classList.add('active');
