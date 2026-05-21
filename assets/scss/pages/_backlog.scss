@@ -675,3 +675,102 @@
   font-size: 13px;
   line-height: 1.8;
 }
+
+// ── Backlog priorisation — tickets enfants ────────────────────────────────
+.bl-prio-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--text3);
+  border-radius: var(--radius-sm);
+  width: 20px;
+  height: 20px;
+  transition: color var(--transition), background var(--transition);
+
+  .material-icons-round {
+    font-size: 16px;
+    transition: transform var(--transition);
+  }
+
+  &.open .material-icons-round { transform: rotate(90deg); }
+  &:hover { color: var(--primary); background: rgba(var(--primary-rgb), .1); }
+  &.loading { opacity: .5; pointer-events: none; }
+  &.loading .material-icons-round { animation: spin .8s linear infinite; }
+}
+
+.bl-prio-children-row > td {
+  padding: 6px 12px 8px 44px;
+  background: rgba(var(--primary-rgb), .03);
+  border-top: none !important;
+}
+
+.bl-prio-children-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.bl-child-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 10px 3px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  max-width: 340px;
+  white-space: nowrap;
+}
+
+.bl-child-id {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 11px;
+  flex-shrink: 0;
+  &:hover { text-decoration: underline; }
+}
+
+.bl-child-label {
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.bl-child-type {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text3);
+  background: rgba(0, 0, 0, .06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.bl-child-pts {
+  font-weight: 700;
+  color: var(--text1);
+  flex-shrink: 0;
+}
+
+.bl-child-sprint {
+  color: var(--text3);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.bl-child-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
