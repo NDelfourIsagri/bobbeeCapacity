@@ -2583,14 +2583,24 @@ async function blUpdate(id,patch){
       reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort,
       risk:item.risk,criticality:item.criticality,devValidated:item.dev_validated
     });
-    // Sync sprint Jira si sprint_id a changé pour un item Jira
-    if('sprint_id' in patch && item.jira_id && item.source==='jira' && String(prevSprintId)!==String(patch.sprint_id)){
+    // Sync sprint Jira si sprint_id a changé et que l'item a un jira_id
+    if('sprint_id' in patch && item.jira_id && String(prevSprintId)!==String(patch.sprint_id)){
       const newSp=S.sprints.find(s=>String(s.id)===String(patch.sprint_id));
       if(newSp){
         try{
           const r=await API.post('/api/jira/move-sprint',{jira_id:item.jira_id,sprint_name:newSp.name});
-          if(!r.jira)toast(`Sprint mis à jour — Jira non synchronisé : ${r.reason||''}`, 'warning');
-        }catch{toast('Erreur sync sprint Jira','warning');}
+          if(r.jira){
+            toast(`Jira : ${item.jira_id} déplacé vers "${r.sprint_name||newSp.name}"`, 'success');
+          } else {
+            toast(`${item.jira_id} sauvegardé dans bobbee — Jira : ${r.reason||'échec inconnu'}`, 'warning');
+          }
+        }catch(err){
+          const msg=err?.error||err?.message||JSON.stringify(err)||'erreur';
+          toast(`${item.jira_id} sauvegardé — Jira inaccessible : ${msg}`, 'warning');
+        }
+      } else if(!patch.sprint_id){
+        // Sprint retiré
+        toast(`${item.jira_id} : sprint retiré dans bobbee (Jira non modifié)`, 'warning');
       }
     }
   }catch(e){toast(e.error||'Erreur sauvegarde','error');}
