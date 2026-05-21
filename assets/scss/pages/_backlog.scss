@@ -650,9 +650,19 @@
   min-width: 12px;
   overflow: hidden;
   cursor: default;
-  transition: filter var(--transition);
+  transition: filter var(--transition), box-shadow 0.15s;
 
   &:hover { filter: brightness(1.12); }
+
+  &[data-drag-feat] { cursor: grab; }
+  &[data-drag-feat]:hover { filter: brightness(1.15); box-shadow: 0 0 0 2px rgba(255,255,255,0.3); }
+  &[data-drag-feat].gantt-dragging {
+    cursor: grabbing !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.45), 0 0 0 2px rgba(255,255,255,0.5);
+    z-index: 10;
+    transition: none;
+    filter: brightness(1.2);
+  }
 
   &-label {
     font-size: 10px;

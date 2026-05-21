@@ -56,7 +56,7 @@ async function loadUsers(){
   }));
 }
 async function loadTeams(){S.teams=await API.get('/api/teams');}
-async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId);else S.backlog=[];}
+async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId+'&syncSprints=1');else S.backlog=[];}
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
@@ -1983,10 +1983,14 @@ function renderGanttFor(backlogItems, wrapId){
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
-    const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" style="left:${spStartX}px;width:${spW}px;border-color:${bc(r.id)}"></div>`:'';
+    const isAdminG=['admin','super_admin'].includes(CU?.role);
+    const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" data-outline-for="${r.id}" style="left:${spStartX}px;width:${spW}px;border-color:${bc(r.id)}"></div>`:'';
+    const dragFeatAttrs=isAdminG
+      ?` data-drag-feat="${r.id}" data-drag-feat-sprint="${sp.id}" data-drag-bw-feat="${bw}" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px;cursor:grab"`
+      :` style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px"`;
     return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}">
       ${outlineHtml}
-      <div class="gantt-bar" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px" title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
+      <div class="gantt-bar"${dragFeatAttrs} title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
         <span class="gantt-bar-label">${r.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
       </div>
@@ -2180,11 +2184,13 @@ let _ganttDrag = null; // état courant du drag
 // Listeners document attachés une seule fois (évite les doublons au re-render)
 document.addEventListener('mousemove', e => {
   if (!_ganttDrag) return;
-  const { bar, bw, startLeft, startMouseX, timeline } = _ganttDrag;
-  const { totalW, toX, PX } = _ganttMeta;
+  const { bar, bw, startLeft, startMouseX, timeline, outline, startOutlineLeft } = _ganttDrag;
+  const { totalW } = _ganttMeta;
   const dx = e.clientX - startMouseX;
   const newLeft = Math.max(0, Math.min(totalW - bw, startLeft + dx));
   bar.style.left = newLeft + 'px';
+  // Déplacer l'outline (barre fantôme des features multi-sprint) solidairement
+  if (outline) outline.style.left = (startOutlineLeft + dx) + 'px';
 
   // Surbrillance du sprint survolé
   if (timeline) {
@@ -2199,79 +2205,105 @@ document.addEventListener('mousemove', e => {
 
 document.addEventListener('mouseup', async e => {
   if (!_ganttDrag) return;
-  const { bar, childId, parentId, bw, startLeft, timeline } = _ganttDrag;
-  const { PX, toX } = _ganttMeta;
+  const drag = _ganttDrag;
+  const { type, bar, bw, startLeft, timeline, outline, startOutlineLeft } = drag;
   bar.style.cursor = 'grab';
   bar.classList.remove('gantt-dragging');
   document.body.style.userSelect = '';
   if (timeline) timeline.querySelectorAll('.gantt-sprint-cell').forEach(c => c.classList.remove('drag-over'));
-
-  const finalLeft = parseInt(bar.style.left, 10);
   _ganttDrag = null;
 
+  const finalLeft = parseInt(bar.style.left, 10);
   if (Math.abs(finalLeft - startLeft) < 2) return;
 
   const sp = sprintAtX(finalLeft + bw / 2);
-  if (!sp) { bar.style.left = startLeft + 'px'; return; }
-
-  if (sp.closed) {
+  const snapBack = () => {
     bar.style.left = startLeft + 'px';
-    toast('Sprint clôturé — déplacement interdit', 'error');
-    return;
-  }
+    if (outline) outline.style.left = startOutlineLeft + 'px';
+  };
+  if (!sp) { snapBack(); return; }
+  if (sp.closed) { snapBack(); toast('Sprint clôturé — déplacement interdit', 'error'); return; }
 
-  const spStartX = toX(sp.start);
-  const spEndX   = toX(sp.end) + PX;
-  const offset = Math.max(0, Math.min(finalLeft - spStartX, spEndX - bw - spStartX));
-
-  const child = (blGanttChildren[parentId] || []).find(c => c.jira_id === childId);
-  const prevPos = blChildPositions[childId];
-  const prevSprintName = prevPos?.sprint_name || child?.sprint_name || null;
-  const sprintChanged = prevSprintName !== sp.name;
-
-  try {
-    await API.put('/api/children/position', { jira_id: childId, offset_px: offset, sprint_name: sp.name });
-    blChildPositions[childId] = { offset_px: offset, sprint_name: sp.name };
-  } catch {
-    toast('Erreur lors de la sauvegarde de la position', 'error');
-    bar.style.left = startLeft + 'px';
-    return;
-  }
-
-  if (sprintChanged) {
+  if (type === 'child') {
+    const { childId, parentId } = drag;
+    const { PX, toX } = _ganttMeta;
+    const spStartX = toX(sp.start);
+    const spEndX   = toX(sp.end) + PX;
+    const offset = Math.max(0, Math.min(finalLeft - spStartX, spEndX - bw - spStartX));
+    const child = (blGanttChildren[parentId] || []).find(c => c.jira_id === childId);
+    const prevPos = blChildPositions[childId];
+    const prevSprintName = prevPos?.sprint_name || child?.sprint_name || null;
+    const sprintChanged = prevSprintName !== sp.name;
     try {
-      const res = await API.post('/api/jira/move-sprint', { jira_id: childId, sprint_name: sp.name });
-      if (res.jira) {
-        toast(`${childId} déplacé dans "${sp.name}"`, 'success');
-        if (child) child.sprint_name = sp.name;
-      } else {
-        toast(`Position sauvegardée — Jira non mis à jour : ${res.reason || ''}`, 'warning');
-      }
+      await API.put('/api/children/position', { jira_id: childId, offset_px: offset, sprint_name: sp.name });
+      blChildPositions[childId] = { offset_px: offset, sprint_name: sp.name };
     } catch {
-      toast('Position sauvegardée — erreur Jira', 'warning');
+      toast('Erreur lors de la sauvegarde de la position', 'error');
+      snapBack(); return;
     }
-  }
+    if (sprintChanged) {
+      try {
+        const res = await API.post('/api/jira/move-sprint', { jira_id: childId, sprint_name: sp.name });
+        if (res.jira) { toast(`${childId} déplacé dans "${sp.name}"`, 'success'); if (child) child.sprint_name = sp.name; }
+        else toast(`Position sauvegardée — Jira non mis à jour : ${res.reason || ''}`, 'warning');
+      } catch { toast('Position sauvegardée — erreur Jira', 'warning'); }
+    }
+    _renderGanttChildren(parentId, blGanttChildren[parentId] || []);
 
-  _renderGanttChildren(parentId, blGanttChildren[parentId] || []);
+  } else if (type === 'feat') {
+    const { itemId } = drag;
+    const item = S.backlog.find(r => String(r.id) === String(itemId));
+    if (!item || String(item.sprint_id) === String(sp.id)) return;
+    // blUpdate met à jour S.backlog, sauvegarde en DB et synchro Jira
+    blUpdate(Number(itemId), { sprint_id: sp.id });
+    // Re-render immédiat avec le nouvel état (blUpdate a déjà appliqué le patch)
+    renderGantt();
+  }
 });
 
 // Initialise le drag sur un conteneur (mousedown uniquement — délégation)
 function initGanttChildDrag(container) {
   container.addEventListener('mousedown', e => {
     if (!['admin','super_admin'].includes(CU?.role)) return;
-    const bar = e.target.closest('[data-drag-child]');
-    if (!bar || e.target.closest('.gantt-bar-link')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const childId     = bar.dataset.dragChild;
-    const parentId    = bar.dataset.dragParent;
-    const bw          = parseInt(bar.dataset.dragBw, 10);
-    const startLeft   = parseInt(bar.style.left, 10);
-    const startMouseX = e.clientX;
-    const timeline    = bar.closest('.gantt-timeline');
-    _ganttDrag = { bar, childId, parentId, bw, startLeft, startMouseX, timeline };
-    bar.style.cursor = 'grabbing';
-    bar.classList.add('gantt-dragging');
+    if (e.target.closest('.gantt-bar-link')) return;
+
+    // Drag feature (barre parent)
+    const featBar = e.target.closest('[data-drag-feat]');
+    if (featBar) {
+      e.preventDefault(); e.stopPropagation();
+      const itemId   = featBar.dataset.dragFeat;
+      const bw       = parseInt(featBar.dataset.dragBwFeat, 10);
+      const startLeft = parseInt(featBar.style.left, 10);
+      const timeline  = featBar.closest('.gantt-timeline');
+      const row       = featBar.closest('.gantt-wi-row');
+      const outline   = row?.querySelector('.gantt-bar-sprint-outline') || null;
+      _ganttDrag = {
+        type: 'feat', bar: featBar, outline, itemId, bw, startLeft,
+        startOutlineLeft: outline ? parseInt(outline.style.left, 10) : 0,
+        startMouseX: e.clientX, timeline,
+      };
+      featBar.style.cursor = 'grabbing';
+      featBar.classList.add('gantt-dragging');
+      document.body.style.userSelect = 'none';
+      return;
+    }
+
+    // Drag ticket enfant
+    const childBar = e.target.closest('[data-drag-child]');
+    if (!childBar) return;
+    e.preventDefault(); e.stopPropagation();
+    _ganttDrag = {
+      type: 'child', bar: childBar,
+      childId:    childBar.dataset.dragChild,
+      parentId:   childBar.dataset.dragParent,
+      bw:         parseInt(childBar.dataset.dragBw, 10),
+      startLeft:  parseInt(childBar.style.left, 10),
+      startMouseX: e.clientX,
+      timeline:   childBar.closest('.gantt-timeline'),
+      outline: null, startOutlineLeft: 0,
+    };
+    childBar.style.cursor = 'grabbing';
+    childBar.classList.add('gantt-dragging');
     document.body.style.userSelect = 'none';
   });
 }
@@ -2534,6 +2566,7 @@ function blUpdateJiraIcon(id,val){
 }
 async function blUpdate(id,patch){
   const item=S.backlog.find(r=>r.id==id);if(!item)return;
+  const prevSprintId=item.sprint_id;
   Object.assign(item,patch);
   // Recalculer le score à la volée
   const score=riceScore(item);
@@ -2550,6 +2583,16 @@ async function blUpdate(id,patch){
       reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort,
       risk:item.risk,criticality:item.criticality,devValidated:item.dev_validated
     });
+    // Sync sprint Jira si sprint_id a changé pour un item Jira
+    if('sprint_id' in patch && item.jira_id && item.source==='jira' && String(prevSprintId)!==String(patch.sprint_id)){
+      const newSp=S.sprints.find(s=>String(s.id)===String(patch.sprint_id));
+      if(newSp){
+        try{
+          const r=await API.post('/api/jira/move-sprint',{jira_id:item.jira_id,sprint_name:newSp.name});
+          if(!r.jira)toast(`Sprint mis à jour — Jira non synchronisé : ${r.reason||''}`, 'warning');
+        }catch{toast('Erreur sync sprint Jira','warning');}
+      }
+    }
   }catch(e){toast(e.error||'Erreur sauvegarde','error');}
 }
 
