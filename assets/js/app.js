@@ -2634,9 +2634,10 @@ async function syncJira(btnId, statusId){
   if(status)status.textContent='Synchronisation en cours…';
   try{
     const r=await API.post('/api/jira/sync',{teamId:Number(selectedTeamId)});
-    const msg=`Synchronisé le ${new Date().toLocaleString('fr-FR')} — ${r.imported} importé(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s)`;
+    const sprintPart=r.sprints_synced?` · ${r.sprints_synced} sprint(s) sync`:'';
+    const msg=`Synchronisé le ${new Date().toLocaleString('fr-FR')} — ${r.imported} importé(s), ${r.updated} mis à jour, ${r.skipped} ignoré(s)${sprintPart}`;
     if(status)status.textContent=msg;
-    toast(`${r.imported} importé(s), ${r.updated} mis à jour`,'success');
+    toast(`${r.imported} importé(s), ${r.updated} mis à jour${sprintPart}`,'success');
     await loadBacklog();
     renderBacklog();
   }catch(e){
