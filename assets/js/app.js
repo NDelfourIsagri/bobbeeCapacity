@@ -25,7 +25,7 @@ const API={
 const S={
   team:[],sprints:[],leaves:[],
   config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
-  users:[],teams:[],backlog:[],objectivesData:null
+  users:[],teams:[],backlog:[],objectivesData:null,noTimespent:null
 };
 let selectedTeamId=null;
 
@@ -57,6 +57,7 @@ async function loadUsers(){
 }
 async function loadTeams(){S.teams=await API.get('/api/teams');}
 async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId+'&syncSprints=1');else S.backlog=[];}
+async function loadNoTimespent(){if(selectedTeamId)S.noTimespent=await API.get('/api/jira/no-timespent?teamId='+selectedTeamId).catch(()=>null);else S.noTimespent=null;}
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
@@ -324,7 +325,7 @@ async function navTeam(dir){
   renderTeamSelector();
   selectedSprintId=null;
   localStorage.removeItem('bcp_sprint');
-  await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);
+  await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog(),loadNoTimespent()]);
   initSprintSel();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
@@ -445,7 +446,7 @@ async function navTo(p,noPush=false){
   document.getElementById('page-'+p)?.classList.add('active');
   document.querySelectorAll('.nav-item,.bottom-nav-item').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll(`[onclick="navTo('${p}')"]`).forEach(x=>x.classList.add('active'));
-  if(p==='dashboard'){await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog()]);initSprintSel();renderDash();syncJiraVelocities().then(()=>loadSprints().then(()=>{renderDash();initSprintSel();})).catch(()=>{});}
+  if(p==='dashboard'){await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog(),loadNoTimespent()]);initSprintSel();renderDash();syncJiraVelocities().then(()=>loadSprints().then(()=>{renderDash();initSprintSel();})).catch(()=>{});}
   if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='sprints'){await loadSprints();renderSprints();document.getElementById('sprint-bar-sticky')?.classList.remove('active');syncJiraVelocities().then(()=>loadSprints().then(()=>renderSprints())).catch(()=>{});}
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
@@ -750,6 +751,17 @@ function renderDash(){
         return `<div style="font-size:15px;font-weight:700;color:var(--primary)">${calcCap(m,cur.start,cur.end,leaves).prodD}j</div><div style="font-size:10px;color:var(--text3)">prod.</div>`;
       })()}</div>`:''}
     </div>`).join('');
+  const nt=S.noTimespent||{total:0,issues:[]};
+  const ntColor=nt.total>0?'var(--danger)':'var(--success)';
+  const JIRA_BROWSE='https://isagri.atlassian.net/browse/';
+  document.getElementById('dash-no-time').innerHTML=`
+    <div style="font-size:48px;font-weight:800;color:${ntColor};line-height:1">${nt.total}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;margin-top:2px">US sans temps renseigné</div>
+    ${nt.issues.length>0?`<div class="no-time-list">${nt.issues.map(i=>`
+      <div class="no-time-row">
+        <a href="${JIRA_BROWSE}${encodeURIComponent(i.jira_id)}" target="_blank" rel="noopener" class="no-time-key">${i.jira_id}</a>
+        <span class="no-time-assignee">${i.assignee_name}</span>
+      </div>`).join('')}</div>`:''}`;
 }
 
 function parseDate(ds){ const [y,m,d]=ds.split('-').map(Number); return new Date(y,m-1,d); }

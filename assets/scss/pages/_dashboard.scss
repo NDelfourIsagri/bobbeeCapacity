@@ -66,6 +66,43 @@
   }
 }
 
+// Tuile "US sans temps saisi"
+.no-time-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.no-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--divider);
+
+  &:last-child { border-bottom: none; }
+}
+
+.no-time-key {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+  flex-shrink: 0;
+
+  &:hover { text-decoration: underline; }
+}
+
+.no-time-assignee {
+  font-size: 12px;
+  color: var(--text3);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .velocity-inline {
   input {
     width: 80px;
