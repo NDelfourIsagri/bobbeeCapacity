@@ -147,6 +147,15 @@ tr:hover td{background:var(--chip);}
 .bottom-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 16px;cursor:pointer;color:var(--text3);font-size:10px;font-weight:600;border-radius:var(--radius-md);transition:all var(--transition);}
 .bottom-nav-item.active{color:var(--primary);}.bottom-nav-item .material-icons-round{font-size:22px;}
 
+/* TEAM CHIPS */
+.team-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
+.team-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.member-chips{display:flex;flex-wrap:wrap;gap:4px;flex-shrink:0;}
+.other-team-sep{display:flex;align-items:center;gap:8px;margin:20px 0 14px;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;}
+.other-team-sep::before,.other-team-sep::after{content:'';flex:1;height:1px;background:var(--divider);}
+.other-team-group{margin-bottom:16px;}
+.other-team-group-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+
 /* MEMBER CARD */
 .member-card{border-radius:var(--radius-md);border:1px solid var(--border);padding:14px 16px;background:var(--bg2);display:flex;align-items:center;gap:12px;transition:all var(--transition);}
 .member-card:hover{border-color:var(--primary);box-shadow:var(--shadow-sm);}

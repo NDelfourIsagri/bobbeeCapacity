@@ -1,6 +1,10 @@
 // ── COLORS ──────────────────────────────────────────────
 const COLORS=['#e91e63','#9c27b0','#3f51b5','#009688','#ff5722','#607d8b','#795548','#4caf50','#ff9800','#00bcd4'];
 const mc=i=>COLORS[i%COLORS.length];
+// Palette de couleurs pour les étiquettes d'équipe (fg seulement, bg = fg + alpha)
+const TEAM_PALETTE=['#6366f1','#ec4899','#d97706','#059669','#dc2626','#2563eb','#9333ea','#0d9488'];
+function tcol(teamId){const i=(S.teams||[]).findIndex(t=>String(t.id)===String(teamId));return TEAM_PALETTE[(i>=0?i:Math.abs(Number(teamId)||0))%TEAM_PALETTE.length];}
+function tcss(teamId){const c=tcol(teamId);const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);return `background:rgba(${r},${g},${b},0.14);color:${c}`;}
 
 // ── API CLIENT ───────────────────────────────────────────
 const API={
@@ -58,6 +62,7 @@ async function loadUsers(){
 async function loadTeams(){S.teams=await API.get('/api/teams');}
 async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId+'&syncSprints=1');else S.backlog=[];}
 async function loadNoTimespent(){if(selectedTeamId)S.noTimespent=await API.get('/api/jira/no-timespent?teamId='+selectedTeamId).catch(()=>null);else S.noTimespent=null;}
+async function loadAllMembersWithTeams(){S.allMembersWithTeams=await API.get('/api/team/all-with-teams').catch(()=>null);}
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
@@ -333,7 +338,7 @@ async function navTeam(dir){
   else if(activePage==='page-sprints')renderSprints();
   else if(activePage==='page-agenda')renderAgenda();
   else if(activePage==='page-backlog'){renderBacklog();if(blActiveTab==='chrono'){const os=document.getElementById('bl-filter-obj');if(os){os.dataset.teamKey='';os.value='';}renderGantt();}}
-  else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams()]);renderSettings();}
+  else if(activePage==='page-settings'){await Promise.all([loadConfig(),loadTeams(),loadAllMembersWithTeams()]);renderSettings();}
   else if(activePage==='page-objectives'){
     const sel=document.getElementById('obj-team-filter');
     if(sel&&S.teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=selectedTeamId;
@@ -450,7 +455,7 @@ async function navTo(p,noPush=false){
   if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='sprints'){await loadSprints();renderSprints();document.getElementById('sprint-bar-sticky')?.classList.remove('active');syncJiraVelocities().then(()=>loadSprints().then(()=>renderSprints())).catch(()=>{});}
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
-  if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams(),loadAllMembersWithTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='objectives'){
@@ -1283,15 +1288,23 @@ function renderSettings(){
   document.getElementById('settings-grid').style.gridTemplateColumns=isSA?'1fr 1fr':'1fr';
   const team=S.team,vg=S.config.vel_grid||{},mg=S.config.mtg_grid||{};
   const tl=document.getElementById('team-list');
+  const allMap=Object.fromEntries((S.allMembersWithTeams||[]).map(m=>[String(m.id),m]));
+  const curTeamName=(S.teams||[]).find(t=>String(t.id)===String(selectedTeamId))?.name||'Mon équipe';
+  const secLabel=`<div class="other-team-group-label" style="margin-bottom:10px"><span class="team-dot" style="background:${tcol(selectedTeamId)}"></span>${curTeamName}</div>`;
   tl.innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
-    :team.map((m,i)=>`<div class="member-card" draggable="true" data-id="${m.id}" style="margin-bottom:8px">
-      <div class="drag-handle"><span class="material-icons-round" style="font-size:18px">drag_indicator</span></div>
-      <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
-      <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · ${m.meetings||20}% réun. · <span style="color:${m.velocity!=null?'var(--primary)':'var(--text3)'}">${m.velocity!=null?m.velocity:(vg[m.level]||85)}% vél.${m.velocity!=null?' ✎':''}</span></div></div>
-      <div style="display:flex;gap:4px;align-items:center">
-        <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
-        <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
-      </div></div>`).join('');
+    :secLabel+team.map((m,i)=>{
+      const extra=(allMap[String(m.id)]?.teams||[]).filter(t=>String(t.id)!==String(selectedTeamId));
+      const chips=extra.map(t=>`<span class="team-chip" style="${tcss(t.id)}">${t.name}</span>`).join('');
+      return `<div class="member-card" draggable="true" data-id="${m.id}" style="margin-bottom:8px">
+        <div class="drag-handle"><span class="material-icons-round" style="font-size:18px">drag_indicator</span></div>
+        <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
+        <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · ${m.meetings||20}% réun. · <span style="color:${m.velocity!=null?'var(--primary)':'var(--text3)'}">${m.velocity!=null?m.velocity:(vg[m.level]||85)}% vél.${m.velocity!=null?' ✎':''}</span></div></div>
+        ${chips?`<div class="member-chips">${chips}</div>`:''}
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
+          <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
+        </div></div>`;
+    }).join('');
   tl.querySelectorAll('.member-card').forEach(card=>{
     card.addEventListener('dragstart',e=>{
       e.dataTransfer.effectAllowed='move';
@@ -1328,6 +1341,38 @@ function renderSettings(){
   document.getElementById('vel-grid').innerHTML=Object.entries(vg).map(([k,v])=>`<div class="velocity-item"><label>${LV[k]||k}</label><input type="number" class="input" id="vg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du potentiel</div></div>`).join('');
   document.getElementById('mtg-grid').innerHTML=Object.entries(mg).map(([k,v])=>`<div class="velocity-item"><label>${RL[k]||k}</label><input type="number" class="input" id="mg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du temps</div></div>`).join('');
   if(isSA) renderTeamsList();
+  // ── Section 2 : autres collaborateurs ───────────────────
+  const otl=document.getElementById('other-team-list');
+  if(!otl)return;
+  const curIds=new Set(team.map(m=>String(m.id)));
+  const others=(S.allMembersWithTeams||[]).filter(m=>!curIds.has(String(m.id))&&m.teams.length>0);
+  if(!others.length){otl.innerHTML='';return;}
+  const groups=[],gIdx={};
+  for(const m of others){
+    const pt=m.teams[0];
+    const k=String(pt.id);
+    if(gIdx[k]===undefined){gIdx[k]=groups.length;groups.push({team:pt,members:[]});}
+    groups[gIdx[k]].members.push(m);
+  }
+  const isAdm=['admin','super_admin'].includes(CU?.role);
+  otl.innerHTML=`
+    <div class="other-team-sep">
+      <span>Autres collaborateurs</span>
+      <span class="badge badge-primary" style="font-size:10px;padding:2px 8px">${others.length}</span>
+    </div>
+    ${groups.map(g=>`
+      <div class="other-team-group">
+        <div class="other-team-group-label">
+          <span class="team-dot" style="background:${tcol(g.team.id)}"></span>${g.team.name}
+        </div>
+        ${g.members.map(m=>`
+          <div class="member-card" style="margin-bottom:8px">
+            <div class="member-avatar" style="background:${mc(Number(m.id)%COLORS.length)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
+            <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level}</div></div>
+            <div class="member-chips">${m.teams.map(t=>`<span class="team-chip" style="${tcss(t.id)}">${t.name}</span>`).join('')}</div>
+            ${isAdm?`<button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>`:''}
+          </div>`).join('')}
+      </div>`).join('')}`;
 }
 async function moveTeamMember(i,dir){
   const t=[...S.team];const j=i+dir;
@@ -1375,7 +1420,7 @@ async function openMemberModal(id=null){
   editMemberId=id;
   const mg=S.config.mtg_grid||{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50};
   const vg=S.config.vel_grid||{alternant:50,junior:70,intermediaire:85,senior:100};
-  const m=id?S.team.find(t=>t.id==id):null;
+  const m=id?(S.team.find(t=>t.id==id)||(S.allMembersWithTeams||[]).find(t=>t.id==id)):null;
   document.getElementById('member-modal-title').textContent=id?'Modifier le membre':'Nouveau membre';
   document.getElementById('mm-fname').value=m?.fname||'';document.getElementById('mm-lname').value=m?.lname||'';
   document.getElementById('mm-role').value=m?.role||'dev';document.getElementById('mm-level').value=m?.level||'intermediaire';
@@ -1427,14 +1472,14 @@ async function saveMember(){
       })).filter(p=>p.teamId);
       await API.put('/api/team/'+memberId+'/teams',{periods});
     }
-    await loadTeam();
+    await Promise.all([loadTeam(),loadAllMembersWithTeams()]);
     closeModal('modal-member');toast('Membre sauvegardé ✓','success');renderSettings();
   }catch(e){toast(e.error||'Erreur','error');}
 }
 function delMember(id){
   showConfirm('Supprimer ce membre de l\'équipe ?',async()=>{
     await API.del('/api/team/'+id);
-    await loadTeam();renderSettings();toast('Membre supprimé','success');
+    await Promise.all([loadTeam(),loadAllMembersWithTeams()]);renderSettings();toast('Membre supprimé','success');
   },'Supprimer le membre');
 }
 
