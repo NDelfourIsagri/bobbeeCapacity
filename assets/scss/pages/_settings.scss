@@ -134,6 +134,53 @@
   margin-bottom: 8px;
 }
 
+// Grille 3 colonnes pour les autres collaborateurs
+.other-team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
+}
+
+.member-card-sm {
+  align-items: flex-start;
+  padding: 10px 12px;
+}
+
+.member-avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.mcs-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mcs-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mcs-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+.mcs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
 // ── Member card ───────────────────────────────────────────────────
 .member-card {
   border-radius: var(--radius-md);

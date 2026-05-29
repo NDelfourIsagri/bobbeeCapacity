@@ -1341,38 +1341,32 @@ function renderSettings(){
   document.getElementById('vel-grid').innerHTML=Object.entries(vg).map(([k,v])=>`<div class="velocity-item"><label>${LV[k]||k}</label><input type="number" class="input" id="vg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du potentiel</div></div>`).join('');
   document.getElementById('mtg-grid').innerHTML=Object.entries(mg).map(([k,v])=>`<div class="velocity-item"><label>${RL[k]||k}</label><input type="number" class="input" id="mg-${k}" value="${v}" min="0" max="100" step="5"><div style="font-size:11px;color:var(--text3);margin-top:4px">% du temps</div></div>`).join('');
   if(isSA) renderTeamsList();
-  // ── Section 2 : autres collaborateurs ───────────────────
+  // ── Section 2 : autres collaborateurs (grille 3 colonnes, tri alpha) ──
   const otl=document.getElementById('other-team-list');
   if(!otl)return;
   const curIds=new Set(team.map(m=>String(m.id)));
-  const others=(S.allMembersWithTeams||[]).filter(m=>!curIds.has(String(m.id))&&m.teams.length>0);
+  const others=(S.allMembersWithTeams||[])
+    .filter(m=>!curIds.has(String(m.id))&&m.teams.length>0)
+    .sort((a,b)=>a.fname.localeCompare(b.fname,'fr')||a.lname.localeCompare(b.lname,'fr'));
   if(!others.length){otl.innerHTML='';return;}
-  const groups=[],gIdx={};
-  for(const m of others){
-    const pt=m.teams[0];
-    const k=String(pt.id);
-    if(gIdx[k]===undefined){gIdx[k]=groups.length;groups.push({team:pt,members:[]});}
-    groups[gIdx[k]].members.push(m);
-  }
   const isAdm=['admin','super_admin'].includes(CU?.role);
   otl.innerHTML=`
     <div class="other-team-sep">
       <span>Autres collaborateurs</span>
       <span class="badge badge-primary" style="font-size:10px;padding:2px 8px">${others.length}</span>
     </div>
-    ${groups.map(g=>`
-      <div class="other-team-group">
-        <div class="other-team-group-label">
-          <span class="team-dot" style="background:${tcol(g.team.id)}"></span>${g.team.name}
-        </div>
-        ${g.members.map(m=>`
-          <div class="member-card" style="margin-bottom:8px">
-            <div class="member-avatar" style="background:${mc(Number(m.id)%COLORS.length)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
-            <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level}</div></div>
-            <div class="member-chips">${m.teams.map(t=>`<span class="team-chip" style="${tcss(t.id)}">${t.name}</span>`).join('')}</div>
-            ${isAdm?`<button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>`:''}
-          </div>`).join('')}
-      </div>`).join('')}`;
+    <div class="other-team-grid">
+      ${others.map(m=>`
+        <div class="member-card member-card-sm">
+          <div class="member-avatar member-avatar-sm" style="background:${mc(Number(m.id)%COLORS.length)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
+          <div class="mcs-content">
+            <div class="mcs-name">${m.fname} ${m.lname}</div>
+            <div class="mcs-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level}</div>
+            ${m.teams.length?`<div class="mcs-chips">${m.teams.map(t=>`<span class="team-chip" style="${tcss(t.id)}">${t.name}</span>`).join('')}</div>`:''}
+          </div>
+          ${isAdm?`<button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round" style="font-size:18px">edit</span></button>`:''}
+        </div>`).join('')}
+    </div>`;
 }
 async function moveTeamMember(i,dir){
   const t=[...S.team];const j=i+dir;
