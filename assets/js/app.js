@@ -755,8 +755,10 @@ function renderDash(){
   const ntColor=nt.total>0?'var(--danger)':'var(--success)';
   const JIRA_BROWSE='https://isagri.atlassian.net/browse/';
   document.getElementById('dash-no-time').innerHTML=`
-    <div style="font-size:48px;font-weight:800;color:${ntColor};line-height:1">${nt.total}</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;margin-top:2px">US sans temps renseigné</div>
+    <div class="no-time-header">
+      <div class="no-time-count" style="color:${ntColor}">${nt.total}</div>
+      <div class="no-time-label">US sans temps renseigné</div>
+    </div>
     ${nt.issues.length>0?`<div class="no-time-list">${nt.issues.map(i=>`
       <div class="no-time-row">
         <a href="${JIRA_BROWSE}${encodeURIComponent(i.jira_id)}" target="_blank" rel="noopener" class="no-time-key">${i.jira_id}</a>

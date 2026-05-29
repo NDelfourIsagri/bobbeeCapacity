@@ -67,6 +67,23 @@
 }
 
 // Tuile "US sans temps saisi"
+.no-time-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.no-time-count {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.no-time-label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
 .no-time-list {
   max-height: 220px;
   overflow-y: auto;

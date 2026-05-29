@@ -109,6 +109,9 @@ tr:hover td{background:var(--chip);}
 .toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 18px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);backdrop-filter:blur(12px);animation:slideIn 0.3s ease;}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 .toast.success .ti{color:var(--success);}.toast.error .ti{color:var(--danger);}.toast.warning .ti{color:#f59e0b;}
+.no-time-header{text-align:center;margin-bottom:12px;}
+.no-time-count{font-size:48px;font-weight:800;line-height:1;}
+.no-time-label{font-size:11px;color:var(--text3);margin-top:4px;}
 .no-time-list{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;}
 .no-time-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--divider);}
 .no-time-row:last-child{border-bottom:none;}
