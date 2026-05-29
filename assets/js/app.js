@@ -1292,19 +1292,24 @@ function renderSettings(){
   const curTeamName=(S.teams||[]).find(t=>String(t.id)===String(selectedTeamId))?.name||'Mon équipe';
   const secLabel=`<div class="other-team-group-label" style="margin-bottom:10px"><span class="team-dot" style="background:${tcol(selectedTeamId)}"></span>${curTeamName}</div>`;
   tl.innerHTML=team.length===0?'<p style="color:var(--text3);font-size:13px">Aucun membre</p>'
-    :secLabel+team.map((m,i)=>{
+    :secLabel+`<div class="other-team-grid">`+team.map((m,i)=>{
       const extra=(allMap[String(m.id)]?.teams||[]).filter(t=>String(t.id)!==String(selectedTeamId));
       const chips=extra.map(t=>`<span class="team-chip" style="${tcss(t.id)}">${t.name}</span>`).join('');
-      return `<div class="member-card" draggable="true" data-id="${m.id}" style="margin-bottom:8px">
-        <div class="drag-handle"><span class="material-icons-round" style="font-size:18px">drag_indicator</span></div>
-        <div class="member-avatar" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
-        <div class="member-info"><div class="member-name">${m.fname} ${m.lname}</div><div class="member-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · ${m.meetings||20}% réun. · <span style="color:${m.velocity!=null?'var(--primary)':'var(--text3)'}">${m.velocity!=null?m.velocity:(vg[m.level]||85)}% vél.${m.velocity!=null?' ✎':''}</span></div></div>
-        ${chips?`<div class="member-chips">${chips}</div>`:''}
-        <div style="display:flex;gap:4px;align-items:center">
-          <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round">edit</span></button>
-          <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="color:var(--danger)">delete</span></button>
+      const velVal=m.velocity!=null?m.velocity:(vg[m.level]||85);
+      const hasCustomVel=m.velocity!=null;
+      return `<div class="member-card member-card-sm" draggable="true" data-id="${m.id}">
+        <div class="member-avatar member-avatar-sm" style="background:${mc(i)}">${(m.fname[0]||'')+(m.lname[0]||'')}</div>
+        <div class="mcs-content">
+          <div class="mcs-name">${m.fname} ${m.lname}</div>
+          <div class="mcs-meta">${RL[m.role]||m.role} · ${LV[m.level]||m.level} · <span style="color:${hasCustomVel?'var(--primary)':'inherit'}">${velVal}% vél.${hasCustomVel?' ✎':''}</span></div>
+          ${chips?`<div class="mcs-chips">${chips}</div>`:''}
+        </div>
+        <div class="mcs-actions">
+          <span class="drag-handle" style="padding:2px"><span class="material-icons-round" style="font-size:16px">drag_indicator</span></span>
+          <button class="icon-btn" onclick="openMemberModal('${m.id}')"><span class="material-icons-round" style="font-size:18px">edit</span></button>
+          <button class="icon-btn" onclick="delMember('${m.id}')"><span class="material-icons-round" style="font-size:18px;color:var(--danger)">delete</span></button>
         </div></div>`;
-    }).join('');
+    }).join('')+`</div>`;
   tl.querySelectorAll('.member-card').forEach(card=>{
     card.addEventListener('dragstart',e=>{
       e.dataTransfer.effectAllowed='move';

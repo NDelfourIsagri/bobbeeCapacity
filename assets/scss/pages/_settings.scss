@@ -181,6 +181,23 @@
   margin-top: 5px;
 }
 
+.mcs-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.member-card-sm[draggable="true"] {
+  cursor: default;
+
+  .drag-handle {
+    cursor: grab;
+    &:active { cursor: grabbing; }
+  }
+}
+
 // ── Member card ───────────────────────────────────────────────────
 .member-card {
   border-radius: var(--radius-md);

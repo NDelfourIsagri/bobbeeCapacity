@@ -162,6 +162,10 @@ tr:hover td{background:var(--chip);}
 .mcs-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mcs-meta{font-size:11px;color:var(--text3);margin-top:1px;}
 .mcs-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.mcs-actions{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;}
+.member-card-sm[draggable="true"]{cursor:default;}
+.member-card-sm[draggable="true"] .drag-handle{cursor:grab;}
+.member-card-sm[draggable="true"] .drag-handle:active{cursor:grabbing;}
 @media(max-width:900px){.other-team-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:640px){.other-team-grid{grid-template-columns:1fr;}}
 
