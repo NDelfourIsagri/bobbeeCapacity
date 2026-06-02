@@ -460,7 +460,7 @@ async function navTo(p,noPush=false){
   if(p==='dashboard'){await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog(),loadNoTimespent()]);initSprintSel();renderDash();syncJiraVelocities().then(()=>loadSprints().then(()=>{renderDash();initSprintSel();})).catch(()=>{});}
   if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='sprints'){await loadSprints();renderSprints();document.getElementById('sprint-bar-sticky')?.classList.remove('active');syncJiraVelocities().then(()=>loadSprints().then(()=>renderSprints())).catch(()=>{});}
-  if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves(),loadSprintBreakdown()]);initSprintSel();renderCharts();}
+  if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();await loadSprintBreakdown();renderCharts();}
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams(),loadAllMembersWithTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
@@ -1190,7 +1190,7 @@ function showDonut(wrapId,chartId,data,t2,ff){
     wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
   }
   const opts={
-    responsive:true,maintainAspectRatio:false,cutout:'68%',
+    responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{
       legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,usePointStyle:true,pointStyle:'circle'}},
       tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleFont:{family:ff},bodyFont:{family:ff},padding:10,
