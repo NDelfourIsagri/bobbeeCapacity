@@ -302,7 +302,13 @@
             <div id="donut-type-wrap"></div>
           </div>
           <div class="card">
-            <div class="card-title"><span class="material-icons-round">pie_chart</span>Répartition par statut</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="card-title" style="margin-bottom:0"><span class="material-icons-round">pie_chart</span>Répartition par statut</div>
+              <div class="donut-mode-toggle">
+                <button id="donut-status-btn-count" class="donut-mode-btn" onclick="setDonutStatusMode('count')">Items</button>
+                <button id="donut-status-btn-points" class="donut-mode-btn" onclick="setDonutStatusMode('points')">Points</button>
+              </div>
+            </div>
             <div id="donut-status-wrap"></div>
           </div>
         </div>

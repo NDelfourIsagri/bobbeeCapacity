@@ -1177,7 +1177,25 @@ async function doCloseSprint(){
 function cv(v){return getComputedStyle(document.body).getPropertyValue(v).trim();}
 function dChart(id,type,data,opts){if(charts[id]){charts[id].destroy();delete charts[id];}charts[id]=new Chart(document.getElementById(id),{type,data,options:opts});}
 const DONUT_COLORS=['#6366f1','#ec4899','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#06b6d4','#84cc16','#f97316','#a855f7','#0ea5e9'];
-function showDonut(wrapId,chartId,data,t2,ff,valueLabel='ticket',emptyMsg=null){
+// Couleurs fixes par type de ticket (comparaison insensible à la casse)
+const _TYPE_COLOR={'user story':'#10b981','rsd':'#84cc16','enabler':'#3b82f6','activateur':'#3b82f6','bug':'#f97316','hotfix':'#ef4444','hot fix':'#ef4444','incident':'#ef4444'};
+function getTypeColor(name,idx){return _TYPE_COLOR[name.toLowerCase()]||DONUT_COLORS[idx%DONUT_COLORS.length];}
+// Couleurs sémantiques par statut (matching sur mots-clés)
+function _hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h);}
+function getStatusColor(name){
+  const n=name.toLowerCase();
+  if(n.includes('termin')||n.includes('done')||n.includes('prod'))return '#10b981';
+  if(n.includes('en cours')||n.includes('in progress'))return '#3b82f6';
+  if(n.includes('pull request')||n.includes('review'))return '#8b5cf6';
+  if(n.includes('éphémère')||n.includes('ephemere'))return '#0ea5e9';
+  if(n.includes('staging')||n.includes('tester en'))return '#f59e0b';
+  if(n.includes('livr'))return '#06b6d4';
+  if(n.includes('affecter')||n.includes('prioriser'))return '#94a3b8';
+  if(n.includes('spécif')||n.includes('specif')||n.includes('affectation'))return '#6b7280';
+  return DONUT_COLORS[_hashStr(name)%DONUT_COLORS.length];
+}
+function showDonut(wrapId,chartId,data,t2,ff,valueLabel,emptyMsg,rawCounts,colorFn){
+  valueLabel=valueLabel||'ticket';
   const wrap=document.getElementById(wrapId);
   if(!wrap)return;
   if(!data?.length){
@@ -1189,34 +1207,56 @@ function showDonut(wrapId,chartId,data,t2,ff,valueLabel='ticket',emptyMsg=null){
   if(!document.getElementById(chartId)){
     wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
   }
-  const formatVal=(n)=>valueLabel==='pt'?`${n} pts`:`${n} ticket${n>1?'s':''}`;
+  const rc=rawCounts||data.map(x=>x.count);
+  const colors=data.map((x,i)=>colorFn?colorFn(x.name,i):DONUT_COLORS[i%DONUT_COLORS.length]);
+  const formatVal=n=>valueLabel==='pt'?`${n} pts`:`${n} ticket${n>1?'s':''}`;
   const opts={
     responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{
-      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,usePointStyle:true,pointStyle:'circle'}},
+      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,
+        generateLabels:chart=>{
+          const ds=chart.data.datasets[0];
+          const bg=ds.backgroundColor,_rc=ds._rawCounts;
+          return chart.data.labels.map((label,i)=>({
+            text:`${label} (${_rc?_rc[i]:ds.data[i]})`,
+            fillStyle:bg[i],strokeStyle:'transparent',lineWidth:0,
+            pointStyle:'circle',hidden:false,index:i,datasetIndex:0
+          }));
+        }
+      }},
       tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleFont:{family:ff},bodyFont:{family:ff},padding:10,
-        callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=tot>0?Math.round(ctx.parsed/tot*100):0;return ` ${ctx.label} : ${formatVal(ctx.parsed)} (${pct}%)`;}}
+        callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=tot>0?Math.round(ctx.parsed/tot*100):0;return ` ${formatVal(ctx.parsed)} (${pct}%)`;}}
       }
     }
   };
   dChart(chartId,'doughnut',{
     labels:data.map(x=>x.name),
-    datasets:[{data:data.map(x=>x.count),backgroundColor:DONUT_COLORS.slice(0,data.length),borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
+    datasets:[{data:data.map(x=>x.count),_rawCounts:rc,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
   },opts);
+}
+function _buildDonutData(src,mode){
+  if(mode==='points'){
+    const f=(src||[]).filter(x=>x.points>0);
+    return{data:f.map(x=>({name:x.name,count:x.points})),rawCounts:f.map(x=>x.count),
+      emptyMsg:(src||[]).length>0?'Aucun story point renseigné sur ce sprint':null,vl:'pt'};
+  }
+  return{data:src,rawCounts:null,emptyMsg:null,vl:'ticket'};
 }
 function setDonutMode(mode){
   localStorage.setItem('bcp_donut_type_mode',mode);
   document.getElementById('donut-btn-count')?.classList.toggle('active',mode==='count');
   document.getElementById('donut-btn-points')?.classList.toggle('active',mode==='points');
-  const bd=S.sprintBreakdown;
   const t2=cv('--text2'),ff='Inter,sans-serif';
-  if(mode==='points'){
-    const typeData=(bd?.byType||[]).map(x=>({name:x.name,count:x.points})).filter(x=>x.count>0);
-    const emptyMsg=bd?.byType?.length>0?'Aucun story point renseigné sur ce sprint':null;
-    showDonut('donut-type-wrap','chart-donut-type',typeData,t2,ff,'pt',emptyMsg);
-  }else{
-    showDonut('donut-type-wrap','chart-donut-type',bd?.byType,t2,ff,'ticket');
-  }
+  const{data,rawCounts,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byType,mode);
+  showDonut('donut-type-wrap','chart-donut-type',data,t2,ff,vl,emptyMsg,rawCounts,getTypeColor);
+}
+function setDonutStatusMode(mode){
+  localStorage.setItem('bcp_donut_status_mode',mode);
+  document.getElementById('donut-status-btn-count')?.classList.toggle('active',mode==='count');
+  document.getElementById('donut-status-btn-points')?.classList.toggle('active',mode==='points');
+  const t2=cv('--text2'),ff='Inter,sans-serif';
+  const{data,rawCounts,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byStatus,mode);
+  showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor);
 }
 function renderCharts(){
   const now=new Date();
@@ -1331,17 +1371,16 @@ function renderCharts(){
   const bd=S.sprintBreakdown;
   const spLabel=document.getElementById('donut-sprint-label');
   if(spLabel)spLabel.textContent=bd?.sprint?`· ${bd.sprint} (${bd.total} tickets)`:'';
-  const donutMode=localStorage.getItem('bcp_donut_type_mode')||'count';
-  document.getElementById('donut-btn-count')?.classList.toggle('active',donutMode==='count');
-  document.getElementById('donut-btn-points')?.classList.toggle('active',donutMode==='points');
-  if(donutMode==='points'){
-    const typeData=(bd?.byType||[]).map(x=>({name:x.name,count:x.points})).filter(x=>x.count>0);
-    const emptyMsg=bd?.byType?.length>0?'Aucun story point renseigné sur ce sprint':null;
-    showDonut('donut-type-wrap','chart-donut-type',typeData,t2,ff,'pt',emptyMsg);
-  }else{
-    showDonut('donut-type-wrap','chart-donut-type',bd?.byType,t2,ff,'ticket');
-  }
-  showDonut('donut-status-wrap','chart-donut-status',bd?.byStatus,t2,ff,'ticket');
+  const dTypeMode=localStorage.getItem('bcp_donut_type_mode')||'count';
+  document.getElementById('donut-btn-count')?.classList.toggle('active',dTypeMode==='count');
+  document.getElementById('donut-btn-points')?.classList.toggle('active',dTypeMode==='points');
+  {const{data,rawCounts,emptyMsg,vl}=_buildDonutData(bd?.byType,dTypeMode);
+   showDonut('donut-type-wrap','chart-donut-type',data,t2,ff,vl,emptyMsg,rawCounts,getTypeColor);}
+  const dStatMode=localStorage.getItem('bcp_donut_status_mode')||'count';
+  document.getElementById('donut-status-btn-count')?.classList.toggle('active',dStatMode==='count');
+  document.getElementById('donut-status-btn-points')?.classList.toggle('active',dStatMode==='points');
+  {const{data,rawCounts,emptyMsg,vl}=_buildDonutData(bd?.byStatus,dStatMode);
+   showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor);}
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
