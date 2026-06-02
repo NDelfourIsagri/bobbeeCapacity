@@ -1194,7 +1194,7 @@ function getStatusColor(name){
   if(n.includes('spécif')||n.includes('specif')||n.includes('affectation'))return '#6b7280';
   return DONUT_COLORS[_hashStr(name)%DONUT_COLORS.length];
 }
-function showDonut(wrapId,chartId,data,t2,ff,valueLabel,emptyMsg,rawCounts,colorFn){
+function showDonut(wrapId,chartId,data,t2,ff,valueLabel,emptyMsg,rawCounts,colorFn,rawPoints){
   valueLabel=valueLabel||'ticket';
   const wrap=document.getElementById(wrapId);
   if(!wrap)return;
@@ -1208,55 +1208,54 @@ function showDonut(wrapId,chartId,data,t2,ff,valueLabel,emptyMsg,rawCounts,color
     wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
   }
   const rc=rawCounts||data.map(x=>x.count);
+  const rp=rawPoints||new Array(data.length).fill(0);
   const colors=data.map((x,i)=>colorFn?colorFn(x.name,i):DONUT_COLORS[i%DONUT_COLORS.length]);
   const formatVal=n=>valueLabel==='pt'?`${n} pts`:`${n} ticket${n>1?'s':''}`;
   const opts={
     responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{
-      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,
-        generateLabels:chart=>{
-          const ds=chart.data.datasets[0];
-          const bg=ds.backgroundColor,_rc=ds._rawCounts;
-          return chart.data.labels.map((label,i)=>({
-            text:`${label} (${_rc?_rc[i]:ds.data[i]})`,
-            fillStyle:bg[i],strokeStyle:'transparent',lineWidth:0,
-            pointStyle:'circle',hidden:false,index:i,datasetIndex:0
-          }));
-        }
-      }},
+      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,usePointStyle:true,pointStyle:'circle'}},
       tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleFont:{family:ff},bodyFont:{family:ff},padding:10,
-        callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=tot>0?Math.round(ctx.parsed/tot*100):0;return ` ${formatVal(ctx.parsed)} (${pct}%)`;}}
+        callbacks:{label:ctx=>{
+          const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);
+          const pct=tot>0?Math.round(ctx.parsed/tot*100):0;
+          const n=ctx.dataset._rawCounts?.[ctx.dataIndex]??ctx.parsed;
+          const p=ctx.dataset._rawPoints?.[ctx.dataIndex]??0;
+          return ` ${n} item${n>1?'s':''}  ·  ${p} pt${p!==1?'s':''}  (${pct}%)`;
+        }}
       }
     }
   };
   dChart(chartId,'doughnut',{
     labels:data.map(x=>x.name),
-    datasets:[{data:data.map(x=>x.count),_rawCounts:rc,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
+    datasets:[{data:data.map(x=>x.count),_rawCounts:rc,_rawPoints:rp,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
   },opts);
 }
 function _buildDonutData(src,mode){
+  const arr=src||[];
   if(mode==='points'){
-    const f=(src||[]).filter(x=>x.points>0);
+    const f=arr.filter(x=>(x.points||0)>0);
     return{data:f.map(x=>({name:x.name,count:x.points})),rawCounts:f.map(x=>x.count),
-      emptyMsg:(src||[]).length>0?'Aucun story point renseigné sur ce sprint':null,vl:'pt'};
+      rawPoints:f.map(x=>x.points||0),emptyMsg:arr.length>0&&!f.length?'Aucun story point renseigné sur ce sprint':null,vl:'pt'};
   }
-  return{data:src,rawCounts:null,emptyMsg:null,vl:'ticket'};
+  return{data:arr.map(x=>({name:x.name,count:x.count})),rawCounts:arr.map(x=>x.count),
+    rawPoints:arr.map(x=>x.points||0),emptyMsg:null,vl:'ticket'};
 }
 function setDonutMode(mode){
   localStorage.setItem('bcp_donut_type_mode',mode);
   document.getElementById('donut-btn-count')?.classList.toggle('active',mode==='count');
   document.getElementById('donut-btn-points')?.classList.toggle('active',mode==='points');
   const t2=cv('--text2'),ff='Inter,sans-serif';
-  const{data,rawCounts,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byType,mode);
-  showDonut('donut-type-wrap','chart-donut-type',data,t2,ff,vl,emptyMsg,rawCounts,getTypeColor);
+  const{data,rawCounts,rawPoints,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byType,mode);
+  showDonut('donut-type-wrap','chart-donut-type',data,t2,ff,vl,emptyMsg,rawCounts,getTypeColor,rawPoints);
 }
 function setDonutStatusMode(mode){
   localStorage.setItem('bcp_donut_status_mode',mode);
   document.getElementById('donut-status-btn-count')?.classList.toggle('active',mode==='count');
   document.getElementById('donut-status-btn-points')?.classList.toggle('active',mode==='points');
   const t2=cv('--text2'),ff='Inter,sans-serif';
-  const{data,rawCounts,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byStatus,mode);
-  showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor);
+  const{data,rawCounts,rawPoints,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byStatus,mode);
+  showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor,rawPoints);
 }
 function renderCharts(){
   const now=new Date();
@@ -1374,13 +1373,13 @@ function renderCharts(){
   const dTypeMode=localStorage.getItem('bcp_donut_type_mode')||'count';
   document.getElementById('donut-btn-count')?.classList.toggle('active',dTypeMode==='count');
   document.getElementById('donut-btn-points')?.classList.toggle('active',dTypeMode==='points');
-  {const{data,rawCounts,emptyMsg,vl}=_buildDonutData(bd?.byType,dTypeMode);
-   showDonut('donut-type-wrap','chart-donut-type',data,t2,ff,vl,emptyMsg,rawCounts,getTypeColor);}
+  {const{data,rawCounts,rawPoints,emptyMsg,vl}=_buildDonutData(bd?.byType,dTypeMode);
+   showDonut('donut-type-wrap','chart-donut-type',data,t2,ff,vl,emptyMsg,rawCounts,getTypeColor,rawPoints);}
   const dStatMode=localStorage.getItem('bcp_donut_status_mode')||'count';
   document.getElementById('donut-status-btn-count')?.classList.toggle('active',dStatMode==='count');
   document.getElementById('donut-status-btn-points')?.classList.toggle('active',dStatMode==='points');
-  {const{data,rawCounts,emptyMsg,vl}=_buildDonutData(bd?.byStatus,dStatMode);
-   showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor);}
+  {const{data,rawCounts,rawPoints,emptyMsg,vl}=_buildDonutData(bd?.byStatus,dStatMode);
+   showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor,rawPoints);}
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
