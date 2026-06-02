@@ -29,7 +29,7 @@ const API={
 const S={
   team:[],sprints:[],leaves:[],
   config:{vel_grid:{alternant:50,junior:70,intermediaire:85,senior:100},mtg_grid:{dev:15,tech_lead:35,qa:20,squad_lead:45,po:50}},
-  users:[],teams:[],backlog:[],objectivesData:null,noTimespent:null
+  users:[],teams:[],backlog:[],objectivesData:null,noTimespent:null,sprintBreakdown:null
 };
 let selectedTeamId=null;
 
@@ -63,6 +63,12 @@ async function loadTeams(){S.teams=await API.get('/api/teams');}
 async function loadBacklog(){if(selectedTeamId)S.backlog=await API.get('/api/backlog?teamId='+selectedTeamId+'&syncSprints=1');else S.backlog=[];}
 async function loadNoTimespent(){if(selectedTeamId)S.noTimespent=await API.get('/api/jira/no-timespent?teamId='+selectedTeamId).catch(()=>null);else S.noTimespent=null;}
 async function loadAllMembersWithTeams(){S.allMembersWithTeams=await API.get('/api/team/all-with-teams').catch(()=>null);}
+async function loadSprintBreakdown(){
+  if(!selectedTeamId||!selectedSprintId){S.sprintBreakdown=null;return;}
+  const sprint=S.sprints.find(s=>String(s.id)===String(selectedSprintId));
+  if(!sprint){S.sprintBreakdown=null;return;}
+  S.sprintBreakdown=await API.get(`/api/jira/sprint-breakdown?teamId=${selectedTeamId}&sprintName=${encodeURIComponent(sprint.name)}`).catch(()=>null);
+}
 
 // ── ROUTING ──────────────────────────────────────────────
 const BASE_PATH='/bobbeeCapacity/';
@@ -334,7 +340,7 @@ async function navTeam(dir){
   initSprintSel();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
-  else if(activePage==='page-charts')renderCharts();
+  else if(activePage==='page-charts'){loadSprintBreakdown().then(()=>renderCharts());}
   else if(activePage==='page-sprints')renderSprints();
   else if(activePage==='page-agenda')renderAgenda();
   else if(activePage==='page-backlog'){renderBacklog();if(blActiveTab==='chrono'){const os=document.getElementById('bl-filter-obj');if(os){os.dataset.teamKey='';os.value='';}renderGantt();}}
@@ -432,7 +438,7 @@ function navSprint(dir){
   renderSprintSelector();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
-  if(activePage==='page-charts')renderCharts();
+  if(activePage==='page-charts')loadSprintBreakdown().then(()=>renderCharts());
 }
 function selectSprint(id){
   selectedSprintId=String(id);
@@ -440,7 +446,7 @@ function selectSprint(id){
   renderSprintSelector();
   const activePage=document.querySelector('.page.active')?.id;
   if(activePage==='page-dashboard')renderDash();
-  if(activePage==='page-charts')renderCharts();
+  if(activePage==='page-charts')loadSprintBreakdown().then(()=>renderCharts());
 }
 
 // ── NAV ──────────────────────────────────────────────────
@@ -454,7 +460,7 @@ async function navTo(p,noPush=false){
   if(p==='dashboard'){await Promise.all([loadTeam(),loadSprints(),loadLeaves(),loadBacklog(),loadNoTimespent()]);initSprintSel();renderDash();syncJiraVelocities().then(()=>loadSprints().then(()=>{renderDash();initSprintSel();})).catch(()=>{});}
   if(p==='agenda'){await Promise.all([loadTeam(),loadLeaves()]);renderAgenda();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='sprints'){await loadSprints();renderSprints();document.getElementById('sprint-bar-sticky')?.classList.remove('active');syncJiraVelocities().then(()=>loadSprints().then(()=>renderSprints())).catch(()=>{});}
-  if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();renderCharts();}
+  if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves(),loadSprintBreakdown()]);initSprintSel();renderCharts();}
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams(),loadAllMembersWithTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
@@ -1170,6 +1176,33 @@ async function doCloseSprint(){
 // ── CHARTS ───────────────────────────────────────────────
 function cv(v){return getComputedStyle(document.body).getPropertyValue(v).trim();}
 function dChart(id,type,data,opts){if(charts[id]){charts[id].destroy();delete charts[id];}charts[id]=new Chart(document.getElementById(id),{type,data,options:opts});}
+const DONUT_COLORS=['#6366f1','#ec4899','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#06b6d4','#84cc16','#f97316','#a855f7','#0ea5e9'];
+function showDonut(wrapId,chartId,data,t2,ff){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap)return;
+  if(!data?.length){
+    if(charts[chartId]){charts[chartId].destroy();delete charts[chartId];}
+    const msg=S.sprintBreakdown===null?'Chargement…':'Aucune donnée pour ce sprint';
+    wrap.innerHTML=`<p style="color:var(--text3);font-size:13px;padding:70px 0;text-align:center">${msg}</p>`;
+    return;
+  }
+  if(!document.getElementById(chartId)){
+    wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
+  }
+  const opts={
+    responsive:true,maintainAspectRatio:false,cutout:'68%',
+    plugins:{
+      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,usePointStyle:true,pointStyle:'circle'}},
+      tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleFont:{family:ff},bodyFont:{family:ff},padding:10,
+        callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=tot>0?Math.round(ctx.parsed/tot*100):0;return ` ${ctx.label} : ${ctx.parsed} ticket${ctx.parsed>1?'s':''} (${pct}%)`;}}
+      }
+    }
+  };
+  dChart(chartId,'doughnut',{
+    labels:data.map(x=>x.name),
+    datasets:[{data:data.map(x=>x.count),backgroundColor:DONUT_COLORS.slice(0,data.length),borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
+  },opts);
+}
 function renderCharts(){
   const now=new Date();
   // Sprint sélectionné dans la sidebar (peut être à venir)
@@ -1279,6 +1312,12 @@ function renderCharts(){
     {label:'Capacité convergence (j)',data:cConv,backgroundColor:warn+'88',borderColor:warn,borderWidth:2,borderRadius:4,stack:'cap',yAxisID:'y'},
     {label:'Vélocité réalisée (pts)',data:cA,backgroundColor:sc+'44',borderColor:sc,borderWidth:2,borderRadius:8,yAxisID:'y1'}
   ]},{...base,scales:{x:{ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv}},y:{type:'linear',position:'left',stacked:true,ticks:{color:t2,font:{family:ff,size:11}},grid:{color:dv},beginAtZero:true,title:{display:true,text:'Jours',color:t2,font:{family:ff,size:11}}},y1:{type:'linear',position:'right',ticks:{color:t2,font:{family:ff,size:11}},grid:{drawOnChartArea:false},beginAtZero:true,title:{display:true,text:'Story points',color:t2,font:{family:ff,size:11}}}}});
+  // ── Donuts Jira ──────────────────────────────────────────
+  const bd=S.sprintBreakdown;
+  const spLabel=document.getElementById('donut-sprint-label');
+  if(spLabel)spLabel.textContent=bd?.sprint?`· ${bd.sprint} (${bd.total} tickets)`:'';
+  showDonut('donut-type-wrap','chart-donut-type',bd?.byType,t2,ff);
+  showDonut('donut-status-wrap','chart-donut-status',bd?.byStatus,t2,ff);
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
