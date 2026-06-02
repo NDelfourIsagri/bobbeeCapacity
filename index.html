@@ -214,7 +214,6 @@
             <select class="input" id="bl-filter-obj" style="display:none" onchange="onObjFilterChange()">
               <option value="">Tous les objectifs</option>
             </select>
-            <button class="btn btn-filled admin-only" id="bl-add-btn" onclick="addBacklogItem()"><span class="material-icons-round">add</span>Ajouter</button>
             <button class="btn btn-outline" id="bl-sync-btn" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
           </div>
         </div>
@@ -224,11 +223,6 @@
               <thead id="bl-thead"></thead>
               <tbody id="bl-tbody"></tbody>
             </table>
-          </div>
-          <div id="bl-add-footer">
-            <button class="bl-add-btn" onclick="addBacklogItem()">
-              <span class="material-icons-round">add</span>Ajouter un élément
-            </button>
           </div>
         </div>
         <div id="bl-view-chrono">
