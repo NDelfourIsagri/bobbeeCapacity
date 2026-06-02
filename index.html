@@ -292,7 +292,13 @@
         </div>
         <div class="grid-2" style="margin-top:20px">
           <div class="card">
-            <div class="card-title"><span class="material-icons-round">donut_large</span>Répartition par type <span id="donut-sprint-label" style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px"></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="card-title" style="margin-bottom:0"><span class="material-icons-round">donut_large</span>Répartition par type <span id="donut-sprint-label" style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px"></span></div>
+              <div class="donut-mode-toggle">
+                <button id="donut-btn-count" class="donut-mode-btn" onclick="setDonutMode('count')">Items</button>
+                <button id="donut-btn-points" class="donut-mode-btn" onclick="setDonutMode('points')">Points</button>
+              </div>
+            </div>
             <div id="donut-type-wrap"></div>
           </div>
           <div class="card">

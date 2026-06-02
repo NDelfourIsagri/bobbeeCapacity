@@ -1177,24 +1177,25 @@ async function doCloseSprint(){
 function cv(v){return getComputedStyle(document.body).getPropertyValue(v).trim();}
 function dChart(id,type,data,opts){if(charts[id]){charts[id].destroy();delete charts[id];}charts[id]=new Chart(document.getElementById(id),{type,data,options:opts});}
 const DONUT_COLORS=['#6366f1','#ec4899','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#06b6d4','#84cc16','#f97316','#a855f7','#0ea5e9'];
-function showDonut(wrapId,chartId,data,t2,ff){
+function showDonut(wrapId,chartId,data,t2,ff,valueLabel='ticket',emptyMsg=null){
   const wrap=document.getElementById(wrapId);
   if(!wrap)return;
   if(!data?.length){
     if(charts[chartId]){charts[chartId].destroy();delete charts[chartId];}
-    const msg=S.sprintBreakdown===null?'Chargement…':'Aucune donnée pour ce sprint';
+    const msg=emptyMsg||(S.sprintBreakdown===null?'Chargement…':'Aucune donnée pour ce sprint');
     wrap.innerHTML=`<p style="color:var(--text3);font-size:13px;padding:70px 0;text-align:center">${msg}</p>`;
     return;
   }
   if(!document.getElementById(chartId)){
     wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
   }
+  const formatVal=(n)=>valueLabel==='pt'?`${n} pts`:`${n} ticket${n>1?'s':''}`;
   const opts={
     responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{
       legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,boxHeight:12,usePointStyle:true,pointStyle:'circle'}},
       tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleFont:{family:ff},bodyFont:{family:ff},padding:10,
-        callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=tot>0?Math.round(ctx.parsed/tot*100):0;return ` ${ctx.label} : ${ctx.parsed} ticket${ctx.parsed>1?'s':''} (${pct}%)`;}}
+        callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=tot>0?Math.round(ctx.parsed/tot*100):0;return ` ${ctx.label} : ${formatVal(ctx.parsed)} (${pct}%)`;}}
       }
     }
   };
@@ -1202,6 +1203,20 @@ function showDonut(wrapId,chartId,data,t2,ff){
     labels:data.map(x=>x.name),
     datasets:[{data:data.map(x=>x.count),backgroundColor:DONUT_COLORS.slice(0,data.length),borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
   },opts);
+}
+function setDonutMode(mode){
+  localStorage.setItem('bcp_donut_type_mode',mode);
+  document.getElementById('donut-btn-count')?.classList.toggle('active',mode==='count');
+  document.getElementById('donut-btn-points')?.classList.toggle('active',mode==='points');
+  const bd=S.sprintBreakdown;
+  const t2=cv('--text2'),ff='Inter,sans-serif';
+  if(mode==='points'){
+    const typeData=(bd?.byType||[]).map(x=>({name:x.name,count:x.points})).filter(x=>x.count>0);
+    const emptyMsg=bd?.byType?.length>0?'Aucun story point renseigné sur ce sprint':null;
+    showDonut('donut-type-wrap','chart-donut-type',typeData,t2,ff,'pt',emptyMsg);
+  }else{
+    showDonut('donut-type-wrap','chart-donut-type',bd?.byType,t2,ff,'ticket');
+  }
 }
 function renderCharts(){
   const now=new Date();
@@ -1316,8 +1331,17 @@ function renderCharts(){
   const bd=S.sprintBreakdown;
   const spLabel=document.getElementById('donut-sprint-label');
   if(spLabel)spLabel.textContent=bd?.sprint?`· ${bd.sprint} (${bd.total} tickets)`:'';
-  showDonut('donut-type-wrap','chart-donut-type',bd?.byType,t2,ff);
-  showDonut('donut-status-wrap','chart-donut-status',bd?.byStatus,t2,ff);
+  const donutMode=localStorage.getItem('bcp_donut_type_mode')||'count';
+  document.getElementById('donut-btn-count')?.classList.toggle('active',donutMode==='count');
+  document.getElementById('donut-btn-points')?.classList.toggle('active',donutMode==='points');
+  if(donutMode==='points'){
+    const typeData=(bd?.byType||[]).map(x=>({name:x.name,count:x.points})).filter(x=>x.count>0);
+    const emptyMsg=bd?.byType?.length>0?'Aucun story point renseigné sur ce sprint':null;
+    showDonut('donut-type-wrap','chart-donut-type',typeData,t2,ff,'pt',emptyMsg);
+  }else{
+    showDonut('donut-type-wrap','chart-donut-type',bd?.byType,t2,ff,'ticket');
+  }
+  showDonut('donut-status-wrap','chart-donut-status',bd?.byStatus,t2,ff,'ticket');
 }
 
 // ── SETTINGS ─────────────────────────────────────────────

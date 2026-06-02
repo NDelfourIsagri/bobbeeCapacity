@@ -1,5 +1,32 @@
 // ── Dashboard ────────────────────────────────────────────────────
 
+// Toggle Items / Points (donut type)
+.donut-mode-toggle {
+  display: flex;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.donut-mode-btn {
+  padding: 4px 14px;
+  border-radius: 18px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+
+  &.active { background: var(--primary); color: #fff; }
+  &:not(.active):hover { color: var(--text); }
+}
+
 // Graphiques
 .chart-wrap {
   position: relative;
