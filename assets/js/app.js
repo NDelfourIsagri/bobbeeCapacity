@@ -1257,6 +1257,78 @@ function setDonutStatusMode(mode){
   const{data,rawCounts,rawPoints,emptyMsg,vl}=_buildDonutData(S.sprintBreakdown?.byStatus,mode);
   showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor,rawPoints);
 }
+// Crée un motif de hachures diagonales pour les segments "en cours"
+function createHatchPattern(canvasCtx,color){
+  const sz=8,c=document.createElement('canvas');
+  c.width=sz;c.height=sz;
+  const pc=c.getContext('2d');
+  pc.strokeStyle=color;pc.lineWidth=1.5;
+  pc.beginPath();
+  pc.moveTo(0,sz);pc.lineTo(sz,0);
+  pc.moveTo(-1,1);pc.lineTo(1,-1);
+  pc.moveTo(sz-1,sz+1);pc.lineTo(sz+1,sz-1);
+  pc.stroke();
+  return canvasCtx.createPattern(c,'repeat');
+}
+function showMemberDonut(wrapId,chartId,src,mode){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap)return;
+  const arr=(src||[]).filter(m=>mode==='points'?(m.donePoints||0)+(m.inProgressPoints||0)>0:(m.doneCount||0)+(m.inProgressCount||0)>0);
+  if(!arr.length){
+    if(charts[chartId]){charts[chartId].destroy();delete charts[chartId];}
+    wrap.innerHTML=`<p style="color:var(--text3);font-size:13px;padding:70px 0;text-align:center">${S.sprintBreakdown===null?'Chargement…':'Aucune donnée pour ce sprint'}</p>`;
+    return;
+  }
+  if(!document.getElementById(chartId)){
+    wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
+  }
+  const canvas=document.getElementById(chartId);
+  const canvasCtx=canvas.getContext('2d');
+  const labels=[],data=[],rawCounts=[],rawPoints=[],colors=[],stateArr=[];
+  arr.forEach((m,i)=>{
+    const col=TEAM_PALETTE[i%TEAM_PALETTE.length];
+    const hatch=createHatchPattern(canvasCtx,col);
+    if(mode==='points'){
+      if((m.donePoints||0)>0){labels.push(m.name+' ✓');data.push(m.donePoints);rawCounts.push(m.doneCount||0);rawPoints.push(m.donePoints||0);colors.push(col);stateArr.push('Terminé');}
+      if((m.inProgressPoints||0)>0){labels.push(m.name+' ⏳');data.push(m.inProgressPoints);rawCounts.push(m.inProgressCount||0);rawPoints.push(m.inProgressPoints||0);colors.push(hatch);stateArr.push('En cours');}
+    }else{
+      if((m.doneCount||0)>0){labels.push(m.name+' ✓');data.push(m.doneCount);rawCounts.push(m.doneCount||0);rawPoints.push(m.donePoints||0);colors.push(col);stateArr.push('Terminé');}
+      if((m.inProgressCount||0)>0){labels.push(m.name+' ⏳');data.push(m.inProgressCount);rawCounts.push(m.inProgressCount||0);rawPoints.push(m.inProgressPoints||0);colors.push(hatch);stateArr.push('En cours');}
+    }
+  });
+  if(!data.length){
+    if(charts[chartId]){charts[chartId].destroy();delete charts[chartId];}
+    wrap.innerHTML=`<p style="color:var(--text3);font-size:13px;padding:70px 0;text-align:center">Aucun ticket en cours ou terminé</p>`;
+    return;
+  }
+  const t2=cv('--text2'),ff='Inter,sans-serif';
+  const statesCopy=[...stateArr];
+  dChart(chartId,'doughnut',{
+    labels,
+    datasets:[{data,_rawCounts:rawCounts,_rawPoints:rawPoints,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
+  },{
+    responsive:true,maintainAspectRatio:true,cutout:'55%',
+    plugins:{
+      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12}},
+      tooltip:{callbacks:{
+        title:ctx=>ctx[0]?.label?.replace(' ✓','').replace(' ⏳','')||'',
+        label:ctx=>{
+          const total=ctx.dataset.data.reduce((s,v)=>s+v,0);
+          const pct=total>0?Math.round(ctx.parsed*100/total):0;
+          const n=ctx.dataset._rawCounts[ctx.dataIndex];
+          const p=ctx.dataset._rawPoints[ctx.dataIndex];
+          return ` ${statesCopy[ctx.dataIndex]} — ${n} items · ${p} pts (${pct}%)`;
+        }
+      }}
+    }
+  });
+}
+function setDonutMemberMode(mode){
+  localStorage.setItem('bcp_donut_member_mode',mode);
+  document.getElementById('donut-member-btn-count')?.classList.toggle('active',mode==='count');
+  document.getElementById('donut-member-btn-points')?.classList.toggle('active',mode==='points');
+  showMemberDonut('donut-member-wrap','chart-donut-member',S.sprintBreakdown?.byMember,mode);
+}
 function renderCharts(){
   const now=new Date();
   // Sprint sélectionné dans la sidebar (peut être à venir)
@@ -1380,6 +1452,10 @@ function renderCharts(){
   document.getElementById('donut-status-btn-points')?.classList.toggle('active',dStatMode==='points');
   {const{data,rawCounts,rawPoints,emptyMsg,vl}=_buildDonutData(bd?.byStatus,dStatMode);
    showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor,rawPoints);}
+  const dMemberMode=localStorage.getItem('bcp_donut_member_mode')||'count';
+  document.getElementById('donut-member-btn-count')?.classList.toggle('active',dMemberMode==='count');
+  document.getElementById('donut-member-btn-points')?.classList.toggle('active',dMemberMode==='points');
+  showMemberDonut('donut-member-wrap','chart-donut-member',bd?.byMember,dMemberMode);
 }
 
 // ── SETTINGS ─────────────────────────────────────────────

@@ -284,7 +284,7 @@
           <div class="card"><div class="card-title"><span class="material-icons-round">trending_up</span>Burnup (sprint actuel)</div><div class="chart-wrap"><canvas id="chart-burndown"></canvas></div></div>
           <div class="card"><div class="card-title"><span class="material-icons-round">balance</span>Capacité planifiée vs réelle</div><div class="chart-wrap"><canvas id="chart-capacity"></canvas></div></div>
         </div>
-        <div class="grid-2" style="margin-top:20px">
+        <div class="grid-3" style="margin-top:20px">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
               <div class="card-title" style="margin-bottom:0"><span class="material-icons-round">donut_large</span>Répartition par type <span id="donut-sprint-label" style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px"></span></div>
@@ -304,6 +304,16 @@
               </div>
             </div>
             <div id="donut-status-wrap"></div>
+          </div>
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="card-title" style="margin-bottom:0"><span class="material-icons-round">group</span>Répartition par membre</div>
+              <div class="donut-mode-toggle">
+                <button id="donut-member-btn-count" class="donut-mode-btn" onclick="setDonutMemberMode('count')">Items</button>
+                <button id="donut-member-btn-points" class="donut-mode-btn" onclick="setDonutMemberMode('points')">Points</button>
+              </div>
+            </div>
+            <div id="donut-member-wrap"></div>
           </div>
         </div>
       </div>
