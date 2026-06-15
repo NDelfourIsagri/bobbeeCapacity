@@ -1258,15 +1258,18 @@ function setDonutStatusMode(mode){
   showDonut('donut-status-wrap','chart-donut-status',data,t2,ff,vl,emptyMsg,rawCounts,getStatusColor,rawPoints);
 }
 // Crée un motif de hachures diagonales pour les segments "en cours"
+// Fond semi-transparent + lignes épaisses pour que la couleur domine
 function createHatchPattern(canvasCtx,color){
-  const sz=8,c=document.createElement('canvas');
+  const sz=10,c=document.createElement('canvas');
   c.width=sz;c.height=sz;
   const pc=c.getContext('2d');
-  pc.strokeStyle=color;pc.lineWidth=1.5;
+  pc.fillStyle=color+'50';  // fond ~30% opacité (hex alpha)
+  pc.fillRect(0,0,sz,sz);
+  pc.strokeStyle=color;pc.lineWidth=3;
   pc.beginPath();
   pc.moveTo(0,sz);pc.lineTo(sz,0);
-  pc.moveTo(-1,1);pc.lineTo(1,-1);
-  pc.moveTo(sz-1,sz+1);pc.lineTo(sz+1,sz-1);
+  pc.moveTo(-2,2);pc.lineTo(2,-2);
+  pc.moveTo(sz-2,sz+2);pc.lineTo(sz+2,sz-2);
   pc.stroke();
   return canvasCtx.createPattern(c,'repeat');
 }
@@ -1279,8 +1282,9 @@ function showMemberDonut(wrapId,chartId,src,mode){
     wrap.innerHTML=`<p style="color:var(--text3);font-size:13px;padding:70px 0;text-align:center">${S.sprintBreakdown===null?'Chargement…':'Aucune donnée pour ce sprint'}</p>`;
     return;
   }
+  // Conteneur centré à taille fixe pour que Chart.js ne s'étire pas sur toute la largeur
   if(!document.getElementById(chartId)){
-    wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
+    wrap.innerHTML=`<div style="display:flex;justify-content:center;align-items:center;padding:4px 0"><div style="position:relative;width:280px;height:280px"><canvas id="${chartId}"></canvas></div></div>`;
   }
   const canvas=document.getElementById(chartId);
   const canvasCtx=canvas.getContext('2d');
@@ -1303,13 +1307,32 @@ function showMemberDonut(wrapId,chartId,src,mode){
   }
   const t2=cv('--text2'),ff='Inter,sans-serif';
   const statesCopy=[...stateArr];
+  const bgColors=[...colors];
   dChart(chartId,'doughnut',{
     labels,
     datasets:[{data,_rawCounts:rawCounts,_rawPoints:rawPoints,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
   },{
-    responsive:true,maintainAspectRatio:true,cutout:'55%',
+    responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{
-      legend:{position:'bottom',labels:{color:t2,font:{family:ff,size:11},padding:10,boxWidth:12}},
+      legend:{
+        position:'bottom',
+        labels:{
+          color:t2,font:{family:ff,size:11},padding:10,boxWidth:12,
+          // Un seul item par membre (la première occurrence = couleur pleine)
+          generateLabels:chart=>{
+            const ds=chart.data.datasets[0];
+            const seen=new Set();
+            const result=[];
+            chart.data.labels.forEach((label,i)=>{
+              const name=label.replace(' ✓','').replace(' ⏳','');
+              if(seen.has(name))return;
+              seen.add(name);
+              result.push({text:name,fillStyle:bgColors[i],strokeStyle:'transparent',lineWidth:0,hidden:false,index:i});
+            });
+            return result;
+          }
+        }
+      },
       tooltip:{callbacks:{
         title:ctx=>ctx[0]?.label?.replace(' ✓','').replace(' ⏳','')||'',
         label:ctx=>{
