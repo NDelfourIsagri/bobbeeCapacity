@@ -1311,7 +1311,7 @@ function showMemberDonut(wrapId,chartId,src,mode){
     labels,
     datasets:[{data,_rawCounts:rawCounts,_rawPoints:rawPoints,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
   },{
-    responsive:true,maintainAspectRatio:true,cutout:'55%',
+    responsive:true,maintainAspectRatio:false,cutout:'55%',
     plugins:{
       legend:{
         position:'bottom',
