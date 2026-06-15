@@ -1205,7 +1205,7 @@ function showDonut(wrapId,chartId,data,t2,ff,valueLabel,emptyMsg,rawCounts,color
     return;
   }
   if(!document.getElementById(chartId)){
-    wrap.innerHTML=`<div class="chart-wrap" style="height:300px"><canvas id="${chartId}"></canvas></div>`;
+    wrap.innerHTML=`<div class="chart-wrap-donut"><canvas id="${chartId}"></canvas></div>`;
   }
   const rc=rawCounts||data.map(x=>x.count);
   const rp=rawPoints||new Array(data.length).fill(0);
@@ -1282,9 +1282,8 @@ function showMemberDonut(wrapId,chartId,src,mode){
     wrap.innerHTML=`<p style="color:var(--text3);font-size:13px;padding:70px 0;text-align:center">${S.sprintBreakdown===null?'Chargement…':'Aucune donnée pour ce sprint'}</p>`;
     return;
   }
-  // Conteneur centré à taille fixe pour que Chart.js ne s'étire pas sur toute la largeur
   if(!document.getElementById(chartId)){
-    wrap.innerHTML=`<div style="display:flex;justify-content:center;align-items:center;padding:4px 0"><div style="position:relative;width:280px;height:280px"><canvas id="${chartId}"></canvas></div></div>`;
+    wrap.innerHTML=`<div class="chart-wrap-donut"><canvas id="${chartId}"></canvas></div>`;
   }
   const canvas=document.getElementById(chartId);
   const canvasCtx=canvas.getContext('2d');
@@ -1312,7 +1311,7 @@ function showMemberDonut(wrapId,chartId,src,mode){
     labels,
     datasets:[{data,_rawCounts:rawCounts,_rawPoints:rawPoints,backgroundColor:colors,borderColor:cv('--surface'),borderWidth:3,hoverOffset:10}]
   },{
-    responsive:true,maintainAspectRatio:false,cutout:'55%',
+    responsive:true,maintainAspectRatio:true,cutout:'55%',
     plugins:{
       legend:{
         position:'bottom',
