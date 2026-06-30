@@ -3280,8 +3280,18 @@ function _rdmAssignColors(sprintBlocks){
 }
 
 function _rdmSprintLabel(sprint){
-  const d=new Date(sprint.end||sprint.start);
-  return`${sprint.name} · ${RDM_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  const s=new Date(sprint.start),e=new Date(sprint.end||sprint.start);
+  const counts={};
+  const cur=new Date(s);
+  while(cur<=e){
+    const k=`${cur.getFullYear()}-${cur.getMonth()}`;
+    if(!counts[k])counts[k]={month:cur.getMonth(),year:cur.getFullYear(),count:0};
+    counts[k].count++;
+    cur.setDate(cur.getDate()+1);
+  }
+  const endKey=`${e.getFullYear()}-${e.getMonth()}`;
+  const best=Object.values(counts).reduce((a,b)=>b.count>a.count?b:a,counts[endKey]);
+  return`${sprint.name} · ${RDM_MONTHS[best.month]} ${best.year}`;
 }
 
 function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,animIdx,solo=false,currentSprintId=null){
