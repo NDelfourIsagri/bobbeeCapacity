@@ -328,18 +328,20 @@
 }
 
 // ── Badges ────────────────────────────────────────────────────
-.rdm-badge-past {
+%rdm-badge-base {
   display: inline-block;
   margin-top: 7px;
   padding: 2px 10px;
   border-radius: 99px;
-  background: var(--text3);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .5px;
   text-transform: uppercase;
 }
+
+.rdm-badge-past    { @extend %rdm-badge-base; background: var(--text3); }
+.rdm-badge-overdue { @extend %rdm-badge-base; background: var(--danger); }
 
 .rdm-group-pct--proj { font-style: italic; }
 

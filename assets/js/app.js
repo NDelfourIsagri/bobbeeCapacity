@@ -3290,7 +3290,7 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
     <div class="rdm-sprint-header">
       <div class="rdm-sprint-title">${_rdmSprintLabel(sprint)}</div>
       <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
-      ${isCurrent?'<span class="rdm-badge-current">En cours</span>':isPast?'<span class="rdm-badge-past">Clôturé</span>':''}
+      ${isCurrent?'<span class="rdm-badge-current">En cours</span>':isPast?(sprint.closed?'<span class="rdm-badge-past">Clôturé</span>':'<span class="rdm-badge-overdue">Dépassé</span>'):''}
     </div>
     <div class="rdm-sprint-body">${groupsHtml||'<p class="rdm-empty">Aucune feature planifiée</p>'}</div>
   </div>`;
