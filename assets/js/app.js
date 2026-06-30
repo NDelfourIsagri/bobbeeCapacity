@@ -3158,8 +3158,9 @@ function _rdmBuildData(teamId){
   const DONE_ST=['10 - termine','9 - a livrer en prod'];
 
   const sprintBlocks=sprintsToShow.map(sprint=>{
-    const isPast=!!sprint.closed;
     const sprintEndDt=new Date(sprint.end);
+    const endOfDay=new Date(sprint.end);endOfDay.setDate(endOfDay.getDate()+1);
+    const isPast=!!sprint.closed||endOfDay<=now;
 
     // Features de ce sprint pour ce groupe
     const features=(S.backlog||[]).filter(f=>
