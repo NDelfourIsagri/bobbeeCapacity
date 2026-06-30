@@ -1039,9 +1039,12 @@ function renderSprints(){
     return;
   }
   // Colonne gauche : en cours/dépassé/clôturé — du plus récent au plus ancien
-  const started=S.sprints
+  const allStarted=S.sprints
     .filter(s=>s.closed||new Date(s.start)<=now)
     .sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const showClosed=localStorage.getItem('bcp_show_closed')==='1';
+  const hasClosed=allStarted.some(s=>s.closed);
+  const started=showClosed?allStarted:allStarted.filter(s=>!s.closed);
   // Colonne droite : à venir — du plus proche au plus lointain
   const future=S.sprints
     .filter(s=>!s.closed&&new Date(s.start)>now)
@@ -1090,14 +1093,27 @@ function renderSprints(){
     </div>`;
   };
 
-  const mkCol=(label,items)=>items.length
-    ?`<div class="sprint-col"><div class="tl-section-label">${label}</div><div class="timeline">${items.map(mkCard).join('')}</div></div>`
+  const eyeBtn=hasClosed
+    ?`<button class="icon-btn" onclick="toggleClosedSprints()" title="${showClosed?'Masquer les sprints clôturés':'Afficher les sprints clôturés'}">
+        <span class="material-icons-round">${showClosed?'visibility':'visibility_off'}</span>
+      </button>`
+    :'';
+
+  const mkCol=(label,items,extra='',force=false)=>(items.length||force)
+    ?`<div class="sprint-col">
+        <div class="tl-section-header"><span class="tl-section-label">${label}</span>${extra}</div>
+        <div class="timeline">${items.map(mkCard).join('')}</div>
+      </div>`
     :'';
 
   container.innerHTML=`<div class="sprint-cols">
-    ${mkCol('Sprints passés et en cours',started)}
+    ${mkCol('Sprints passés et en cours',started,eyeBtn,allStarted.length>0)}
     ${mkCol('Sprints à venir',future)}
   </div>`;
+}
+function toggleClosedSprints(){
+  localStorage.setItem('bcp_show_closed',localStorage.getItem('bcp_show_closed')==='1'?'0':'1');
+  renderSprints();
 }
 async function toggleObj(sprintId,objId){
   const s=S.sprints.find(x=>String(x.id)===String(sprintId));
