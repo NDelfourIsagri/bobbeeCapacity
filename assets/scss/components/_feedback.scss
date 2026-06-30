@@ -50,6 +50,19 @@
 }
 
 // ── Timeline ─────────────────────────────────────────────────────
+.tl-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 12px;
+}
+
+.timeline + .tl-section-label {
+  margin-top: 32px;
+}
+
 .timeline {
   position: relative;
   padding-left: 24px;

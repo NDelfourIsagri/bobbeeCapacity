@@ -1032,44 +1032,55 @@ async function saveLeave(){
 
 // ── SPRINTS ──────────────────────────────────────────────
 function renderSprints(){
-  const sprints=S.sprints.slice().sort((a,b)=>new Date(b.start)-new Date(a.start));
   const now=new Date(),isAdmin=['admin','super_admin'].includes(CU.role);
-  document.getElementById('sprints-list').innerHTML=sprints.length===0
-    ?'<div class="card" style="text-align:center;color:var(--text3);padding:48px">Aucun sprint créé</div>'
-    :'<div class="timeline">'+sprints.map(s=>{
-      const st=sprintSt(s);
-      const tl='tl-item'+(st.tl?' '+st.tl:'');
-      const objs=s.objectives||[],dO=objs.filter(o=>o.done).length;
-      const stars=Array(5).fill(0).map((_,i)=>`<span class="material-icons-round conf-star ${i<(s.confidence||0)?'':'empty'}" style="font-size:14px">${i<(s.confidence||0)?'star':'star_border'}</span>`).join('');
-      return `<div class="${tl}"><div class="sprint-card" style="margin-bottom:16px">
-        <div class="sprint-card-header">
-          <div>
-            <div class="sprint-name">${s.name}</div>
-            <div class="sprint-dates">${fd(s.start)} → ${fd(s.end)}</div>
-            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <span class="badge ${st.badge}">${st.text}</span>
-              <div>${stars}</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;flex-shrink:0">
-            ${isAdmin&&!s.closed?`<button class="btn btn-outline btn-sm" onclick="openSprintModal('${s.id}')"><span class="material-icons-round">edit</span></button>`:''}
-            ${isAdmin&&!s.closed&&st.tl!==''?`<button class="btn btn-filled btn-sm" onclick="openCloseModal('${s.id}')"><span class="material-icons-round">check</span>Clôturer</button>`:''}
-            ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="delSprint('${s.id}')"><span class="material-icons-round">delete</span></button>`:''}
+  const container=document.getElementById('sprints-list');
+  if(!S.sprints.length){
+    container.innerHTML='<div class="card" style="text-align:center;color:var(--text3);padding:48px">Aucun sprint créé</div>';
+    return;
+  }
+  // Tri chronologique ascendant dans les deux groupes
+  const asc=(a,b)=>new Date(a.start)-new Date(b.start);
+  const started=S.sprints.filter(s=>s.closed||new Date(s.start)<=now).sort(asc);
+  const future=S.sprints.filter(s=>!s.closed&&new Date(s.start)>now).sort(asc);
+  const mkCard=s=>{
+    const st=sprintSt(s);
+    const tl='tl-item'+(st.tl?' '+st.tl:'');
+    const objs=s.objectives||[],dO=objs.filter(o=>o.done).length;
+    const stars=Array(5).fill(0).map((_,i)=>`<span class="material-icons-round conf-star ${i<(s.confidence||0)?'':'empty'}" style="font-size:14px">${i<(s.confidence||0)?'star':'star_border'}</span>`).join('');
+    return `<div class="${tl}"><div class="sprint-card" style="margin-bottom:16px">
+      <div class="sprint-card-header">
+        <div>
+          <div class="sprint-name">${s.name}</div>
+          <div class="sprint-dates">${fd(s.start)} → ${fd(s.end)}</div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="badge ${st.badge}">${st.text}</span>
+            <div>${stars}</div>
           </div>
         </div>
-        <div class="sprint-card-body">
-          <div class="grid-3" style="gap:12px;margin-bottom:${objs.length?12:0}px">
-            <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Planifié</div><div style="font-size:22px;font-weight:700;color:var(--primary)">${s.velocityPlanned||'—'} pts</div></div>
-            <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">En cours</div>
-              <div style="font-size:22px;font-weight:700;color:var(--warning)">${s.velocityCurrent||'—'}${s.velocityCurrent?' pts':''}</div>
-            </div>
-            <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Réalisé</div>
-              <div style="font-size:22px;font-weight:700;color:${s.velocityActual?'var(--success)':'var(--text3)'}">${s.velocityActual||'—'}${s.velocityActual?' pts':''}</div>
-            </div>
-          </div>
-          ${objs.length?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">${dO}/${objs.length} objectifs</div>${objs.map(o=>`<div class="objective-item" ${!s.closed?`onclick="toggleObj('${s.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('')}`:''}
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          ${isAdmin&&!s.closed?`<button class="btn btn-outline btn-sm" onclick="openSprintModal('${s.id}')"><span class="material-icons-round">edit</span></button>`:''}
+          ${isAdmin&&!s.closed&&st.tl!==''?`<button class="btn btn-filled btn-sm" onclick="openCloseModal('${s.id}')"><span class="material-icons-round">check</span>Clôturer</button>`:''}
+          ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="delSprint('${s.id}')"><span class="material-icons-round">delete</span></button>`:''}
         </div>
-      </div></div>`;}).join('')+'</div>';
+      </div>
+      <div class="sprint-card-body">
+        <div class="grid-3" style="gap:12px;margin-bottom:${objs.length?12:0}px">
+          <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Planifié</div><div style="font-size:22px;font-weight:700;color:var(--primary)">${s.velocityPlanned||'—'} pts</div></div>
+          <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">En cours</div>
+            <div style="font-size:22px;font-weight:700;color:var(--warning)">${s.velocityCurrent||'—'}${s.velocityCurrent?' pts':''}</div>
+          </div>
+          <div><div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Réalisé</div>
+            <div style="font-size:22px;font-weight:700;color:${s.velocityActual?'var(--success)':'var(--text3)'}">${s.velocityActual||'—'}${s.velocityActual?' pts':''}</div>
+          </div>
+        </div>
+        ${objs.length?`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">${dO}/${objs.length} objectifs</div>${objs.map(o=>`<div class="objective-item" ${!s.closed?`onclick="toggleObj('${s.id}','${o.id}')" style="cursor:pointer"`:''}><div class="checkbox ${o.done?'checked':''}"></div><span style="font-size:13px;${o.done?'text-decoration:line-through;color:var(--text3)':''}">${o.text}</span></div>`).join('')}`:''}
+      </div>
+    </div></div>`;
+  };
+  let html='';
+  if(started.length) html+=`<div class="tl-section-label">Sprints passés et en cours</div><div class="timeline">${started.map(mkCard).join('')}</div>`;
+  if(future.length)  html+=`<div class="tl-section-label">Sprints à venir</div><div class="timeline">${future.map(mkCard).join('')}</div>`;
+  container.innerHTML=html;
 }
 async function toggleObj(sprintId,objId){
   const s=S.sprints.find(x=>String(x.id)===String(sprintId));

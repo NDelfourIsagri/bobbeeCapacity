@@ -198,6 +198,8 @@ tr:hover td{background:var(--chip);}
 .divider{height:1px;background:var(--divider);margin:20px 0;}
 
 /* TIMELINE */
+.tl-section-label{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.timeline+.tl-section-label{margin-top:32px;}
 .timeline{position:relative;padding-left:24px;}
 .timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border);border-radius:1px;}
 .tl-item{position:relative;margin-bottom:20px;}
