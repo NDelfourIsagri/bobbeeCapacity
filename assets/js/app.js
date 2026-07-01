@@ -2759,8 +2759,8 @@ function renderBacklog(){
     ${sortable('jira_id','ID Jira','','bl-sk',`left:${L2}px`)}
     <th class="${blSort.col==='label'?'sorted':''} bl-sk bl-label-col" style="left:${L3}px" onclick="toggleBlSort('label')"><div class="rice-th">Libellé${blSortIcon('label')}</div><div class="bl-col-resize" onmousedown="blStartLabelResize(event)"></div></th>
     <th class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
-    ${sortable('sprint','Sprint prévu')}
     <th style="text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px" title="Feature reportée depuis un sprint précédent"><span class="material-icons-round" style="font-size:15px;vertical-align:middle;color:var(--text3)">history</span> Report</th>
+    ${sortable('sprint','Sprint prévu')}
     ${sortable('reach','Portée',BL_REACH_TIPS)}
     ${isRricce?sortable('risk','Risque',BL_RISK_TIPS):''}
     ${sortable('impact','Impact',BL_IMPACT_TIPS)}
@@ -2803,8 +2803,8 @@ function renderBacklog(){
         <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;font-size:12px;font-weight:600">${r.jira_id?`<a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--text2);text-decoration:none;font-weight:600">${r.jira_id}</a>`:'<span style="color:var(--text3)">—</span>'}</td>
         <td class="bl-sk bl-label-col" style="left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
-        <td>${(sp=>!sp?'<span style="color:var(--text3)">—</span>':sp.closed?`<span style="color:var(--text3)" title="Sprint clôturé">${sp.name}</span>`:sp.name)(S.sprints.find(s=>String(s.id)===String(r.sprint_id)))}</td>
         <td style="text-align:center;vertical-align:middle" id="bl-report-${r.id}"><div style="display:flex;justify-content:center;align-items:center">${(r.carry_over_count||0)>=1?'<span class="material-icons-round" style="font-size:16px;color:var(--warning)">check_circle</span>':'<span class="material-icons-round" style="font-size:16px;color:var(--border)">radio_button_unchecked</span>'}</div></td>
+        <td>${(sp=>!sp?'<span style="color:var(--text3)">—</span>':sp.closed?`<span style="color:var(--text3)" title="Sprint clôturé">${sp.name}</span>`:sp.name)(S.sprints.find(s=>String(s.id)===String(r.sprint_id)))}</td>
         <td style="text-align:center">${r.reach||0}</td>
         ${isRricce?`<td style="text-align:center">${r.risk||0}</td>`:''}
         <td style="text-align:center">${r.impact||0}</td>
@@ -2819,8 +2819,8 @@ function renderBacklog(){
         <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px">${isJira?`<a href="${JIRA_BASE}${encodeURIComponent(r.jira_id)}" target="_blank" rel="noopener" style="color:var(--text2);font-size:12px;font-weight:600;padding:0 4px;text-decoration:none" title="Ouvrir dans Jira">${r.jira_id}</a>`:`<input class="bl-input" style="width:${jiraW-6}px" placeholder="PROJ-123" value="${r.jira_id||''}" onchange="blUpdate(${r.id},{jira_id:this.value.trim()})" oninput="blUpdateJiraIcon(${r.id},this.value.trim())">`}</td>
         <td class="bl-sk bl-label-col" style="left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
-        <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td style="text-align:center;vertical-align:middle" id="bl-report-${r.id}"><div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blToggleCarryOver(${r.id})" title="Report de sprint" style="padding:2px;display:flex;align-items:center;justify-content:center">${(r.carry_over_count||0)>=1?'<span class="material-icons-round" style="font-size:18px;color:var(--warning)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div></td>
+        <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{risk:Number(this.value)})">${selOpts([0,1,2,5,8],r.risk)}</select></td>`:''}
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
