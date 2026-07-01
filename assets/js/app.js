@@ -3320,7 +3320,7 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
     return`<div class="rdm-group" style="--rdm-color:${color}">
       <div class="rdm-group-header"><span class="rdm-group-label">${label}</span>${pctLabel}</div>
       ${barHtml}
-      <ul class="rdm-feature-list">${feats.map(f=>`
+      <ul class="rdm-feature-list">${[...feats].sort((a,b)=>{const sa=riceScore(a),sb=riceScore(b);return sa===0&&sb===0?0:sa===0?1:sb===0?-1:sb-sa;}).map(f=>`
         <li class="rdm-feature${f._done?' rdm-feature--done':''}">
           ${f._done?'<span class="material-icons-round rdm-check">check_circle</span>':`<span class="rdm-dot" style="background:${color}"></span>`}
           <span class="rdm-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||f.jira_id||'—'}</span>
