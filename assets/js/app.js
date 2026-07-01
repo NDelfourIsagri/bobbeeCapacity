@@ -2768,6 +2768,7 @@ function renderBacklog(){
     ${sortable('effort','Effort',BL_EFFORT_TIPS)}
     <th style="text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px" title="Estimation validée par le tech lead"><span class="material-icons-round" style="font-size:15px;vertical-align:middle;color:var(--text3)">engineering</span> Dev</th>
     ${sortable('score',scoreLabel)}
+    <th style="width:48px;text-align:center;cursor:default;white-space:nowrap" title="Reports de sprint — nombre de fois où la feature a été décalée depuis un sprint commencé"><span class="material-icons-round" style="font-size:15px;color:var(--text3);vertical-align:middle">history</span></th>
     ${isAdmin?'<th></th>':''}
   </tr>`;
   // Corps
@@ -2792,6 +2793,7 @@ function renderBacklog(){
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
       ${isRricce?'<td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>':''}
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td>
       ${isAdmin?'<td style="padding:32px 4px"></td>':''}
     </tr>`
     :rows.map(r=>{
@@ -2811,6 +2813,7 @@ function renderBacklog(){
         <td style="text-align:center">${r.effort||0}</td>
         <td style="text-align:center;vertical-align:middle"><div style="display:flex;justify-content:center;align-items:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:16px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:16px;color:var(--border)">radio_button_unchecked</span>'}</div></td>
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
+        <td style="text-align:center" id="bl-carry-${r.id}">${r.carry_over_count>0?`<span class="bl-carry-badge">↷ ${r.carry_over_count}</span>`:''}</td>
       </tr>`;
       return `<tr>
         <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${r.jira_id?`<button class="bl-prio-expand-btn${blPrioExpanded.has(r.jira_id)?' open':''}" data-jira="${r.jira_id}" onclick="togglePrioChildren('${r.jira_id}',this)" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`:`<span id="bl-jira-link-${r.id}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`}</td>
@@ -2826,6 +2829,7 @@ function renderBacklog(){
         <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,1,2,3,5,8],r.effort)}</select></td>
         <td style="text-align:center;vertical-align:middle" id="bl-dev-${r.id}"><div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blUpdate(${r.id},{dev_validated:${r.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px;display:flex;align-items:center;justify-content:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
+        <td style="text-align:center" id="bl-carry-${r.id}">${r.carry_over_count>0?`<span class="bl-carry-badge" title="Reporté ${r.carry_over_count}× depuis le sprint d'origine">↷ ${r.carry_over_count}</span>`:''}</td>
         <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
       </tr>`;
     }).join('');
@@ -2879,11 +2883,17 @@ async function blUpdate(id,patch){
     if(devEl)devEl.innerHTML=`<div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blUpdate(${id},{dev_validated:${item.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px;display:flex;align-items:center;justify-content:center">${item.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div>`;
   }
   try{
-    await API.put('/api/backlog/'+id,{
+    const saved=await API.put('/api/backlog/'+id,{
       jiraId:item.jira_id,label:item.label,sprintId:item.sprint_id,
       reach:item.reach,impact:item.impact,confidence:item.confidence,effort:item.effort,
       risk:item.risk,criticality:item.criticality,devValidated:item.dev_validated
     });
+    // Mettre à jour le compteur de reports si le serveur a détecté un report
+    if(saved?.carryOverCount!==undefined&&saved.carryOverCount!==item.carry_over_count){
+      item.carry_over_count=saved.carryOverCount;
+      const badgeEl=document.getElementById('bl-carry-'+id);
+      if(badgeEl)badgeEl.innerHTML=saved.carryOverCount>0?`<span class="bl-carry-badge">↷ ${saved.carryOverCount}</span>`:'';
+    }
     // Sync sprint Jira si sprint_id a changé et que l'item a un jira_id
     if('sprint_id' in patch && item.jira_id && String(prevSprintId)!==String(patch.sprint_id)){
       const newSp=S.sprints.find(s=>String(s.id)===String(patch.sprint_id));
@@ -3324,6 +3334,7 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
         <li class="rdm-feature${f._done?' rdm-feature--done':''}">
           ${f._done?'<span class="material-icons-round rdm-check">check_circle</span>':`<span class="rdm-dot" style="background:${color}"></span>`}
           <span class="rdm-feature-label" title="${(f.label||'').replace(/"/g,'&quot;')}">${f.label||f.jira_id||'—'}</span>
+          ${f.carry_over_count>0?`<span class="material-icons-round rdm-carry-icon" title="Reporté ${f.carry_over_count}× depuis le sprint d'origine">history</span>`:''}
         </li>`).join('')}
       </ul>
     </div>`;
