@@ -841,10 +841,10 @@ app.put('/api/backlog/:id', auth, adminOnly, aw(async (req, res) => {
     const newSprintId = sprintId || null;
     if (oldSprintId && newSprintId) {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const [spRows] = await pool.query('SELECT id, start FROM sprints WHERE id IN (?, ?)', [oldSprintId, newSprintId]);
+      const [spRows] = await pool.query('SELECT id, start_date FROM sprints WHERE id IN (?, ?)', [oldSprintId, newSprintId]);
       const oldSp = spRows.find(s => String(s.id) === String(oldSprintId));
       const newSp = spRows.find(s => String(s.id) === String(newSprintId));
-      if (oldSp && newSp && new Date(oldSp.start) <= today && new Date(newSp.start) > new Date(oldSp.start)) {
+      if (oldSp && newSp && new Date(oldSp.start_date) <= today && new Date(newSp.start_date) > new Date(oldSp.start_date)) {
         carryOverCount++;
         if (!originalSprintId) originalSprintId = oldSprintId;
       }
