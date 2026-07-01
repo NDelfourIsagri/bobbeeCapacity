@@ -858,6 +858,12 @@ app.put('/api/backlog/:id', auth, adminOnly, aw(async (req, res) => {
   res.json({ ok: true, carryOverCount });
 }));
 
+// PUT /api/backlog/:id/carry-over/reset — réinitialise le compteur de reports
+app.put('/api/backlog/:id/carry-over/reset', auth, adminOnly, aw(async (req, res) => {
+  await pool.query('UPDATE backlog SET carry_over_count=0, original_sprint_id=sprint_id WHERE id=?', [req.params.id]);
+  res.json({ ok: true });
+}));
+
 // PUT /api/backlog/:id/note — sauvegarde dédiée de la note WYSIWYG
 app.put('/api/backlog/:id/note', auth, adminOnly, aw(async (req, res) => {
   const { note } = req.body;

@@ -2829,7 +2829,7 @@ function renderBacklog(){
         <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,1,2,3,5,8],r.effort)}</select></td>
         <td style="text-align:center;vertical-align:middle" id="bl-dev-${r.id}"><div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blUpdate(${r.id},{dev_validated:${r.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px;display:flex;align-items:center;justify-content:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
-        <td style="text-align:center" id="bl-carry-${r.id}">${r.carry_over_count>0?`<span class="bl-carry-badge" title="Reporté ${r.carry_over_count}× depuis le sprint d'origine">↷ ${r.carry_over_count}</span>`:''}</td>
+        <td style="text-align:center" id="bl-carry-${r.id}">${r.carry_over_count>0?`<span class="bl-carry-badge" title="Reporté ${r.carry_over_count}× depuis le sprint d'origine">↷ ${r.carry_over_count}</span><button class="icon-btn" onclick="blResetCarryOver(${r.id})" title="Réinitialiser — faux positif"><span class="material-icons-round" style="font-size:13px;color:var(--text3)">close</span></button>`:''}</td>
         <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
       </tr>`;
     }).join('');
@@ -2917,6 +2917,16 @@ async function blUpdate(id,patch){
       }
     }
   }catch(e){toast(e.error||'Erreur sauvegarde','error');}
+}
+
+async function blResetCarryOver(id){
+  const item=S.backlog.find(r=>r.id==id);if(!item)return;
+  try{
+    await API.put('/api/backlog/'+id+'/carry-over/reset',{});
+    item.carry_over_count=0;item.original_sprint_id=item.sprint_id;
+    const el=document.getElementById('bl-carry-'+id);
+    if(el)el.innerHTML='';
+  }catch(e){toast(e.error||'Erreur','error');}
 }
 
 function blDelete(id){
