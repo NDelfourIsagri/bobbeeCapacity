@@ -2760,6 +2760,7 @@ function renderBacklog(){
     <th class="${blSort.col==='label'?'sorted':''} bl-sk bl-label-col" style="left:${L3}px" onclick="toggleBlSort('label')"><div class="rice-th">Libellé${blSortIcon('label')}</div><div class="bl-col-resize" onmousedown="blStartLabelResize(event)"></div></th>
     <th class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;cursor:default"><span class="material-icons-round" style="font-size:16px;color:var(--text3);vertical-align:middle">sticky_note_2</span></th>
     ${sortable('sprint','Sprint prévu')}
+    <th style="text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px" title="Feature reportée depuis un sprint précédent"><span class="material-icons-round" style="font-size:15px;vertical-align:middle;color:var(--text3)">history</span> Report</th>
     ${sortable('reach','Portée',BL_REACH_TIPS)}
     ${isRricce?sortable('risk','Risque',BL_RISK_TIPS):''}
     ${sortable('impact','Impact',BL_IMPACT_TIPS)}
@@ -2768,7 +2769,6 @@ function renderBacklog(){
     ${sortable('effort','Effort',BL_EFFORT_TIPS)}
     <th style="text-align:center;white-space:nowrap;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px" title="Estimation validée par le tech lead"><span class="material-icons-round" style="font-size:15px;vertical-align:middle;color:var(--text3)">engineering</span> Dev</th>
     ${sortable('score',scoreLabel)}
-    <th style="width:48px;text-align:center;cursor:default;white-space:nowrap" title="Reports de sprint — nombre de fois où la feature a été décalée depuis un sprint commencé"><span class="material-icons-round" style="font-size:15px;color:var(--text3);vertical-align:middle">history</span></th>
     ${isAdmin?'<th></th>':''}
   </tr>`;
   // Corps
@@ -2790,10 +2790,9 @@ function renderBacklog(){
       <td class="bl-sk" style="min-width:${jiraW}px;left:${L2}px;padding:32px 4px"></td>
       <td class="bl-sk bl-label-col" style="left:${L3}px;padding:32px 16px;color:var(--text3);font-size:13px;white-space:nowrap">Aucun élément dans le backlog</td>
       <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
+      <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
       ${isRricce?'<td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>':''}
       <td style="padding:32px 4px"></td><td style="padding:32px 4px"></td><td style="padding:32px 4px"></td>
-      <td style="padding:32px 4px"></td>
       ${isAdmin?'<td style="padding:32px 4px"></td>':''}
     </tr>`
     :rows.map(r=>{
@@ -2805,6 +2804,7 @@ function renderBacklog(){
         <td class="bl-sk bl-label-col" style="left:${L3}px;cursor:default" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}>${r.label||'—'}</td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td>${(sp=>!sp?'<span style="color:var(--text3)">—</span>':sp.closed?`<span style="color:var(--text3)" title="Sprint clôturé">${sp.name}</span>`:sp.name)(S.sprints.find(s=>String(s.id)===String(r.sprint_id)))}</td>
+        <td style="text-align:center;vertical-align:middle" id="bl-report-${r.id}"><div style="display:flex;justify-content:center;align-items:center">${(r.carry_over_count||0)>=1?'<span class="material-icons-round" style="font-size:16px;color:var(--warning)">check_circle</span>':'<span class="material-icons-round" style="font-size:16px;color:var(--border)">radio_button_unchecked</span>'}</div></td>
         <td style="text-align:center">${r.reach||0}</td>
         ${isRricce?`<td style="text-align:center">${r.risk||0}</td>`:''}
         <td style="text-align:center">${r.impact||0}</td>
@@ -2813,7 +2813,6 @@ function renderBacklog(){
         <td style="text-align:center">${r.effort||0}</td>
         <td style="text-align:center;vertical-align:middle"><div style="display:flex;justify-content:center;align-items:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:16px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:16px;color:var(--border)">radio_button_unchecked</span>'}</div></td>
         <td class="bl-score ${score===0?'zero':''}">${score||'—'}</td>
-        <td style="text-align:center" id="bl-carry-${r.id}">${r.carry_over_count>0?`<span class="bl-carry-badge">↷ ${r.carry_over_count}</span>`:''}</td>
       </tr>`;
       return `<tr>
         <td class="bl-sk" style="width:36px;padding:6px 4px;text-align:center;left:0">${r.jira_id?`<button class="bl-prio-expand-btn${blPrioExpanded.has(r.jira_id)?' open':''}" data-jira="${r.jira_id}" onclick="togglePrioChildren('${r.jira_id}',this)" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`:`<span id="bl-jira-link-${r.id}" style="color:var(--text3);display:inline-flex;align-items:center" title="Saisir un ID Jira"><span class="material-icons-round" style="font-size:18px">link_off</span></span>`}</td>
@@ -2821,6 +2820,7 @@ function renderBacklog(){
         <td class="bl-sk bl-label-col" style="left:${L3}px" ${r.label?`data-tip="${(r.label||'').replace(/"/g,'&quot;')}" onmouseenter="if(document.activeElement!==this.querySelector('input'))showBlTip(event,this)" onmouseleave="hideBlTip()"`:``}><input class="bl-input" style="width:100%" placeholder="Titre du ticket" value="${(r.label||'').replace(/"/g,'&quot;')}" onchange="blUpdate(${r.id},{label:this.value});this.closest('td').dataset.tip=this.value"></td>
         <td class="bl-sk bl-sk-sep" style="width:40px;left:var(--bl-L4);text-align:center;padding:4px">${noteIconHtml(r)}</td>
         <td style="min-width:140px"><select class="bl-select" onchange="blUpdate(${r.id},{sprint_id:this.value||null})">${sprintOpts(r.sprint_id)}</select></td>
+        <td style="text-align:center;vertical-align:middle" id="bl-report-${r.id}"><div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blToggleCarryOver(${r.id})" title="Report de sprint" style="padding:2px;display:flex;align-items:center;justify-content:center">${(r.carry_over_count||0)>=1?'<span class="material-icons-round" style="font-size:18px;color:var(--warning)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div></td>
         <td><select class="bl-select" onchange="blUpdate(${r.id},{reach:Number(this.value)})">${selOpts([0,20,40,80,100],r.reach)}</select></td>
         ${isRricce?`<td><select class="bl-select" onchange="blUpdate(${r.id},{risk:Number(this.value)})">${selOpts([0,1,2,5,8],r.risk)}</select></td>`:''}
         <td><select class="bl-select" onchange="blUpdate(${r.id},{impact:Number(this.value)})">${selOpts([0,20,40,80,100],r.impact)}</select></td>
@@ -2829,7 +2829,6 @@ function renderBacklog(){
         <td><select class="bl-select" onchange="blUpdate(${r.id},{effort:Number(this.value)})">${selOpts([0,1,2,3,5,8],r.effort)}</select></td>
         <td style="text-align:center;vertical-align:middle" id="bl-dev-${r.id}"><div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blUpdate(${r.id},{dev_validated:${r.dev_validated?0:1}})" title="Validation effort tech lead" style="padding:2px;display:flex;align-items:center;justify-content:center">${r.dev_validated?'<span class="material-icons-round" style="font-size:18px;color:var(--success)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div></td>
         <td class="bl-score ${score===0?'zero':''}" id="bl-score-${r.id}">${score||'—'}</td>
-        <td style="text-align:center" id="bl-carry-${r.id}">${r.carry_over_count>0?`<span class="bl-carry-badge" title="Reporté ${r.carry_over_count}× depuis le sprint d'origine">↷ ${r.carry_over_count}</span><button class="icon-btn" onclick="blResetCarryOver(${r.id})" title="Réinitialiser — faux positif"><span class="material-icons-round" style="font-size:13px;color:var(--text3)">close</span></button>`:''}</td>
         <td><button class="icon-btn" onclick="blDelete(${r.id})" title="Supprimer"><span class="material-icons-round" style="font-size:16px;color:var(--danger)">delete</span></button></td>
       </tr>`;
     }).join('');
@@ -2891,8 +2890,8 @@ async function blUpdate(id,patch){
     // Mettre à jour le compteur de reports si le serveur a détecté un report
     if(saved?.carryOverCount!==undefined&&saved.carryOverCount!==item.carry_over_count){
       item.carry_over_count=saved.carryOverCount;
-      const badgeEl=document.getElementById('bl-carry-'+id);
-      if(badgeEl)badgeEl.innerHTML=saved.carryOverCount>0?`<span class="bl-carry-badge">↷ ${saved.carryOverCount}</span>`:'';
+      const reportEl=document.getElementById('bl-report-'+id);
+      if(reportEl){const checked=(saved.carryOverCount||0)>=1;reportEl.innerHTML=`<div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blToggleCarryOver(${id})" title="Report de sprint" style="padding:2px;display:flex;align-items:center;justify-content:center">${checked?'<span class="material-icons-round" style="font-size:18px;color:var(--warning)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div>`;}
     }
     // Sync sprint Jira si sprint_id a changé et que l'item a un jira_id
     if('sprint_id' in patch && item.jira_id && String(prevSprintId)!==String(patch.sprint_id)){
@@ -2919,13 +2918,15 @@ async function blUpdate(id,patch){
   }catch(e){toast(e.error||'Erreur sauvegarde','error');}
 }
 
-async function blResetCarryOver(id){
+async function blToggleCarryOver(id){
   const item=S.backlog.find(r=>r.id==id);if(!item)return;
+  const newMarked=!((item.carry_over_count||0)>=1);
   try{
-    await API.put('/api/backlog/'+id+'/carry-over/reset',{});
-    item.carry_over_count=0;item.original_sprint_id=item.sprint_id;
-    const el=document.getElementById('bl-carry-'+id);
-    if(el)el.innerHTML='';
+    await API.put('/api/backlog/'+id+'/carry-over',{marked:newMarked});
+    item.carry_over_count=newMarked?Math.max(item.carry_over_count||0,1):0;
+    if(!newMarked)item.original_sprint_id=item.sprint_id;
+    const reportEl=document.getElementById('bl-report-'+id);
+    if(reportEl){const checked=(item.carry_over_count||0)>=1;reportEl.innerHTML=`<div style="display:flex;justify-content:center;align-items:center"><button class="icon-btn" onclick="blToggleCarryOver(${id})" title="Report de sprint" style="padding:2px;display:flex;align-items:center;justify-content:center">${checked?'<span class="material-icons-round" style="font-size:18px;color:var(--warning)">check_circle</span>':'<span class="material-icons-round" style="font-size:18px;color:var(--text3)">radio_button_unchecked</span>'}</button></div>`;}
   }catch(e){toast(e.error||'Erreur','error');}
 }
 
