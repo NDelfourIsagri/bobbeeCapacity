@@ -214,6 +214,11 @@
             <select class="input" id="bl-filter-obj" style="display:none" onchange="onObjFilterChange()">
               <option value="">Tous les objectifs</option>
             </select>
+            <div class="bl-search-wrap">
+              <span class="material-icons-round bl-search-icon">search</span>
+              <input type="text" id="bl-search" class="bl-search-input" placeholder="ID Jira ou libellé…" oninput="onBlSearchInput(this.value)" autocomplete="off">
+              <button class="bl-search-clear" id="bl-search-clear" onclick="clearBlSearch()" title="Réinitialiser la recherche" style="display:none"><span class="material-icons-round">close</span></button>
+            </div>
             <button class="btn btn-outline" id="bl-sync-btn" onclick="syncJira('bl-sync-btn',null)"><span class="material-icons-round">sync</span>Sync Jira</button>
           </div>
         </div>

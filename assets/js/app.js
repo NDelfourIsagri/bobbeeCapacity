@@ -1968,6 +1968,28 @@ window.addEventListener('keydown',e=>{
 // ── BACKLOG ───────────────────────────────────────────────
 let blSort={col:'score',dir:'desc'};
 let blActiveTab='prio';
+let blSearch='';
+function _blNorm(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function _blMatch(r,q){
+  if(!q)return true;
+  const h=_blNorm(r.jira_id)+' '+_blNorm(r.label);
+  if(h.includes(q))return true;
+  return q.split(/\s+/).filter(Boolean).every(w=>h.includes(w));
+}
+function onBlSearchInput(val){
+  blSearch=_blNorm(val);
+  const clr=document.getElementById('bl-search-clear');
+  if(clr)clr.style.display=val?'flex':'none';
+  if(blActiveTab==='chrono')renderGantt();else renderBacklog();
+}
+function clearBlSearch(){
+  blSearch='';
+  const inp=document.getElementById('bl-search');
+  if(inp)inp.value='';
+  const clr=document.getElementById('bl-search-clear');
+  if(clr)clr.style.display='none';
+  if(blActiveTab==='chrono')renderGantt();else renderBacklog();
+}
 let blLabelW=Number(localStorage.getItem('bl_label_w'))||220;
 let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
 let blGanttExpanded  = new Set(); // jiraIds actuellement développés
@@ -2147,6 +2169,7 @@ function renderGantt(){
     const ids=new Set(feats.map(f=>f.jira_id));
     items=items.filter(r=>ids.has(r.jira_id));
   }
+  if(blSearch)items=items.filter(r=>_blMatch(r,blSearch));
   renderGanttFor(items,'bl-gantt-wrap');
 }
 
@@ -2697,6 +2720,7 @@ function renderBacklog(){
     const ids=new Set(feats.map(f=>f.jira_id));
     rows=rows.filter(r=>ids.has(r.jira_id));
   }
+  if(blSearch)rows=rows.filter(r=>_blMatch(r,blSearch));
   // Calculer le score
   rows=rows.map(r=>({...r,_score:riceScore(r)}));
   // Trier

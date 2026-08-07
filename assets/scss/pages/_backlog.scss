@@ -15,6 +15,54 @@
   flex-wrap: wrap;
 }
 
+.bl-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.bl-search-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 16px;
+  color: var(--text3);
+  pointer-events: none;
+}
+
+.bl-search-input {
+  padding: 6px 28px 6px 30px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  width: 200px;
+  transition: border-color var(--transition);
+
+  &:focus { border-color: var(--primary); }
+  &::placeholder { color: var(--text3); }
+}
+
+.bl-search-clear {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text3);
+  padding: 0;
+
+  &:hover { color: var(--text); }
+  .material-icons-round { font-size: 14px; }
+}
+
 #bl-method-wrap {
   display: flex;
   align-items: center;
