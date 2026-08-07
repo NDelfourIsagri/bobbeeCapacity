@@ -362,6 +362,13 @@
       <!-- USERS -->
       <div class="page" id="page-users">
         <div class="page-header"><div><div class="page-title">Utilisateurs 👥</div><div class="page-sub">Gestion des accès</div></div></div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+          <div class="bl-search-wrap">
+            <span class="material-icons-round bl-search-icon">search</span>
+            <input type="text" id="users-search" class="bl-search-input" placeholder="Rechercher un utilisateur…" oninput="onUsersSearchInput(this.value)" autocomplete="off">
+            <button class="bl-search-clear" id="users-search-clear" onclick="clearUsersSearch()" title="Réinitialiser la recherche" style="display:none"><span class="material-icons-round">close</span></button>
+          </div>
+        </div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Équipes</th><th>Action</th></tr></thead><tbody id="users-tbody"></tbody></table></div></div>
       </div>
     </main>

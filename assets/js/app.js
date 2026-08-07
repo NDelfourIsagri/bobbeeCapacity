@@ -1728,9 +1728,24 @@ function delMember(id){
 // ── USERS ────────────────────────────────────────────────
 const ROLE_BADGE={super_admin:'badge-warning',admin:'badge-success',consultant:'badge-primary'};
 const ROLE_LABEL={super_admin:'Super Admin',admin:'Admin',consultant:'Consultant'};
+let usersSearch='';
+function onUsersSearchInput(val){
+  usersSearch=_blNorm(val);
+  const clr=document.getElementById('users-search-clear');
+  if(clr)clr.style.display=val?'flex':'none';
+  renderUsers();
+}
+function clearUsersSearch(){
+  usersSearch='';
+  const inp=document.getElementById('users-search');if(inp)inp.value='';
+  const clr=document.getElementById('users-search-clear');if(clr)clr.style.display='none';
+  renderUsers();
+}
 function renderUsers(){
   const isSA=CU?.role==='super_admin';
-  document.getElementById('users-tbody').innerHTML=S.users.map(u=>{
+  let users=S.users;
+  if(usersSearch)users=users.filter(u=>_blNorm(u.fname+' '+u.lname).includes(usersSearch)||_blNorm(u.email).includes(usersSearch));
+  document.getElementById('users-tbody').innerHTML=users.map(u=>{
     const isSelf=u.id==CU.id;
     const badge=`<span class="badge ${ROLE_BADGE[u.role]||'badge-primary'}">${ROLE_LABEL[u.role]||u.role}</span>`;
     let actions='<span style="color:var(--text3);font-size:12px">Vous</span>';
