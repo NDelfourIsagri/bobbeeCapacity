@@ -30,16 +30,16 @@
 }
 
 .bl-search-input {
-  padding: 6px 28px 6px 30px;
+  padding: 10px 28px 10px 32px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
   outline: none;
   width: 200px;
-  transition: border-color var(--transition);
+  transition: all var(--transition);
 
   &:focus { border-color: var(--primary); }
   &::placeholder { color: var(--text3); }

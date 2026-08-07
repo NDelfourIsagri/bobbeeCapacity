@@ -500,7 +500,7 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .bl-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
 .bl-search-wrap{position:relative;display:flex;align-items:center;}
 .bl-search-icon{position:absolute;left:8px;font-size:16px;color:var(--text3);pointer-events:none;}
-.bl-search-input{padding:6px 28px 6px 30px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;width:200px;transition:border-color var(--transition);}
+.bl-search-input{padding:10px 28px 10px 32px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;width:200px;transition:all var(--transition);}
 .bl-search-input:focus{border-color:var(--primary);}
 .bl-search-input::placeholder{color:var(--text3);}
 .bl-search-clear{position:absolute;right:4px;display:flex;align-items:center;justify-content:center;width:20px;height:20px;border:none;background:transparent;cursor:pointer;color:var(--text3);padding:0;}
