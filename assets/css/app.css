@@ -423,8 +423,8 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .bl-prio-expand-btn:hover{color:var(--primary);background:rgba(var(--primary-rgb),.1);}
 .bl-prio-expand-btn.loading{opacity:.5;pointer-events:none;}
 .bl-prio-expand-btn.loading .material-icons-round{animation:spin .8s linear infinite;}
-.bl-prio-children-row>td{padding:6px 12px 8px 44px;background:rgba(var(--primary-rgb),.03);border-top:none !important;}
-.bl-prio-children-wrap{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.bl-prio-children-row>td{padding:6px 12px 8px 44px;background:rgba(var(--primary-rgb),.03);border-top:none !important;max-width:0;width:0;}
+.bl-prio-children-wrap{display:flex;flex-wrap:wrap;gap:6px;align-items:center;overflow:hidden;}
 .bl-child-chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:3px 10px 3px 8px;font-size:11px;line-height:1.4;max-width:340px;white-space:nowrap;}
 .bl-child-id{color:var(--primary);font-weight:600;text-decoration:none;font-size:11px;flex-shrink:0;}
 .bl-child-id:hover{text-decoration:underline;}

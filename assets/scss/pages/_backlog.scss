@@ -756,6 +756,8 @@
   padding: 6px 12px 8px 44px;
   background: rgba(var(--primary-rgb), .03);
   border-top: none !important;
+  max-width: 0;
+  width: 0;
 }
 
 .bl-prio-children-wrap {
@@ -763,6 +765,7 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  overflow: hidden;
 }
 
 .bl-child-chip {
