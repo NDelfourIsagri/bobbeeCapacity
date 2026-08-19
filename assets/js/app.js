@@ -562,15 +562,42 @@ function holidays(year,country='FR'){
     fmt(nearestMon(new Date(year,10,20))),         // Revolución (lunes más cercano au 20 nov)
     fmt(new Date(year,11,25)),                     // Navidad
   ]);
-  if(country==='MA') return new Set([
-    fmt(new Date(year,0,1)),   // 1er janvier
-    fmt(new Date(year,0,11)),  // 11 janvier - Fête de l'Indépendance
-    fmt(new Date(year,4,1)),   // 1er mai
-    fmt(new Date(year,6,30)),  // 30 juillet - Fête du Trône
-    fmt(new Date(year,7,21)),  // 21 août - Révolution
-    fmt(new Date(year,10,6)),  // 6 novembre - Marche Verte
-    fmt(new Date(year,11,25)), // 25 décembre
-  ]);
+  if(country==='MA'){
+    // Jours fériés fixes
+    const maSet=new Set([
+      fmt(new Date(year,0,1)),   // 1er janvier
+      fmt(new Date(year,0,11)),  // 11 janvier  — Manifeste de l'Indépendance
+      fmt(new Date(year,4,1)),   // 1er mai      — Fête du Travail
+      fmt(new Date(year,6,30)),  // 30 juillet   — Fête du Trône
+      fmt(new Date(year,7,14)),  // 14 août      — Allégeance de l'Oued Ed-Dahab
+      fmt(new Date(year,7,20)),  // 20 août      — Révolution du Roi et du Peuple
+      fmt(new Date(year,7,21)),  // 21 août      — Fête de la Jeunesse
+      fmt(new Date(year,10,6)),  // 6 novembre   — Marche Verte
+      fmt(new Date(year,10,18)),// 18 novembre  — Fête de l'Indépendance
+    ]);
+    // Jours fériés islamiques — calendrier hégirien tabulaire (±1 j observationnel)
+    const h2g=(hy,hm,hd)=>{
+      const jd=hd+Math.ceil(29.5001*(hm-1))+(hy-1)*354+Math.floor((11*hy+3)/30)+1948439.5;
+      const z=Math.floor(jd+0.5),a=Math.floor((z-1867216.25)/36524.25);
+      const b=z+1+a-Math.floor(a/4),c=b+1524;
+      const d=Math.floor((c-122.1)/365.25),e=Math.floor(365.25*d);
+      const f=Math.floor((c-e)/30.6001);
+      const day=c-e-Math.floor(30.6001*f),mon=f<14?f-1:f-13;
+      return new Date(mon>2?d-4716:d-4715,mon-1,day);
+    };
+    const hY=Math.floor((year-622)*365.25/354.367);
+    [hY,hY+1].forEach(hy=>{
+      [
+        h2g(hy,1,1),   // 1er Moharram — Nouvel An hégirien
+        h2g(hy,3,12),  // Aïd Al-Mawlid
+        h2g(hy,10,1),  // Aïd Al-Fitr jour 1
+        h2g(hy,10,2),  // Aïd Al-Fitr jour 2
+        h2g(hy,12,10), // Aïd Al-Adha jour 1
+        h2g(hy,12,11), // Aïd Al-Adha jour 2
+      ].forEach(d=>{if(d.getFullYear()===year)maSet.add(fmt(d));});
+    });
+    return maSet;
+  }
   // France (par défaut)
   return new Set([
     fmt(new Date(year,0,1)),   // 1er janvier
