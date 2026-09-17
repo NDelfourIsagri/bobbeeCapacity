@@ -1428,6 +1428,90 @@ app.get('/api/objectives', auth, aw(async (_req, res) => {
   res.json({ objectives: byObjective, teams: allTeams });
 }));
 
+// GET /api/experiments — Experiments Jira sur la fenêtre de sprints (1 passé + courant + 3 à venir)
+app.get('/api/experiments', auth, aw(async (_req, res) => {
+  if (!process.env.JIRA_BASE_URL) return res.json({ experiments: [], sprints: [] });
+
+  // 1. Fenêtre de sprints (même logique que _rdmBuildData côté client)
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const [allSprints] = await pool.query('SELECT id, name, start_date, end_date, closed FROM sprints ORDER BY start_date');
+
+  let curIdx = allSprints.findIndex(s => !s.closed && new Date(s.start_date) <= now && new Date(s.end_date) >= now);
+  if (curIdx < 0) curIdx = allSprints.findIndex(s => !s.closed && new Date(s.start_date) > now);
+  if (curIdx < 0) curIdx = Math.max(0, allSprints.length - 1);
+
+  const startIdx = Math.max(0, curIdx - 1);
+  const windowSprints = allSprints.slice(startIdx, startIdx + 5);
+  if (!windowSprints.length) return res.json({ experiments: [], sprints: [] });
+
+  // 2. IDs des champs custom Jira
+  let fieldIds;
+  try { fieldIds = await getJiraFieldIds(); }
+  catch (e) { return res.status(502).json({ error: 'Impossible de contacter Jira : ' + e.message }); }
+  if (!fieldIds.team) return res.status(500).json({ error: 'Champ "Team[Team]" introuvable dans Jira.' });
+
+  // 3. JQL ciblé sur les sprints de la fenêtre
+  const sprintNames = windowSprints.map(s => `"${s.name.replace(/"/g, '\\"')}"`).join(', ');
+  const jql = `project = MP AND type = Experiment AND Sprint in (${sprintNames})`;
+
+  // 4. Fetch Jira (customfield_10020 = champ Sprint standard dans toutes les instances Jira)
+  const SPRINT_FIELD = 'customfield_10020';
+  const issues = [];
+  try {
+    let nextPageToken = null;
+    for (let page = 0; page < 20; page++) {
+      let url = `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,${fieldIds.team},${SPRINT_FIELD}&maxResults=100`;
+      if (nextPageToken) url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
+      const data = await jiraRequest(url);
+      const batch = data.issues || [];
+      issues.push(...batch);
+      if (!data.nextPageToken || batch.length < 100) break;
+      nextPageToken = data.nextPageToken;
+    }
+  } catch (e) {
+    return res.status(502).json({ error: 'Erreur Jira : ' + e.message });
+  }
+
+  // 5. Mapping équipes Jira → locales
+  const [teams] = await pool.query('SELECT id, name, jira_team_id FROM teams');
+  const teamByJiraId = Object.fromEntries(teams.filter(t => t.jira_team_id).map(t => [t.jira_team_id, t]));
+
+  // 6. Mapping nom de sprint → sprint local (insensible à la casse et aux espaces)
+  const normSp = s => (s || '').trim().toLowerCase();
+  const sprintByName = Object.fromEntries(windowSprints.map(s => [normSp(s.name), s]));
+  const DONE_ST = ['10 - termine', '9 - a livrer en prod'];
+
+  const experiments = issues.flatMap(issue => {
+    const teamRaw = issue.fields[fieldIds.team];
+    const team = teamRaw?.id ? teamByJiraId[teamRaw.id] : null;
+    // customfield_10020 peut être un tableau (historique de sprints) → prendre ceux de la fenêtre
+    const sprintRaw = issue.fields[SPRINT_FIELD];
+    const sprintArr = Array.isArray(sprintRaw) ? sprintRaw : (sprintRaw ? [sprintRaw] : []);
+    const matched = sprintArr.map(sp => sprintByName[normSp(sp?.name)]).filter(Boolean);
+    if (!matched.length) return [];
+    const statusName = (issue.fields.status?.name || '').trim();
+    return matched.map(sprint => ({
+      jira_id:   issue.key,
+      label:     (issue.fields.summary || issue.key).slice(0, 300),
+      status:    statusName,
+      done:      DONE_ST.includes(statusName.toLowerCase()),
+      team_id:   team?.id   || null,
+      team_name: team?.name || null,
+      sprint_id: sprint.id,
+    }));
+  });
+
+  const sprints = windowSprints.map(s => ({
+    id:     s.id,
+    name:   s.name,
+    start:  String(s.start_date).slice(0, 10),
+    end:    String(s.end_date).slice(0, 10),
+    closed: !!s.closed,
+  }));
+
+  res.json({ experiments, sprints });
+}));
+
 // GET /api/jira/children?key=MP-1515 — tickets enfants d'une feature
 app.get('/api/jira/children', auth, aw(async (req, res) => {
   const { key } = req.query;

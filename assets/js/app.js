@@ -471,6 +471,7 @@ async function navTo(p,noPush=false){
     renderObjectives();
   }
   if(p==='roadmap'){
+    _rdmExperimentCache=null;
     document.getElementById('sprint-bar-sticky')?.classList.remove('active');
     document.getElementById('rdm-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement…</p></div>`;
     try{
@@ -3248,8 +3249,11 @@ function initRoadmapFilter(){
   const{teams}=S.objectivesData;
   const prev=sel.value;
   sel.innerHTML=`<option value="">Toutes les équipes</option>`+
-    teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-  if(selectedTeamId&&teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=String(selectedTeamId);
+    teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')+
+    `<option disabled>──────────────</option>`+
+    `<option value="__experiment__">Experiment</option>`;
+  if(prev==='__experiment__')sel.value='__experiment__';
+  else if(selectedTeamId&&teams.find(t=>String(t.id)===String(selectedTeamId)))sel.value=String(selectedTeamId);
   else if(prev&&teams.find(t=>String(t.id)===prev))sel.value=prev;
 }
 
@@ -3381,7 +3385,7 @@ function _rdmSprintLabel(sprint){
   return`${sprint.name} · ${RDM_MONTHS[best.month]} ${best.year}`;
 }
 
-function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,animIdx,solo=false,currentSprintId=null){
+function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,animIdx,solo=false,currentSprintId=null,opts={}){
   const isCurrent=String(sprint.id)===String(currentSprintId||(_rdmLastData||{}).currentSprintId);
   const orderedKeys=[
     ...Object.keys(groups).filter(k=>k!=='__orphan__').sort((a,b)=>a.localeCompare(b,'fr')),
@@ -3390,7 +3394,7 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
   const groupsHtml=orderedKeys.map(k=>{
     const feats=groups[k];
     const color=colorMap[k]||'#6b7280';
-    const label=k==='__orphan__'?'Sans objectif':k;
+    const label=k==='__orphan__'?(opts.orphanLabel||'Sans objectif'):k;
     const prog=k!=='__orphan__'?projProgress[k]:null;
     const pctLabel=prog
       ?(prog.isProjection
@@ -3423,12 +3427,12 @@ function _rdmCardHtml({sprint,groups,projProgress,isPast,objBands},colorMap,anim
       <div class="rdm-sprint-dates">${fd(sprint.start)} → ${fd(sprint.end)}</div>
       ${isCurrent?'<span class="rdm-badge-current">En cours</span>':isPast?(sprint.closed?'<span class="rdm-badge-past">Clôturé</span>':'<span class="rdm-badge-overdue">Dépassé</span>'):''}
     </div>
-    <div class="rdm-sprint-body">${groupsHtml||'<p class="rdm-empty">Aucune feature planifiée</p>'}</div>
+    <div class="rdm-sprint-body">${groupsHtml||`<p class="rdm-empty">${opts.emptyMsg||'Aucune feature planifiée'}</p>`}</div>
   </div>`;
 }
 
 let _rdmLastData=null;
-function _rdmBuildTrackHtml(data,colorMap,teamName=''){
+function _rdmBuildTrackHtml(data,colorMap,teamName='',opts={}){
   _rdmLastData=data;
   const{sprintBlocks,currentSprintId}=data;
   const pastBlock=sprintBlocks.find(b=>b.isPast);
@@ -3442,7 +3446,7 @@ function _rdmBuildTrackHtml(data,colorMap,teamName=''){
     if(!block)return'';
     const isCur=curBlock&&String(block.sprint.id)===String(currentSprintId);
     const cls=`rdm-card-pin${isCur?' rdm-card-pin--current':''}`;
-    return`<div class="${cls}">${_rdmCardHtml(block,colorMap,animIdx,false,currentSprintId)}</div>`;
+    return`<div class="${cls}">${_rdmCardHtml(block,colorMap,animIdx,false,currentSprintId,opts)}</div>`;
   };
 
   const row1=[pastBlock,curBlock].filter(Boolean);
@@ -3475,6 +3479,8 @@ function renderRoadmapContent(){
   const content=document.getElementById('rdm-content');
   if(!content)return;
   const filterVal=document.getElementById('rdm-team-filter')?.value||'';
+
+  if(filterVal==='__experiment__'){renderRoadmapExperiment();return;}
 
   if(!filterVal){
     // Mode carousel — toutes les équipes
@@ -3531,6 +3537,51 @@ function renderRoadmap(){
   renderRoadmapContent();
 }
 function filterRoadmap(){renderRoadmapContent();}
+
+// ── EXPERIMENT VIEW ───────────────────────────────────────
+let _rdmExperimentCache=null;
+
+function _rdmBuildExperimentData(experiments,sprints){
+  const now=new Date();now.setHours(0,0,0,0);
+  const sorted=[...sprints].sort((a,b)=>new Date(a.start)-new Date(b.start));
+  let curIdx=sorted.findIndex(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
+  if(curIdx<0)curIdx=sorted.findIndex(s=>!s.closed&&new Date(s.start)>now);
+  if(curIdx<0)curIdx=Math.max(0,sorted.length-1);
+  const currentSprintId=sorted[curIdx]?.id;
+  const sprintBlocks=sorted.map(sprint=>{
+    const endOfDay=new Date(sprint.end);endOfDay.setDate(endOfDay.getDate()+1);
+    const isPast=!!sprint.closed||endOfDay<=now;
+    const sprExps=experiments.filter(e=>String(e.sprint_id)===String(sprint.id));
+    const groups={};
+    sprExps.forEach(e=>{
+      const k=e.team_name||'__orphan__';
+      if(!groups[k])groups[k]=[];
+      groups[k].push({...e,_done:e.done});
+    });
+    return{sprint,groups,projProgress:{},objBands:{},isPast};
+  });
+  return{sprintBlocks,currentSprintId};
+}
+
+async function renderRoadmapExperiment(){
+  const content=document.getElementById('rdm-content');
+  if(!content)return;
+  content.innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement des experiments…</p></div>`;
+  try{
+    if(!_rdmExperimentCache)_rdmExperimentCache=await API.get('/api/experiments');
+    const{experiments,sprints}=_rdmExperimentCache;
+    if(!experiments.length){
+      content.innerHTML='<p class="obj-empty">Aucun experiment trouvé sur la fenêtre de sprints actuelle.</p>';
+      return;
+    }
+    const data=_rdmBuildExperimentData(experiments,sprints);
+    const colorMap=_rdmAssignColors(data.sprintBlocks);
+    const opts={orphanLabel:'Sans équipe',emptyMsg:'Aucun experiment planifié'};
+    content.innerHTML=_rdmBuildTrackHtml(data,colorMap,'Experiments',opts);
+  }catch(e){
+    content.innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||e.message||'Erreur lors du chargement des experiments'}</p></div>`;
+  }
+}
 
 // ── PDF EXPORT ───────────────────────────────────────────
 let _rdmFontCSS=null; // cache Inter base64 entre exports
