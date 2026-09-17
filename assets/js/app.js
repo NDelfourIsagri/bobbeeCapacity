@@ -3459,9 +3459,9 @@ function _rdmBuildTrackHtml(data,colorMap,teamName='',opts={}){
   const AW=`M -10,-6 L 4,0 L -10,6 L -6,0 Z`;
   const roadSvg=`<svg class="rdm-road-bg" viewBox="0 0 1022 670" preserveAspectRatio="none" aria-hidden="true">
     <path class="rdm-road-line" opacity="0" d="${RD}"/>
-    <path class="rdm-arrow rdm-arrow--1" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="5s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
-    <path class="rdm-arrow rdm-arrow--2" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="9s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
-    <path class="rdm-arrow rdm-arrow--3" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="19s" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--1" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="indefinite" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--2" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="indefinite" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
+    <path class="rdm-arrow rdm-arrow--3" d="${AW}"><animateMotion path="${RD}" dur="20s" begin="indefinite" repeatCount="indefinite" rotate="auto" calcMode="linear"/></path>
   </svg>`;
 
   const headerHtml=`<div class="rdm-slide-header">
@@ -3510,12 +3510,14 @@ function renderRoadmapContent(){
         </div>
       </div>
     </div>`;
+    _rdmRestartArrows();
   } else {
     // Mode équipe unique
     const data=_rdmBuildData(filterVal);
     const colorMap=_rdmAssignColors(data.sprintBlocks);
     const tn=(S.objectivesData?.teams||[]).find(t=>String(t.id)===String(filterVal))?.name||'';
     content.innerHTML=_rdmBuildTrackHtml(data,colorMap,tn);
+    _rdmRestartArrows();
   }
 }
 
@@ -3530,6 +3532,14 @@ function rdmCarouselGo(idx){
 }
 function rdmCarouselPrev(){rdmCarouselGo(_rdmCarouselIdx-1);}
 function rdmCarouselNext(){rdmCarouselGo(_rdmCarouselIdx+1);}
+
+// Démarre les animateMotion SVG des flèches — à appeler après chaque innerHTML
+// (begin="indefinite" + beginElement() = seule méthode fiable cross-browser pour SVG injecté via innerHTML)
+function _rdmRestartArrows(){
+  const arrows=Array.from(document.querySelectorAll('#rdm-content animateMotion'));
+  const stagger=[0,2000,5000];
+  arrows.forEach((el,i)=>setTimeout(()=>{try{el.beginElement();}catch(e){}},stagger[i%3]||0));
+}
 
 function renderRoadmap(){
   if(!S.objectivesData)return;
@@ -3578,6 +3588,7 @@ async function renderRoadmapExperiment(){
     const colorMap=_rdmAssignColors(data.sprintBlocks);
     const opts={orphanLabel:'Sans équipe',emptyMsg:'Aucun experiment planifié'};
     content.innerHTML=_rdmBuildTrackHtml(data,colorMap,'Experiments',opts);
+    _rdmRestartArrows();
   }catch(e){
     content.innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="color:var(--danger);font-size:36px">error_outline</span><p>${e.error||e.message||'Erreur lors du chargement des experiments'}</p></div>`;
   }
