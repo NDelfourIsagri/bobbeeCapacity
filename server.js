@@ -1600,11 +1600,15 @@ app.get('/api/jira/children', auth, aw(async (req, res) => {
   if (!key) return res.status(400).json({ error: 'key requis' });
   if (!process.env.JIRA_BASE_URL) return res.json([]);
 
+  let teamField = null;
+  try { const f = await getJiraFieldIds(); teamField = f.team; } catch {}
+  const extraFields = teamField ? `,${teamField}` : '';
+
   const jql = `project = MP AND parent = "${key}" AND issuetype != RSD`;
   let data;
   try {
     data = await jiraRequest(
-      `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,issuetype,customfield_10016,customfield_10020&maxResults=100`
+      `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,issuetype,customfield_10016,customfield_10020${extraFields}&maxResults=100`
     );
   } catch (e) {
     return res.status(502).json({ error: 'Erreur Jira : ' + e.message });
@@ -1616,13 +1620,15 @@ app.get('/api/jira/children', auth, aw(async (req, res) => {
     const sp = Array.isArray(sprints)
       ? (sprints.find(s => s.state === 'active') || sprints[sprints.length - 1])
       : null;
+    const teamVal = teamField ? i.fields[teamField] : null;
     return {
-      jira_id:     i.key,
-      label:       (i.fields.summary || i.key).slice(0, 200),
-      type:        i.fields.issuetype?.name || 'Story',
-      status:      i.fields.status?.name   || '',
-      sprint_name: sp?.name || null,
-      points:      Number(i.fields.customfield_10016) || 0,
+      jira_id:      i.key,
+      label:        (i.fields.summary || i.key).slice(0, 200),
+      type:         i.fields.issuetype?.name || 'Story',
+      status:       i.fields.status?.name   || '',
+      sprint_name:  sp?.name || null,
+      points:       Number(i.fields.customfield_10016) || 0,
+      team_jira_id: teamVal?.id || (typeof teamVal === 'string' ? teamVal : null),
     };
   });
   res.json(children);
