@@ -463,7 +463,7 @@ async function navTo(p,noPush=false){
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();await loadSprintBreakdown();renderCharts();}
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams(),loadAllMembersWithTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
-  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
+  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');_ganttChildrenLoaded=false;_loadGanttChildrenBulk();}
   if(p==='objectives'){
     document.getElementById('sprint-bar-sticky')?.classList.remove('active');
     document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement des objectifs…</p></div>`;
@@ -2038,6 +2038,7 @@ let blGanttLeftW=Number(localStorage.getItem('bl_gantt_left_w'))||260;
 let blGanttExpanded  = new Set(); // jiraIds actuellement développés
 let blGanttChildren  = {};        // cache : jiraId → tableau d'enfants
 let blChildPositions = {};        // cache : jiraId → { offset_px, sprint_name }
+let _ganttChildrenLoaded = false; // reset lors du rechargement du backlog
 let blPrioExpanded   = new Set(); // jiraIds ouverts dans l'onglet priorisation
 let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null, bc: null };
 let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
@@ -2245,6 +2246,8 @@ function renderGanttFor(backlogItems, wrapId){
   const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
   // Map index pour nSprintsBack O(1)
   const spIdxMap=new Map(sortedSprints.map((s,i)=>[String(s.id),i]));
+  // Map par nom de sprint pour les lookups enfants (outline étendue)
+  const spNameMap=new Map(S.sprints.map(s=>[s.name,s]));
   // Début = sprint courant - SPRINTS_BEFORE, pour permettre de scroller vers les sprints passés
   const SPRINTS_BEFORE=1;
   let curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)<=today&&new Date(s.end)>=today);
@@ -2341,12 +2344,12 @@ function renderGanttFor(backlogItems, wrapId){
     const spStartX=toX(sp.start);
     const spW=toX(sp.end)+PX-spStartX;               // largeur totale du sprint assigné
     const e=r.effort;
-    let bx,bw,showOutline=false;
+    let bx,bw;
     if(!e||e<=3){
       // effort 0/3 = 1 sprint entier ; effort 1 = 7j ; effort 2 = 14j (+ contour fantôme)
       const {days,firstStartX}=nSprintsBack(sp,1);
       if(!e||e===3){bx=firstStartX;bw=days*PX;}
-      else{bx=spStartX;bw=Math.min((e<=1?7:14)*PX,spW);showOutline=true;}
+      else{bx=spStartX;bw=Math.min((e<=1?7:14)*PX,spW);}
     } else if(e<=5){
       const {days,firstStartX}=nSprintsBack(sp,2);
       bx=firstStartX;bw=days*PX;
@@ -2355,11 +2358,23 @@ function renderGanttFor(backlogItems, wrapId){
       bx=firstStartX;bw=days*PX;
     }
     bw=Math.max(16,bw);
+    // Contour étendu : sprint le plus tôt parmi les tickets enfants chargés
+    let childMinStartX=null;
+    for(const ch of (blGanttChildren[r.jira_id]||[])){
+      const spName=blChildPositions[ch.jira_id]?.sprint_name||ch.sprint_name;
+      const chSp=spName?spNameMap.get(spName):null;
+      if(chSp?.start){const chX=toX(chSp.start);if(childMinStartX===null||chX<childMinStartX)childMinStartX=chX;}
+    }
+    // Pour effort 1/2, le contour couvre au moins le sprint complet ; pour les autres, il part du début de la barre
+    const baseOutlineLeft=(e===1||e===2)?spStartX:bx;
+    const outlineLeft=childMinStartX!==null?Math.min(baseOutlineLeft,childMinStartX):baseOutlineLeft;
+    const outlineRight=toX(sp.end)+PX;
+    const showOutline=outlineLeft<bx||(e===1||e===2);
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const sc=riceScore(r);
     const isAdminG=['admin','super_admin'].includes(CU?.role);
-    const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" data-outline-for="${r.id}" style="left:${spStartX}px;width:${spW}px;border-color:${bc(r.id)}"></div>`:'';
+    const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" data-outline-for="${r.id}" style="left:${outlineLeft}px;width:${outlineRight-outlineLeft}px;border-color:${bc(r.id)}"></div>`:'';
     const dragFeatAttrs=isAdminG
       ?` data-drag-feat="${r.id}" data-drag-feat-sprint="${sp.id}" data-drag-bw-feat="${bw}" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px;cursor:grab"`
       :` style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px"`;
@@ -2450,6 +2465,23 @@ function sprintAtX(x) {
     const ex = toX(s.end) + _ganttMeta.PX;
     return x >= sx && x < ex;
   }) || null;
+}
+
+// Chargement en masse des tickets enfants pour tous les features du backlog
+// Permet de calculer l'outline étendue (contour débutant au premier enfant)
+async function _loadGanttChildrenBulk() {
+  if (_ganttChildrenLoaded) return;
+  const jiraIds = (S.backlog || []).filter(r => r.jira_id).map(r => r.jira_id);
+  if (!jiraIds.length) return;
+  const BATCH = 200;
+  try {
+    for (let i = 0; i < jiraIds.length; i += BATCH) {
+      const data = await API.get('/api/jira/children/bulk?keys=' + jiraIds.slice(i, i + BATCH).join(','));
+      Object.assign(blGanttChildren, data);
+    }
+    _ganttChildrenLoaded = true;
+    if (blActiveTab === 'chrono') renderGantt();
+  } catch {}
 }
 
 function _renderGanttChildren(jiraId, children) {
@@ -2559,13 +2591,19 @@ let _ganttDrag = null; // état courant du drag
 // Listeners document attachés une seule fois (évite les doublons au re-render)
 document.addEventListener('mousemove', e => {
   if (!_ganttDrag) return;
-  const { bar, bw, startLeft, startMouseX, timeline, outline, startOutlineLeft } = _ganttDrag;
+  const { bar, bw, startLeft, startMouseX, timeline, outline, startOutlineLeft, type } = _ganttDrag;
   const { totalW } = _ganttMeta;
   const dx = e.clientX - startMouseX;
-  const newLeft = Math.max(0, Math.min(totalW - bw, startLeft + dx));
+  const rawLeft = Math.max(0, Math.min(totalW - bw, startLeft + dx));
+  let newLeft = rawLeft;
+  if (type === 'child') {
+    // Snap au début du sprint survolé pour les tickets enfants
+    const hovSp = sprintAtX(rawLeft + bw / 2);
+    if (hovSp && _ganttMeta.toX) newLeft = _ganttMeta.toX(hovSp.start);
+  }
   bar.style.left = newLeft + 'px';
   // Déplacer l'outline (barre fantôme des features multi-sprint) solidairement
-  if (outline) outline.style.left = (startOutlineLeft + dx) + 'px';
+  if (outline) outline.style.left = (startOutlineLeft + (newLeft - startLeft)) + 'px';
 
   // Surbrillance du sprint survolé
   if (timeline) {
@@ -2601,10 +2639,10 @@ document.addEventListener('mouseup', async e => {
 
   if (type === 'child') {
     const { childId, parentId } = drag;
-    const { PX, toX } = _ganttMeta;
+    const { toX } = _ganttMeta;
     const spStartX = toX(sp.start);
-    const spEndX   = toX(sp.end) + PX;
-    const offset = Math.max(0, Math.min(finalLeft - spStartX, spEndX - bw - spStartX));
+    bar.style.left = spStartX + 'px'; // snap définitif au début du sprint
+    const offset = 0;
     const child = (blGanttChildren[parentId] || []).find(c => c.jira_id === childId);
     const prevPos = blChildPositions[childId];
     const prevSprintName = prevPos?.sprint_name || child?.sprint_name || null;
@@ -3039,6 +3077,7 @@ async function syncJira(btnId, statusId){
     if(status)status.textContent=msg;
     toast(`${r.imported} importé(s), ${r.updated} mis à jour${sprintPart}`,'success');
     await loadBacklog();
+    _ganttChildrenLoaded=false;
     renderBacklog();
   }catch(e){
     toast(e.error||'Erreur de synchronisation','error');

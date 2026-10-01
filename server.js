@@ -1512,6 +1512,47 @@ app.get('/api/experiments', auth, aw(async (_req, res) => {
   res.json({ experiments, sprints });
 }));
 
+// GET /api/jira/children/bulk?keys=MP-1,MP-2,... — enfants de plusieurs features en une seule requête
+app.get('/api/jira/children/bulk', auth, aw(async (req, res) => {
+  if (!process.env.JIRA_BASE_URL) return res.json({});
+  const keyList = (req.query.keys || '').split(',').map(k => k.trim()).filter(Boolean).slice(0, 300);
+  if (!keyList.length) return res.json({});
+
+  const jql = `project = MP AND parent in (${keyList.map(k => `"${k.replace(/"/g, '\\"')}"`).join(',')}) AND issuetype != RSD`;
+  const issues = [];
+  let nextPageToken = null;
+  for (let page = 0; page < 30; page++) {
+    let url = `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,issuetype,customfield_10016,customfield_10020,parent&maxResults=100`;
+    if (nextPageToken) url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
+    let data;
+    try { data = await jiraRequest(url); } catch { break; }
+    const batch = data.issues || [];
+    issues.push(...batch);
+    nextPageToken = data.nextPageToken || null;
+    if (!nextPageToken || batch.length < 100) break;
+  }
+
+  const result = {};
+  for (const i of issues) {
+    const parentKey = i.fields.parent?.key;
+    if (!parentKey) continue;
+    const sprints = i.fields.customfield_10020;
+    const sp = Array.isArray(sprints)
+      ? (sprints.find(s => s.state === 'active') || sprints[sprints.length - 1])
+      : null;
+    if (!result[parentKey]) result[parentKey] = [];
+    result[parentKey].push({
+      jira_id:     i.key,
+      label:       (i.fields.summary || i.key).slice(0, 200),
+      type:        i.fields.issuetype?.name || 'Story',
+      status:      i.fields.status?.name   || '',
+      sprint_name: sp?.name || null,
+      points:      Number(i.fields.customfield_10016) || 0,
+    });
+  }
+  res.json(result);
+}));
+
 // GET /api/jira/children?key=MP-1515 — tickets enfants d'une feature
 app.get('/api/jira/children', auth, aw(async (req, res) => {
   const { key } = req.query;
