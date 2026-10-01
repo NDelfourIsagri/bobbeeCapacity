@@ -2228,8 +2228,28 @@ function renderGanttFor(backlogItems, wrapId){
   _ganttMeta.PX = PX;
   // Map O(1) pour les lookups de sprint par id
   const spMap=new Map(S.sprints.map(s=>[String(s.id),s]));
-  // WI avec sprint planifié, triés par sprint puis score RICE décroissant
-  const items=(backlogItems||[]).filter(r=>r.sprint_id).sort((a,b)=>{
+  // gStart calculé en premier pour filtrer les features hors fenêtre
+  const today=new Date();today.setHours(0,0,0,0);
+  // Sprints triés par date
+  const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  // Map index pour nSprintsBack O(1)
+  const spIdxMap=new Map(sortedSprints.map((s,i)=>[String(s.id),i]));
+  // Map par nom de sprint pour les lookups enfants (outline étendue)
+  const spNameMap=new Map(S.sprints.map(s=>[s.name,s]));
+  // Début de la fenêtre = sprint courant - SPRINTS_BEFORE
+  const SPRINTS_BEFORE=1;
+  let curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)<=today&&new Date(s.end)>=today);
+  if(curIdx<0)curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)>today);
+  if(curIdx<0)curIdx=Math.max(0,sortedSprints.length-1);
+  const gStartSprint=sortedSprints[Math.max(0,curIdx-SPRINTS_BEFORE)];
+  const gStart=gStartSprint?new Date(gStartSprint.start):new Date(today.getFullYear(),today.getMonth(),1);
+  gStart.setHours(0,0,0,0);
+  // WI dont le sprint se termine dans la fenêtre visible (≥ gStart), triés par sprint puis RICE
+  const items=(backlogItems||[]).filter(r=>{
+    if(!r.sprint_id)return false;
+    const sp=spMap.get(String(r.sprint_id));
+    return sp?.end&&new Date(sp.end)>=gStart;
+  }).sort((a,b)=>{
     const sa=spMap.get(String(a.sprint_id));
     const sb=spMap.get(String(b.sprint_id));
     const da=sa?.start?new Date(sa.start):new Date('9999-01-01');
@@ -2240,22 +2260,6 @@ function renderGanttFor(backlogItems, wrapId){
     wrap.innerHTML=`<div class="gantt-empty">Aucun Work Item avec sprint planifié.<br><span style="font-size:12px">Assigne un sprint dans l'onglet Priorisation pour visualiser la chronologie.</span></div>`;
     return;
   }
-  // Plage de dates
-  const today=new Date();today.setHours(0,0,0,0);
-  // Sprints triés par date (nécessaire avant gStart)
-  const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
-  // Map index pour nSprintsBack O(1)
-  const spIdxMap=new Map(sortedSprints.map((s,i)=>[String(s.id),i]));
-  // Map par nom de sprint pour les lookups enfants (outline étendue)
-  const spNameMap=new Map(S.sprints.map(s=>[s.name,s]));
-  // Début = sprint courant - SPRINTS_BEFORE, pour permettre de scroller vers les sprints passés
-  const SPRINTS_BEFORE=1;
-  let curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)<=today&&new Date(s.end)>=today);
-  if(curIdx<0)curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)>today);
-  if(curIdx<0)curIdx=Math.max(0,sortedSprints.length-1);
-  const gStartSprint=sortedSprints[Math.max(0,curIdx-SPRINTS_BEFORE)];
-  const gStart=gStartSprint?new Date(gStartSprint.start):new Date(today.getFullYear(),today.getMonth(),1);
-  gStart.setHours(0,0,0,0);
   let gEnd=new Date(today.getTime()+90*86400000);
   S.sprints.forEach(s=>{if(s.end){const e=new Date(s.end);if(e>gEnd)gEnd=e;}});
   gEnd=new Date(gEnd.getFullYear(),gEnd.getMonth()+2,0);
@@ -2467,20 +2471,33 @@ function sprintAtX(x) {
   }) || null;
 }
 
-// Chargement en masse des tickets enfants pour tous les features du backlog
+// Chargement en masse des tickets enfants pour les features dans la fenêtre Gantt
 // Permet de calculer l'outline étendue (contour débutant au premier enfant)
 async function _loadGanttChildrenBulk() {
   if (_ganttChildrenLoaded) return;
-  const jiraIds = (S.backlog || []).filter(r => r.jira_id).map(r => r.jira_id);
-  if (!jiraIds.length) return;
-  const BATCH = 200;
+  // Calculer gStart (même logique que renderGanttFor) pour filtrer les features hors fenêtre
+  const now=new Date();now.setHours(0,0,0,0);
+  const sorted=(S.sprints||[]).filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  let ci=sorted.findIndex(s=>!s.closed&&new Date(s.start)<=now&&new Date(s.end)>=now);
+  if(ci<0)ci=sorted.findIndex(s=>!s.closed&&new Date(s.start)>now);
+  if(ci<0)ci=Math.max(0,sorted.length-1);
+  const gSp=sorted[Math.max(0,ci-1)];
+  const gStart=gSp?new Date(gSp.start):now;gStart.setHours(0,0,0,0);
+  const spMap=new Map((S.sprints||[]).map(s=>[String(s.id),s]));
+  const jiraIds=(S.backlog||[]).filter(r=>{
+    if(!r.jira_id||!r.sprint_id)return false;
+    const sp=spMap.get(String(r.sprint_id));
+    return sp?.end&&new Date(sp.end)>=gStart;
+  }).map(r=>r.jira_id);
+  if(!jiraIds.length)return;
+  const BATCH=200;
   try {
-    for (let i = 0; i < jiraIds.length; i += BATCH) {
-      const data = await API.get('/api/jira/children/bulk?keys=' + jiraIds.slice(i, i + BATCH).join(','));
-      Object.assign(blGanttChildren, data);
+    for(let i=0;i<jiraIds.length;i+=BATCH){
+      const data=await API.get('/api/jira/children/bulk?keys='+jiraIds.slice(i,i+BATCH).join(','));
+      Object.assign(blGanttChildren,data);
     }
-    _ganttChildrenLoaded = true;
-    if (blActiveTab === 'chrono') renderGantt();
+    _ganttChildrenLoaded=true;
+    if(blActiveTab==='chrono')renderGantt();
   } catch {}
 }
 
