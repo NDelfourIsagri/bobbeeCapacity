@@ -842,50 +842,11 @@ app.get('/api/backlog/cross-team', auth, aw(async (req, res) => {
   const parentKeys = [...new Set(issues.map(i => i.fields.parent?.key).filter(Boolean))];
   if (!parentKeys.length) return res.json([]);
 
-  // Features trouvées en DB (appartenant à d'autres équipes)
-  const [dbRows] = await pool.query(
+  const [rows] = await pool.query(
     'SELECT * FROM backlog WHERE jira_id IN (?) AND team_id != ?',
     [parentKeys, teamId]
   );
-  const dbKeySet = new Set(dbRows.map(r => r.jira_id));
-
-  // Parents absents de la DB = features sans équipe non importées → fetch Jira directement
-  const missingKeys = parentKeys.filter(k => !dbKeySet.has(k));
-  const jiraItems = [];
-  if (missingKeys.length) {
-    try {
-      const [spRows] = await pool.query('SELECT id, name FROM sprints');
-      const spByNameLow = new Map(spRows.map(s => [s.name.trim().toLowerCase(), s.id]));
-
-      const missingJql = `key in (${missingKeys.map(k => `"${k.replace(/"/g, '\\"')}"`).join(',')})`;
-      const data = await jiraRequest(
-        `/rest/api/3/search/jql?jql=${encodeURIComponent(missingJql)}&fields=summary,customfield_10016,customfield_10020&maxResults=100`
-      );
-      for (const i of (data.issues || [])) {
-        const sf = i.fields?.customfield_10020;
-        const jiraSp = Array.isArray(sf)
-          ? (sf.find(s => s.state === 'active') || sf[sf.length - 1])
-          : null;
-        const sprintId = jiraSp?.name
-          ? (spByNameLow.get(jiraSp.name.trim().toLowerCase()) || null)
-          : null;
-        jiraItems.push({
-          id: null,
-          team_id: null,
-          jira_id: i.key,
-          label: (i.fields?.summary || i.key).slice(0, 500),
-          sprint_id: sprintId,
-          reach: 0, impact: 0, confidence: 0,
-          effort: Number(i.fields?.customfield_10016) || 0,
-          position: 0,
-        });
-      }
-    } catch (e) {
-      console.warn('cross-team jira fetch missing parents:', e.message);
-    }
-  }
-
-  res.json([...dbRows, ...jiraItems]);
+  res.json(rows);
 }));
 
 app.post('/api/backlog', auth, adminOnly, aw(async (req, res) => {

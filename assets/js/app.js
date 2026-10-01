@@ -2329,7 +2329,7 @@ function renderGanttFor(backlogItems, wrapId){
       ?`<button class="gantt-expand-btn${blGanttExpanded.has(r.jira_id)?' open':''}" onclick="toggleGanttFeature('${r.jira_id}')" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`
       :`<span class="gantt-expand-placeholder"></span>`;
     const crossBadge=r._crossTeam
-      ?`<span class="gantt-cross-team-badge" style="${tcss(r.team_id)}">${crossTeamNamesMap.get(String(r.team_id))||'Sans équipe'}</span>`
+      ?`<span class="gantt-cross-team-badge" style="${tcss(r.team_id)}">${crossTeamNamesMap.get(String(r.team_id))||'?'}</span>`
       :'';
     return `<div class="gantt-left-wi${r._crossTeam?' gantt-wi-cross-team':''}" style="height:${ROW_H}px" data-gantt-id="${r.jira_id||r.id}" title="${lbl}">
       ${expandBtn}
@@ -2387,7 +2387,7 @@ function renderGanttFor(backlogItems, wrapId){
     const isAdminG=['admin','super_admin'].includes(CU?.role);
     const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" data-outline-for="${r.id}" style="left:${outlineLeft}px;width:${outlineRight-outlineLeft}px;border-color:${bc(r.id)}"></div>`:'';
     const barExtraClass=r._crossTeam?' gantt-bar-cross-team':'';
-    const dragFeatAttrs=(isAdminG && r.id !== null)
+    const dragFeatAttrs=isAdminG
       ?` data-drag-feat="${r.id}" data-drag-feat-sprint="${sp.id}" data-drag-bw-feat="${bw}" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px;cursor:grab"`
       :` style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px"`;
     return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}">
