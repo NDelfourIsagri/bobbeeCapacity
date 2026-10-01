@@ -407,6 +407,9 @@ tr.agenda-former .td-member::after{content:'parti';position:absolute;bottom:2px;
 .gantt-child-wi.done{opacity:.45;}
 .gantt-child-wi.done .gantt-wi-label{text-decoration:line-through;}
 .gantt-child-type-badge{font-size:9px;font-weight:600;color:var(--text3);background:var(--bg2);padding:1px 5px;border-radius:3px;flex-shrink:0;white-space:nowrap;margin-left:auto;}
+.gantt-cross-team-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;white-space:nowrap;margin-left:4px;}
+.gantt-wi-cross-team{opacity:0.9;}
+.gantt-bar-cross-team{opacity:0.82;border:1.5px dashed rgba(255,255,255,0.45);}
 .gantt-child-bar{height:14px!important;top:13px;border-radius:3px;opacity:.7;transition:box-shadow .15s,opacity .15s;}
 .gantt-child-bar.done{opacity:.45;}
 .gantt-child-bar[data-drag-child]{cursor:grab;}

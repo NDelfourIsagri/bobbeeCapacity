@@ -814,6 +814,41 @@ app.get('/api/backlog', auth, aw(async (req, res) => {
   res.json(rows);
 }));
 
+// GET /api/backlog/cross-team?teamId=X — features d'autres équipes dont au moins un enfant appartient à l'équipe X
+app.get('/api/backlog/cross-team', auth, aw(async (req, res) => {
+  const { teamId } = req.query;
+  if (!teamId) return res.status(400).json({ error: 'teamId requis' });
+  if (!process.env.JIRA_BASE_URL) return res.json([]);
+
+  const [teamRows] = await pool.query('SELECT jira_team_id FROM teams WHERE id=? LIMIT 1', [teamId]);
+  if (!teamRows.length || !teamRows[0].jira_team_id) return res.json([]);
+  const jiraTeamId = teamRows[0].jira_team_id;
+
+  // Tickets enfants de l'équipe dont le parent appartient à une autre équipe
+  const jql = `project = MP AND "Team[Team]" = "${jiraTeamId}" AND parent is not EMPTY AND issuetype != RSD`;
+  const issues = [];
+  let nextPageToken = null;
+  for (let page = 0; page < 20; page++) {
+    let url = `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=parent&maxResults=100`;
+    if (nextPageToken) url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
+    let data;
+    try { data = await jiraRequest(url); } catch { break; }
+    const batch = data.issues || [];
+    issues.push(...batch);
+    nextPageToken = data.nextPageToken || null;
+    if (!nextPageToken || batch.length < 100) break;
+  }
+
+  const parentKeys = [...new Set(issues.map(i => i.fields.parent?.key).filter(Boolean))];
+  if (!parentKeys.length) return res.json([]);
+
+  const [rows] = await pool.query(
+    'SELECT * FROM backlog WHERE jira_id IN (?) AND team_id != ?',
+    [parentKeys, teamId]
+  );
+  res.json(rows);
+}));
+
 app.post('/api/backlog', auth, adminOnly, aw(async (req, res) => {
   const { teamId, jiraId, label, sprintId, reach, impact, confidence, effort } = req.body;
   if (!teamId) return res.status(400).json({ error: 'teamId requis' });
@@ -1518,11 +1553,15 @@ app.get('/api/jira/children/bulk', auth, aw(async (req, res) => {
   const keyList = (req.query.keys || '').split(',').map(k => k.trim()).filter(Boolean).slice(0, 300);
   if (!keyList.length) return res.json({});
 
+  let teamField = null;
+  try { const f = await getJiraFieldIds(); teamField = f.team; } catch {}
+  const extraFields = teamField ? `,${teamField}` : '';
+
   const jql = `project = MP AND parent in (${keyList.map(k => `"${k.replace(/"/g, '\\"')}"`).join(',')}) AND issuetype != RSD`;
   const issues = [];
   let nextPageToken = null;
   for (let page = 0; page < 30; page++) {
-    let url = `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,issuetype,customfield_10016,customfield_10020,parent&maxResults=100`;
+    let url = `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,status,issuetype,customfield_10016,customfield_10020,parent${extraFields}&maxResults=100`;
     if (nextPageToken) url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
     let data;
     try { data = await jiraRequest(url); } catch { break; }
@@ -1540,14 +1579,16 @@ app.get('/api/jira/children/bulk', auth, aw(async (req, res) => {
     const sp = Array.isArray(sprints)
       ? (sprints.find(s => s.state === 'active') || sprints[sprints.length - 1])
       : null;
+    const teamVal = teamField ? i.fields[teamField] : null;
     if (!result[parentKey]) result[parentKey] = [];
     result[parentKey].push({
-      jira_id:     i.key,
-      label:       (i.fields.summary || i.key).slice(0, 200),
-      type:        i.fields.issuetype?.name || 'Story',
-      status:      i.fields.status?.name   || '',
-      sprint_name: sp?.name || null,
-      points:      Number(i.fields.customfield_10016) || 0,
+      jira_id:      i.key,
+      label:        (i.fields.summary || i.key).slice(0, 200),
+      type:         i.fields.issuetype?.name || 'Story',
+      status:       i.fields.status?.name   || '',
+      sprint_name:  sp?.name || null,
+      points:       Number(i.fields.customfield_10016) || 0,
+      team_jira_id: teamVal?.id || (typeof teamVal === 'string' ? teamVal : null),
     });
   }
   res.json(result);

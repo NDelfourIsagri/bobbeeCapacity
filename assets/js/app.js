@@ -463,7 +463,7 @@ async function navTo(p,noPush=false){
   if(p==='charts'){await Promise.all([loadSprints(),loadTeam(),loadLeaves()]);initSprintSel();await loadSprintBreakdown();renderCharts();}
   if(p==='settings'){await Promise.all([loadTeam(),loadConfig(),loadTeams(),loadAllMembersWithTeams()]);renderSettings();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
   if(p==='users'){await loadUsers();renderUsers();document.getElementById('sprint-bar-sticky')?.classList.remove('active');}
-  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');_ganttChildrenLoaded=false;_loadGanttChildrenBulk();}
+  if(p==='backlog'){await Promise.all([loadSprints(),loadBacklog(),loadObjectives()]);renderBacklog();document.getElementById('sprint-bar-sticky')?.classList.remove('active');_ganttChildrenLoaded=false;_crossTeamLoaded=false;_loadGanttChildrenBulk();_loadCrossTeamFeatures();}
   if(p==='objectives'){
     document.getElementById('sprint-bar-sticky')?.classList.remove('active');
     document.getElementById('obj-content').innerHTML=`<div class="obj-empty"><span class="material-icons-round" style="animation:spin 1s linear infinite;font-size:36px;color:var(--primary)">sync</span><p>Chargement des objectifs…</p></div>`;
@@ -2039,6 +2039,7 @@ let blGanttExpanded  = new Set(); // jiraIds actuellement développés
 let blGanttChildren  = {};        // cache : jiraId → tableau d'enfants
 let blChildPositions = {};        // cache : jiraId → { offset_px, sprint_name }
 let _ganttChildrenLoaded = false; // reset lors du rechargement du backlog
+let _crossTeamLoaded    = false; // reset lors du rechargement du backlog
 let blPrioExpanded   = new Set(); // jiraIds ouverts dans l'onglet priorisation
 let _ganttMeta = { totalW: 0, ROW_H: 40, PX: 10, toX: null, bc: null };
 let _blL3=136; // mis à jour au rendu, utilisé par le resize handler
@@ -2200,7 +2201,8 @@ function renderGantt(){
   _initObjFilter();
   const sel=document.getElementById('bl-filter-obj');
   const objVal=sel?sel.value:'';
-  let items=S.backlog||[];
+  const crossItems=(S.crossTeamBacklog||[]).map(r=>({...r,_crossTeam:true}));
+  let items=[...(S.backlog||[]),...crossItems];
   if(objVal==='__orphan__'){
     const allIds=new Set();
     Object.entries(S.objectivesData?.objectives||{}).forEach(([k,feats])=>{
@@ -2319,16 +2321,21 @@ function renderGanttFor(backlogItems, wrapId){
   _ganttMeta.bc = bc;
   // === HTML ===
   // Colonne gauche
+  const crossTeamNamesMap=new Map((S.teams||[]).map(t=>[String(t.id),t.name]));
   const leftRows=items.map(r=>{
     const href=r.jira_id?`${JIRA}${encodeURIComponent(r.jira_id)}`:null;
     const lbl=(r.label||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const expandBtn=r.jira_id
       ?`<button class="gantt-expand-btn${blGanttExpanded.has(r.jira_id)?' open':''}" onclick="toggleGanttFeature('${r.jira_id}')" title="Tickets enfants"><span class="material-icons-round">chevron_right</span></button>`
       :`<span class="gantt-expand-placeholder"></span>`;
-    return `<div class="gantt-left-wi" style="height:${ROW_H}px" data-gantt-id="${r.jira_id||r.id}" title="${lbl}">
+    const crossBadge=r._crossTeam
+      ?`<span class="gantt-cross-team-badge" style="${tcss(r.team_id)}">${crossTeamNamesMap.get(String(r.team_id))||'?'}</span>`
+      :'';
+    return `<div class="gantt-left-wi${r._crossTeam?' gantt-wi-cross-team':''}" style="height:${ROW_H}px" data-gantt-id="${r.jira_id||r.id}" title="${lbl}">
       ${expandBtn}
       ${href?`<a class="gantt-wi-id" href="${href}" target="_blank" rel="noopener">${r.jira_id}</a>`:`<span class="gantt-wi-id" style="color:var(--text3)">—</span>`}
       <span class="gantt-wi-label">${lbl||'—'}</span>
+      ${crossBadge}
     </div>`;
   }).join('');
   // En-tête mois
@@ -2379,12 +2386,13 @@ function renderGanttFor(backlogItems, wrapId){
     const sc=riceScore(r);
     const isAdminG=['admin','super_admin'].includes(CU?.role);
     const outlineHtml=showOutline?`<div class="gantt-bar-sprint-outline" data-outline-for="${r.id}" style="left:${outlineLeft}px;width:${outlineRight-outlineLeft}px;border-color:${bc(r.id)}"></div>`:'';
+    const barExtraClass=r._crossTeam?' gantt-bar-cross-team':'';
     const dragFeatAttrs=isAdminG
       ?` data-drag-feat="${r.id}" data-drag-feat-sprint="${sp.id}" data-drag-bw-feat="${bw}" style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px;cursor:grab"`
       :` style="left:${bx}px;width:${bw}px;background:${bc(r.id)};height:24px"`;
     return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}">
       ${outlineHtml}
-      <div class="gantt-bar"${dragFeatAttrs} title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
+      <div class="gantt-bar${barExtraClass}"${dragFeatAttrs} title="${lbl} · RICE: ${sc||'—'} · Effort: ${r.effort||0}">
         <span class="gantt-bar-label">${r.jira_id||lbl}</span>
         ${href?`<a class="gantt-bar-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="material-icons-round">open_in_new</span></a>`:''}
       </div>
@@ -2410,8 +2418,12 @@ function renderGanttFor(backlogItems, wrapId){
     </div>
   </div>`;
   // Ré-afficher les enfants déjà chargés (re-render après changement d'équipe/sprint)
+  const _curTeamJiraId=(S.teams||[]).find(t=>String(t.id)===String(selectedTeamId))?.jira_team_id||null;
   blGanttExpanded.forEach(jiraId => {
-    if (blGanttChildren[jiraId]) _renderGanttChildren(jiraId, blGanttChildren[jiraId]);
+    if (blGanttChildren[jiraId]) {
+      const isCross=(S.crossTeamBacklog||[]).some(r=>r.jira_id===jiraId);
+      _renderGanttChildren(jiraId,blGanttChildren[jiraId],isCross?_curTeamJiraId:null);
+    }
   });
   // Activer le drag sur les barres enfants (admin uniquement, délégation sur le conteneur)
   if (['admin','super_admin'].includes(CU?.role)) {
@@ -2456,7 +2468,9 @@ async function toggleGanttFeature(jiraId) {
         Object.assign(blChildPositions, pos);
       } catch {}
     }
-    _renderGanttChildren(jiraId, blGanttChildren[jiraId]);
+    const _isCross=(S.crossTeamBacklog||[]).some(r=>r.jira_id===jiraId);
+    const _tf=_isCross?((S.teams||[]).find(t=>String(t.id)===String(selectedTeamId))?.jira_team_id||null):null;
+    _renderGanttChildren(jiraId, blGanttChildren[jiraId], _tf);
   }
 }
 
@@ -2469,6 +2483,18 @@ function sprintAtX(x) {
     const ex = toX(s.end) + _ganttMeta.PX;
     return x >= sx && x < ex;
   }) || null;
+}
+
+// Chargement des features cross-team (appartenant à d'autres équipes mais avec des enfants dans l'équipe courante)
+async function _loadCrossTeamFeatures() {
+  if (_crossTeamLoaded || !selectedTeamId) return;
+  try {
+    S.crossTeamBacklog = await API.get('/api/backlog/cross-team?teamId=' + selectedTeamId);
+    _crossTeamLoaded = true;
+    if (blActiveTab === 'chrono') renderGantt();
+  } catch {
+    S.crossTeamBacklog = [];
+  }
 }
 
 // Chargement en masse des tickets enfants pour les features dans la fenêtre Gantt
@@ -2501,7 +2527,7 @@ async function _loadGanttChildrenBulk() {
   } catch {}
 }
 
-function _renderGanttChildren(jiraId, children) {
+function _renderGanttChildren(jiraId, children, teamJiraIdFilter = null) {
   const leftRow = document.querySelector(`.gantt-left-wi[data-gantt-id="${jiraId}"]`);
   const barRow  = document.querySelector(`.gantt-wi-row[data-gantt-bar-id="${jiraId}"]`);
   if (!leftRow || !barRow) return;
@@ -2512,15 +2538,20 @@ function _renderGanttChildren(jiraId, children) {
 
   const { totalW, ROW_H, PX, toX, bc } = _ganttMeta;
   const JIRA = 'https://isagri.atlassian.net/browse/';
-  // Barème SP → jours ouvrés
   const PT_DAYS = { 0.5:0.5, 1:1, 2:2, 3:3, 5:7, 8:14, 13:21 };
 
-  // Sprint et couleur du parent
-  const parentItem = S.backlog.find(b => b.jira_id === jiraId);
+  // Sprint et couleur du parent (cherche dans backlog propre + cross-team)
+  const parentItem = S.backlog.find(b => b.jira_id === jiraId)
+    || (S.crossTeamBacklog||[]).find(b => b.jira_id === jiraId);
   const parentSprint = parentItem ? S.sprints.find(s => String(s.id) === String(parentItem.sprint_id)) : null;
   const parentColor = bc ? bc(parentItem?.id ?? 0) : '#6b7280';
 
-  if (!children.length) {
+  // Pour les features cross-team : afficher uniquement les enfants de l'équipe courante
+  const displayChildren = teamJiraIdFilter
+    ? children.filter(ch => ch.team_jira_id === teamJiraIdFilter)
+    : children;
+
+  if (!displayChildren.length) {
     const lEl = document.createElement('div');
     lEl.className = 'gantt-left-wi gantt-child-wi'; lEl.dataset.ganttParent = jiraId;
     lEl.style.height = ROW_H + 'px';
@@ -2537,7 +2568,7 @@ function _renderGanttChildren(jiraId, children) {
   let lastLeft = leftRow, lastBar = barRow;
   let hasChildInLaterSprint = false;
 
-  children.forEach(child => {
+  displayChildren.forEach(child => {
     const lbl = (child.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const href = child.jira_id ? `${JIRA}${encodeURIComponent(child.jira_id)}` : null;
     const done = ['10 - termine', '9 - a livrer en prod'].includes(child.status.trim().toLowerCase());
@@ -3094,7 +3125,7 @@ async function syncJira(btnId, statusId){
     if(status)status.textContent=msg;
     toast(`${r.imported} importé(s), ${r.updated} mis à jour${sprintPart}`,'success');
     await loadBacklog();
-    _ganttChildrenLoaded=false;
+    _ganttChildrenLoaded=false;_crossTeamLoaded=false;
     renderBacklog();
   }catch(e){
     toast(e.error||'Erreur de synchronisation','error');
