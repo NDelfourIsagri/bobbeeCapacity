@@ -2225,10 +2225,12 @@ function renderGanttFor(backlogItems, wrapId){
   const ROW_H=40,MH=36,SH=36;
   _ganttMeta.ROW_H = ROW_H;
   _ganttMeta.PX = PX;
+  // Map O(1) pour les lookups de sprint par id
+  const spMap=new Map(S.sprints.map(s=>[String(s.id),s]));
   // WI avec sprint planifié, triés par sprint puis score RICE décroissant
   const items=(backlogItems||[]).filter(r=>r.sprint_id).sort((a,b)=>{
-    const sa=S.sprints.find(s=>String(s.id)===String(a.sprint_id));
-    const sb=S.sprints.find(s=>String(s.id)===String(b.sprint_id));
+    const sa=spMap.get(String(a.sprint_id));
+    const sb=spMap.get(String(b.sprint_id));
     const da=sa?.start?new Date(sa.start):new Date('9999-01-01');
     const db=sb?.start?new Date(sb.start):new Date('9999-01-01');
     return da-db||riceScore(b)-riceScore(a);
@@ -2239,26 +2241,32 @@ function renderGanttFor(backlogItems, wrapId){
   }
   // Plage de dates
   const today=new Date();today.setHours(0,0,0,0);
-  // Début = premier jour du premier sprint non clôturé (sinon début du mois courant)
-  const firstOpenSprint=S.sprints.filter(s=>!s.closed&&s.start).sort((a,b)=>new Date(a.start)-new Date(b.start))[0];
-  const gStart=firstOpenSprint?new Date(firstOpenSprint.start):new Date(today.getFullYear(),today.getMonth(),1);
+  // Sprints triés par date (nécessaire avant gStart)
+  const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  // Map index pour nSprintsBack O(1)
+  const spIdxMap=new Map(sortedSprints.map((s,i)=>[String(s.id),i]));
+  // Début = sprint courant - SPRINTS_BEFORE, pour permettre de scroller vers les sprints passés
+  const SPRINTS_BEFORE=1;
+  let curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)<=today&&new Date(s.end)>=today);
+  if(curIdx<0)curIdx=sortedSprints.findIndex(s=>!s.closed&&new Date(s.start)>today);
+  if(curIdx<0)curIdx=Math.max(0,sortedSprints.length-1);
+  const gStartSprint=sortedSprints[Math.max(0,curIdx-SPRINTS_BEFORE)];
+  const gStart=gStartSprint?new Date(gStartSprint.start):new Date(today.getFullYear(),today.getMonth(),1);
   gStart.setHours(0,0,0,0);
   let gEnd=new Date(today.getTime()+90*86400000);
   S.sprints.forEach(s=>{if(s.end){const e=new Date(s.end);if(e>gEnd)gEnd=e;}});
   gEnd=new Date(gEnd.getFullYear(),gEnd.getMonth()+2,0);
   const totalDays=Math.ceil((gEnd-gStart)/86400000)+1;
   const totalW=totalDays*PX;
-  _ganttMeta.totalW = totalW;
-  _ganttMeta.gStart = gStart;
+  _ganttMeta.totalW=totalW;
+  _ganttMeta.gStart=gStart;
   const toX=d=>{const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-gStart)/86400000)*PX;};
-  _ganttMeta.toX = toX;
-  // Sprints triés par date de début
-  const sortedSprints=S.sprints.filter(s=>s.start&&s.end).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  _ganttMeta.toX=toX;
   // Durée d'un sprint en jours (+1 car end est inclusif dans l'affichage)
   const sprintDays=s=>s?.start&&s?.end?Math.ceil((new Date(s.end)-new Date(s.start))/86400000)+1:14;
   // Retourne { days, firstStartX } pour les N sprints se terminant sur sp (inclus) + gaps inter-sprints
   const nSprintsBack=(sp,n)=>{
-    const idx=sortedSprints.findIndex(s=>String(s.id)===String(sp?.id));
+    const idx=spIdxMap.get(String(sp?.id))??-1;
     if(idx===-1)return{days:sprintDays(sp)*n,firstStartX:toX(sp?.start)};
     const slice=sortedSprints.slice(Math.max(0,idx-n+1),idx+1);
     let days=slice.reduce((sum,s)=>sum+sprintDays(s),0);
@@ -2273,14 +2281,14 @@ function renderGanttFor(backlogItems, wrapId){
   _ganttMeta.vSprints = vSprints;
   // Mois
   const months=[];
-  let mc=new Date(gStart);
-  while(mc<=gEnd){
-    const ms=new Date(mc.getFullYear(),mc.getMonth(),1);
-    const me=new Date(mc.getFullYear(),mc.getMonth()+1,0);
+  let mCursor=new Date(gStart);
+  while(mCursor<=gEnd){
+    const ms=new Date(mCursor.getFullYear(),mCursor.getMonth(),1);
+    const me=new Date(mCursor.getFullYear(),mCursor.getMonth()+1,0);
     const cs=ms<gStart?gStart:ms,ce=me>gEnd?gEnd:me;
     const w=(Math.ceil((ce-cs)/86400000)+1)*PX;
     months.push({label:ms.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}),w,today:today>=ms&&today<=me});
-    mc=new Date(mc.getFullYear(),mc.getMonth()+1,1);
+    mCursor=new Date(mCursor.getFullYear(),mCursor.getMonth()+1,1);
   }
   // Cellules sprints avec gaps
   const sCells=[];let pos=0;
@@ -2328,7 +2336,7 @@ function renderGanttFor(backlogItems, wrapId){
   // Barres WI — la barre SE TERMINE à la fin du sprint (date de livraison)
   // et L'EFFORT détermine la durée (donc le début de la barre)
   const bHtml=items.map(r=>{
-    const sp=S.sprints.find(s=>String(s.id)===String(r.sprint_id));
+    const sp=spMap.get(String(r.sprint_id));
     if(!sp?.start||!sp?.end)return `<div class="gantt-wi-row" style="width:${totalW}px;height:${ROW_H}px" data-gantt-bar-id="${r.jira_id||r.id}"></div>`;
     const spStartX=toX(sp.start);
     const spW=toX(sp.end)+PX-spStartX;               // largeur totale du sprint assigné
