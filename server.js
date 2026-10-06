@@ -1971,12 +1971,16 @@ async function runMigrations() {
     )`,
     // Typologies d'absence : Congé / Formation / Maladie
     `ALTER TABLE leaves ADD COLUMN IF NOT EXISTS leave_kind ENUM('conge','formation','maladie') NOT NULL DEFAULT 'conge'`,
+    // DROP de l'ancienne clé unique EN PREMIER pour permettre l'insertion des lignes pm
+    `ALTER TABLE leaves DROP INDEX unique_member_date`,
     // Splitter les lignes 'full' en am+pm pour autoriser des catégories différentes par demi-journée
-    `INSERT INTO leaves (team_id,leave_date,leave_type,leave_kind,reason) SELECT team_id,leave_date,'pm',leave_kind,reason FROM leaves WHERE leave_type='full'`,
+    `INSERT IGNORE INTO leaves (team_id,leave_date,leave_type,leave_kind,reason) SELECT team_id,leave_date,'pm',leave_kind,reason FROM leaves WHERE leave_type='full'`,
     `UPDATE leaves SET leave_type='am' WHERE leave_type='full'`,
     // Remplacer la contrainte unique (team_id, leave_date) par (team_id, leave_date, leave_type)
-    `ALTER TABLE leaves DROP INDEX unique_member_date`,
     `ALTER TABLE leaves ADD UNIQUE KEY unique_member_date_slot (team_id,leave_date,leave_type)`,
+    // Réparation : ajouter les lignes pm manquantes pour les am qui n'ont pas de partenaire pm
+    // (cas des données migrées partiellement avec l'ancienne migration dans le mauvais ordre)
+    `INSERT IGNORE INTO leaves (team_id,leave_date,leave_type,leave_kind,reason) SELECT a.team_id,a.leave_date,'pm',a.leave_kind,a.reason FROM leaves a WHERE a.leave_type='am' AND NOT EXISTS(SELECT 1 FROM leaves p WHERE p.team_id=a.team_id AND p.leave_date=a.leave_date AND p.leave_type='pm')`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
