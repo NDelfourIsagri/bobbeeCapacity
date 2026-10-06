@@ -649,8 +649,7 @@ function calcCap(member,start,end,leaves){
       const ds=toDS(d);
       if(!hols.has(ds)){
         totD++;
-        const lv=mLeaves.find(l=>l.date===ds);
-        if(lv) lvD+=(lv.type==='full'?1:0.5);
+        lvD+=mLeaves.filter(l=>l.date===ds).length*0.5;
       }
     }
     d.setDate(d.getDate()+1);
@@ -874,8 +873,10 @@ function renderAgenda(){
     days.forEach(({ds,dow})=>{
       const isWe=dow===0||dow===6,isHol=mHols.has(ds),isTod=ds===todayStr;
       const state=leaveState(leaves,m.id,ds);
-      const amCls=state==='full'||state==='am'?'leave':'free';
-      const pmCls=state==='full'||state==='pm'?'leave':'free';
+      const amKind=state.am?.kind||null;
+      const pmKind=state.pm?.kind||null;
+      const amCls=amKind?`leave-${amKind}`:'free';
+      const pmCls=pmKind?`leave-${pmKind}`:'free';
       let tdCls='';
       if(isTod&&!isWe&&!isHol) tdCls=' td-today';
       else if(isWe) tdCls=' td-we';
@@ -883,10 +884,10 @@ function renderAgenda(){
       let dcCls='dcell';
       if(isWe||isHol) dcCls+=' disabled';
       if(isTod&&!isWe&&!isHol) dcCls+=' dcell-today';
-      const dataAttrs=canEdit&&!isWe&&!isHol?`data-mid="${m.id}" data-ds="${ds}" data-state="${state||''}"`:'';
+      const dataAttrs=canEdit&&!isWe&&!isHol?`data-mid="${m.id}" data-ds="${ds}" data-am="${amKind||''}" data-pm="${pmKind||''}"`:'';
       html+=`<td class="${tdCls}"><div class="${dcCls}" ${dataAttrs}>
-        <div class="h ${amCls}">${amCls==='leave'?'▪':''}</div>
-        <div class="h ${pmCls}">${pmCls==='leave'?'▪':''}</div>
+        <div class="h ${amCls}">${amKind?'▪':''}</div>
+        <div class="h ${pmCls}">${pmKind?'▪':''}</div>
       </div></td>`;
     });
     html+=`</tr>`;
@@ -899,14 +900,14 @@ function renderAgenda(){
   fresh.addEventListener('click',ev=>{
     const cell=ev.target.closest('.dcell[data-mid]');
     if(!cell)return;
-    const mid=cell.dataset.mid,ds=cell.dataset.ds,state=cell.dataset.state||null;
-    setLeave(mid,ds,state==='full'?null:'full');
+    const {mid,ds,am,pm}=cell.dataset;
+    // Clic gauche : si les deux demi-journées sont absentes → supprimer tout ; sinon → journée congé
+    setLeave(mid,ds,'full',am||pm?null:'conge');
   });
   fresh.addEventListener('contextmenu',ev=>{
     const cell=ev.target.closest('.dcell[data-mid]');
     if(!cell)return;
-    const mid=cell.dataset.mid,ds=cell.dataset.ds,state=cell.dataset.state||null;
-    showCtx(ev,mid,ds,state);
+    showCtx(ev,cell.dataset.mid,cell.dataset.ds);
   });
   const isCurMo=new Date().getFullYear()===yr&&new Date().getMonth()===mo;
   if(isCurMo){
@@ -922,17 +923,28 @@ function renderAgenda(){
 function groupLeaves(leaves,team){
   const groups=[];
   team.forEach(m=>{
-    const mLeaves=leaves.filter(l=>l.memberId==m.id).sort((a,b)=>a.date>b.date?1:-1);
-    if(!mLeaves.length)return;
+    // Indexer par date → {am, pm}
+    const byDate={};
+    leaves.filter(l=>l.memberId==m.id).forEach(l=>{
+      if(!byDate[l.date])byDate[l.date]={};
+      byDate[l.date][l.type]=l;
+    });
+    const dates=Object.keys(byDate).sort();
+    if(!dates.length)return;
     let cur=null;
-    mLeaves.forEach(l=>{
-      if(cur && l.type===cur.type){
-        const prev=new Date(cur.endDate);
-        const next=new Date(l.date);
-        const diffDays=(next-prev)/86400000;
-        if(diffDays<=3){cur.endDate=l.date;cur.ids.push(l.id);return;}
+    dates.forEach(ds=>{
+      const d=byDate[ds];
+      const kind=(d.am||d.pm)?.kind||'conge';
+      const slot=d.am&&d.pm?'full':d.am?'am':'pm';
+      const ids=[d.am?.id,d.pm?.id].filter(Boolean);
+      if(cur&&cur.kind===kind){
+        const diffDays=(new Date(ds)-new Date(cur.endDate))/86400000;
+        if(diffDays<=3){
+          if(cur.slot!==slot)cur.slot='mixed';
+          cur.endDate=ds;cur.ids.push(...ids);return;
+        }
       }
-      cur={memberId:m.id,member:m,startDate:l.date,endDate:l.date,type:l.type,reason:l.reason,ids:[l.id]};
+      cur={memberId:m.id,member:m,startDate:ds,endDate:ds,kind,slot,ids};
       groups.push(cur);
     });
   });
@@ -940,78 +952,98 @@ function groupLeaves(leaves,team){
 }
 
 function renderLeaveList(leaves,team){
-  const tl={full:'Journée',am:'Matin',pm:'Après-midi'};
+  const SLOT={full:'Journée',am:'Matin',pm:'Après-midi',mixed:'Partiel'};
+  const KIND={conge:'Congé',formation:'Formation',maladie:'Maladie'};
+  const KCOL={conge:'var(--danger)',formation:'#f59e0b',maladie:'#06b6d4'};
   const el=document.getElementById('leave-list');if(!el)return;
-  if(leaves.length===0){el.innerHTML='<p style="color:var(--text3);font-size:13px">Aucun congé enregistré</p>';return;}
+  if(leaves.length===0){el.innerHTML='<p style="color:var(--text3);font-size:13px">Aucune absence enregistrée</p>';return;}
   const groups=groupLeaves(leaves,team);
   window._leaveGroups={};
   el.innerHTML=groups.sort((a,b)=>a.startDate>b.startDate?1:-1).map((g,gi)=>{
     window._leaveGroups[gi]=g.ids;
     const idx=team.findIndex(t=>t.id==g.memberId);
     const isSameDay=g.startDate===g.endDate;
-    const canDel=true;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--divider)">
       <div style="width:32px;height:32px;border-radius:50%;background:${mc(idx>=0?idx:0)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">${g.member?.fname[0]||'?'}</div>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:600">${g.member?g.member.fname+' '+g.member.lname:'?'}</div>
-        <div style="font-size:12px;color:var(--text3)">
-          ${isSameDay?fd(g.startDate):fd(g.startDate)+' → '+fd(g.endDate)}
-          · <span class="badge badge-danger" style="font-size:10px">${tl[g.type]||g.type}</span>
-          ${g.reason?' · '+g.reason:''}
+        <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+          <span>${isSameDay?fd(g.startDate):fd(g.startDate)+' → '+fd(g.endDate)}</span>
+          <span class="badge" style="background:${KCOL[g.kind]||'var(--danger)'};color:#fff;font-size:10px">${KIND[g.kind]||g.kind}</span>
+          <span>${SLOT[g.slot]||g.slot}</span>
         </div>
       </div>
-      ${canDel?`<button class="icon-btn leave-del-btn" data-gi="${gi}" title="Supprimer cette période">
+      <button class="icon-btn leave-del-btn" data-gi="${gi}" title="Supprimer cette période">
         <span class="material-icons-round" style="font-size:18px;color:var(--danger)">delete</span>
-      </button>`:''}
+      </button>
     </div>`;
   }).join('');
   el.querySelectorAll('.leave-del-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const ids=window._leaveGroups[btn.dataset.gi];
       showConfirm(
-        `Supprimer cette période (${ids.length} jour${ids.length>1?'s':''}) ?`,
+        `Supprimer cette période (${ids.length} entrée${ids.length>1?'s':''}) ?`,
         async()=>{await API.del('/api/leaves',{ids});await loadLeaves();renderAgenda();toast('Période supprimée ✓','success');},
-        'Supprimer le congé'
+        'Supprimer l\'absence'
       );
     });
   });
 }
 
 function leaveState(leaves,memberId,ds){
-  return (leaves.find(l=>l.memberId==memberId&&l.date===ds)||{}).type||null;
+  const day=leaves.filter(l=>l.memberId==memberId&&l.date===ds);
+  return{am:day.find(l=>l.type==='am')||null,pm:day.find(l=>l.type==='pm')||null};
 }
-async function setLeave(memberId,ds,type){
-  if(type){
-    await API.post('/api/leaves',{memberId,date:ds,type,reason:''});
+// slot: 'am'|'pm'|'full'  kind: 'conge'|'formation'|'maladie'|null (null = supprimer)
+async function setLeave(memberId,ds,slot,kind){
+  if(kind){
+    await API.post('/api/leaves',{memberId,date:ds,type:slot,kind,reason:''});
   }else{
-    const lv=S.leaves.find(l=>String(l.memberId)===String(memberId)&&l.date===ds);
-    if(lv)await API.del('/api/leaves',{ids:[lv.id]});
+    const slots=slot==='full'?['am','pm']:[slot];
+    const ids=S.leaves.filter(l=>String(l.memberId)===String(memberId)&&l.date===ds&&slots.includes(l.type)).map(l=>l.id);
+    if(ids.length)await API.del('/api/leaves',{ids});
   }
   await loadLeaves();
   renderAgenda();
 }
 
 // Context menu
-let _ctx=null;
+let _ctx=null,_ctxKind='conge';
 function hideCtx(){if(_ctx){_ctx.remove();_ctx=null;}}
 document.addEventListener('click',hideCtx);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideCtx();});
-function showCtx(e,memberId,ds,state){
+function showCtx(e,memberId,ds){
   e.preventDefault();e.stopPropagation();hideCtx();
-  const actions=[];
-  if(state!=='full') actions.push({icon:'wb_sunny',label:'Journée complète',fn:()=>setLeave(memberId,ds,'full')});
-  if(state!=='am')   actions.push({icon:'light_mode',label:'Matin uniquement',fn:()=>setLeave(memberId,ds,'am')});
-  if(state!=='pm')   actions.push({icon:'nights_stay',label:'Après-midi uniquement',fn:()=>setLeave(memberId,ds,'pm')});
-  if(state) actions.push(null,{icon:'close',label:'Retirer le congé',fn:()=>setLeave(memberId,ds,null),danger:true});
+  const state=leaveState(S.leaves,memberId,ds);
+  const hasAbs=!!(state.am||state.pm);
+  // Pré-sélectionner la catégorie existante
+  if(state.am?.kind)_ctxKind=state.am.kind;
+  else if(state.pm?.kind)_ctxKind=state.pm.kind;
+  const KINDS=[{k:'conge',label:'Congé'},{k:'formation',label:'Formation'},{k:'maladie',label:'Maladie'}];
   const m=document.createElement('div');m.id='ctx';
-  m.innerHTML=actions.map(a=>a===null?'<div class="ctx-sep"></div>'
-    :`<div class="ctx-item${a.danger?' ctx-danger':''}"><span class="material-icons-round">${a.icon}</span>${a.label}</div>`).join('');
+  m.innerHTML=`
+    <div class="ctx-kind-bar">${KINDS.map(k=>`<button class="ctx-kind-btn ctx-kind-${k.k}${_ctxKind===k.k?' active':''}" data-kind="${k.k}">${k.label}</button>`).join('')}</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" data-slot="full"><span class="material-icons-round">wb_sunny</span>Journée complète</div>
+    <div class="ctx-item" data-slot="am"><span class="material-icons-round">light_mode</span>Matin uniquement</div>
+    <div class="ctx-item" data-slot="pm"><span class="material-icons-round">nights_stay</span>Après-midi uniquement</div>
+    ${hasAbs?'<div class="ctx-sep"></div><div class="ctx-item ctx-danger" data-slot="del"><span class="material-icons-round">close</span>Retirer l\'absence</div>':''}
+  `;
   document.body.appendChild(m);_ctx=m;
-  let ai=0;
-  m.querySelectorAll('.ctx-item').forEach(el=>{
-    while(actions[ai]===null)ai++;
-    const fn=actions[ai++].fn;
-    el.addEventListener('click',ev=>{ev.stopPropagation();fn();hideCtx();});
+  m.querySelectorAll('.ctx-kind-btn').forEach(btn=>{
+    btn.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      _ctxKind=btn.dataset.kind;
+      m.querySelectorAll('.ctx-kind-btn').forEach(b=>b.classList.toggle('active',b.dataset.kind===_ctxKind));
+    });
+  });
+  m.querySelectorAll('.ctx-item[data-slot]').forEach(el=>{
+    el.addEventListener('click',ev=>{
+      ev.stopPropagation();hideCtx();
+      const slot=el.dataset.slot;
+      if(slot==='del') setLeave(memberId,ds,'full',null);
+      else setLeave(memberId,ds,slot,_ctxKind);
+    });
   });
   m.style.left=e.clientX+'px';m.style.top=e.clientY+'px';
   requestAnimationFrame(()=>{
@@ -1024,13 +1056,17 @@ function showCtx(e,memberId,ds,state){
 function calPrev(){calDate.setMonth(calDate.getMonth()-1);renderAgenda();}
 function calNext(){calDate.setMonth(calDate.getMonth()+1);renderAgenda();}
 
+function selectLeaveKind(k){
+  document.getElementById('lm-kind').value=k;
+  document.querySelectorAll('.leave-kind-btn').forEach(b=>b.classList.toggle('active',b.dataset.kind===k));
+}
 function openLeaveModal(){
-  const team=S.team;
   const sel=document.getElementById('lm-user');
   sel.disabled=false;
-  sel.innerHTML=team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
+  sel.innerHTML=S.team.map(m=>`<option value="${m.id}">${m.fname} ${m.lname}</option>`).join('');
   ['lm-start','lm-end','lm-reason'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('lm-type').value='full';
+  selectLeaveKind('conge');
   document.getElementById('modal-leave').classList.add('open');
 }
 async function saveLeave(){
@@ -1038,6 +1074,7 @@ async function saveLeave(){
   const start=document.getElementById('lm-start').value;
   const end=document.getElementById('lm-end').value||start;
   const type=document.getElementById('lm-type').value;
+  const kind=document.getElementById('lm-kind').value||'conge';
   const reason=document.getElementById('lm-reason').value;
   if(!memberId||!start){toast('Champs obligatoires manquants','error');return;}
   if(parseDate(end)<parseDate(start)){toast('Date de fin invalide','error');return;}
@@ -1047,7 +1084,7 @@ async function saveLeave(){
   while(d<=eD){
     const dow=d.getDay(),ds=toDS(d);
     if(dow>0&&dow<6&&!hols.has(ds)){
-      promises.push(API.post('/api/leaves',{memberId,date:ds,type,reason}));
+      promises.push(API.post('/api/leaves',{memberId,date:ds,type,kind,reason}));
     }
     d.setDate(d.getDate()+1);
   }

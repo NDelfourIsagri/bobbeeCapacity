@@ -173,7 +173,9 @@
             <div class="legend">
               <div class="legend-item"><div class="legend-dot legend-dot-today"></div>Aujourd'hui</div>
               <div class="legend-item"><div class="legend-dot legend-dot-holiday"></div>Férié</div>
-              <div class="legend-item"><div class="legend-dot legend-dot-leave"></div>Congé</div>
+              <div class="legend-item"><div class="legend-dot legend-dot-conge"></div>Congé</div>
+              <div class="legend-item"><div class="legend-dot legend-dot-formation"></div>Formation</div>
+              <div class="legend-item"><div class="legend-dot legend-dot-maladie"></div>Maladie</div>
               <div class="legend-item legend-item--hint">Clic gauche = journée · Clic droit = options</div>
             </div>
           </div>
@@ -503,9 +505,18 @@
 
 <div class="modal-overlay" id="modal-leave">
   <div class="modal modal-md">
-    <div class="modal-header"><div class="modal-title">Poser un congé</div><button class="icon-btn" onclick="closeModal('modal-leave')"><span class="material-icons-round">close</span></button></div>
+    <div class="modal-header"><div class="modal-title">Poser une absence</div><button class="icon-btn" onclick="closeModal('modal-leave')"><span class="material-icons-round">close</span></button></div>
     <div class="form-group"><label class="input-label">Membre</label><select class="input select" id="lm-user"></select></div>
-    <div class="form-group"><label class="input-label">Type</label>
+    <div class="form-group">
+      <label class="input-label">Catégorie</label>
+      <div class="leave-kind-bar">
+        <button type="button" class="leave-kind-btn leave-kind-conge active" data-kind="conge" onclick="selectLeaveKind('conge')">Congé</button>
+        <button type="button" class="leave-kind-btn leave-kind-formation" data-kind="formation" onclick="selectLeaveKind('formation')">Formation</button>
+        <button type="button" class="leave-kind-btn leave-kind-maladie" data-kind="maladie" onclick="selectLeaveKind('maladie')">Maladie</button>
+      </div>
+      <input type="hidden" id="lm-kind" value="conge">
+    </div>
+    <div class="form-group"><label class="input-label">Créneau</label>
       <select class="input select" id="lm-type">
         <option value="full">Journée complète</option>
         <option value="am">Matin uniquement</option>
@@ -516,7 +527,7 @@
       <div class="form-group"><label class="input-label">Début</label><input type="date" class="input" id="lm-start"></div>
       <div class="form-group"><label class="input-label">Fin (optionnel)</label><input type="date" class="input" id="lm-end"></div>
     </div>
-    <div class="form-group"><label class="input-label">Motif (optionnel)</label><input type="text" class="input" id="lm-reason" placeholder="Congés annuels, RTT..."></div>
+    <div class="form-group"><label class="input-label">Motif (optionnel)</label><input type="text" class="input" id="lm-reason" placeholder="RTT, déplacement..."></div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-leave')">Annuler</button><button class="btn btn-filled" onclick="saveLeave()"><span class="material-icons-round">check</span>Enregistrer</button></div>
   </div>
 </div>

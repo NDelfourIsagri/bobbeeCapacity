@@ -603,14 +603,19 @@ app.get('/api/leaves', auth, async (_req, res) => {
   res.json(rows.map(dbToLeave));
 });
 
-// POST /api/leaves  body: { memberId, date, type, reason }
+// POST /api/leaves  body: { memberId, date, type, reason, kind }
+// type: 'am'|'pm'|'full' (full insère deux lignes am+pm)
+// kind: 'conge'|'formation'|'maladie' (défaut: conge)
 app.post('/api/leaves', auth, async (req, res) => {
-  const { memberId, date, type, reason } = req.body;
-  // upsert (replace if same member+date)
-  await pool.query(
-    'INSERT INTO leaves (team_id,leave_date,leave_type,reason) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE leave_type=?,reason=?',
-    [memberId, date, type, reason||'', type, reason||'']
-  );
+  const { memberId, date, type, reason, kind } = req.body;
+  const k = ['conge','formation','maladie'].includes(kind) ? kind : 'conge';
+  const slots = type === 'full' ? ['am', 'pm'] : [type];
+  for (const slot of slots) {
+    await pool.query(
+      'INSERT INTO leaves (team_id,leave_date,leave_type,leave_kind,reason) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE leave_kind=?,reason=?',
+      [memberId, date, slot, k, reason||'', k, reason||'']
+    );
+  }
   res.json({ ok: true });
 });
 
@@ -623,7 +628,7 @@ app.delete('/api/leaves', auth, async (req, res) => {
 });
 
 function dbToLeave(r) {
-  return { id: r.id, memberId: r.team_id, date: r.leave_date, type: r.leave_type, reason: r.reason };
+  return { id: r.id, memberId: r.team_id, date: r.leave_date, type: r.leave_type, kind: r.leave_kind||'conge', reason: r.reason };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1964,6 +1969,14 @@ async function runMigrations() {
       sprint_name VARCHAR(255) NULL,
       updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )`,
+    // Typologies d'absence : Congé / Formation / Maladie
+    `ALTER TABLE leaves ADD COLUMN IF NOT EXISTS leave_kind ENUM('conge','formation','maladie') NOT NULL DEFAULT 'conge'`,
+    // Splitter les lignes 'full' en am+pm pour autoriser des catégories différentes par demi-journée
+    `INSERT INTO leaves (team_id,leave_date,leave_type,leave_kind,reason) SELECT team_id,leave_date,'pm',leave_kind,reason FROM leaves WHERE leave_type='full'`,
+    `UPDATE leaves SET leave_type='am' WHERE leave_type='full'`,
+    // Remplacer la contrainte unique (team_id, leave_date) par (team_id, leave_date, leave_type)
+    `ALTER TABLE leaves DROP INDEX unique_member_date`,
+    `ALTER TABLE leaves ADD UNIQUE KEY unique_member_date_slot (team_id,leave_date,leave_type)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
